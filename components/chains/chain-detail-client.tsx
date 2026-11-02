@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ProxyImg } from "@/components/ui/proxy-img"
 import { uploadMediaFile } from "@/lib/client-media-upload"
-import { ArrowLeft, ArrowUpRight, GitBranch, Lock, MessageCircle, Send } from "lucide-react"
+import { ArrowLeft, ArrowUpRight, Download, GitBranch, Lock, MessageCircle, Send } from "lucide-react"
 
 type Chain = {
   id: string
@@ -111,6 +111,8 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
   const [revisionHistory, setRevisionHistory] = useState<Record<string, ContributionRevision[]>>({})
   const [expandedHistory, setExpandedHistory] = useState<string | null>(null)
   const [revisionLoading, setRevisionLoading] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
+  const [exportFormat, setExportFormat] = useState<"markdown" | "json">("markdown")
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -158,6 +160,92 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
       setError(cause instanceof Error ? cause.message : "Could not load more contributions")
     } finally {
       setLoadingMore(false)
+    }
+  }
+
+  const exportChain = async () => {
+    setExporting(true)
+    setError("")
+    try {
+      const allContributions: Contribution[] = []
+      let offset = 0
+      let hasMore = true
+      while (hasMore) {
+        const params = new URLSearchParams({ limit: "100", offset: String(offset) })
+        const response = await fetch(
+          "/api/v1/chains/" + encodeURIComponent(chainId) + "?" + params.toString(),
+          { headers: getAuthHeader(), cache: "no-store" },
+        )
+        const page = await response.json()
+        if (!response.ok) throw new Error(page.message || page.error || "Could not export this Chain")
+        const batch = Array.isArray(page.contributions) ? page.contributions as Contribution[] : []
+        if (batch.length === 0) break
+        allContributions.push(...batch)
+        offset += batch.length
+        hasMore = Boolean(page.contributions_has_more)
+        if (offset >= 10_000 && hasMore) {
+          throw new Error("This Chain is larger than the 10,000 contribution export limit.")
+        }
+      }
+
+      const content = exportFormat === "json"
+        ? JSON.stringify({ chain, contributions: allContributions }, null, 2)
+        : [
+            "# " + chain.title,
+            "",
+            chain.description,
+            "",
+            chain.prompt ? "## Opening prompt\n\n" + chain.prompt : "",
+            "",
+            "Started by " + chain.creator_display_name + " (@" + chain.creator_username + ")",
+            "Format: " + chain.kind,
+            "Contributions: " + allContributions.length,
+            "",
+            "---",
+            "",
+            ...allContributions.flatMap((item, index) => {
+              const payload = item.payload || {}
+              const lines = [
+                "## " + (index + 1) + ". " + (item.title || item.contribution_type),
+                "",
+                "**" + item.author_display_name + " (@" + item.author_username + ")** · " + dateLabel(item.created_at),
+                "",
+                item.content || "",
+              ]
+              if (Array.isArray(payload.items)) {
+                lines.push("", ...payload.items.filter((entry): entry is string => typeof entry === "string").map((entry, itemIndex) =>
+                  (item.contribution_type === "ranking" ? (itemIndex + 1) + ". " : "- ") + entry
+                ))
+              }
+              if (Array.isArray(payload.options)) {
+                lines.push("", "Poll options:", ...payload.options.filter((entry): entry is string => typeof entry === "string").map((entry) => "- " + entry))
+              }
+              if (typeof payload.url === "string" && payload.url.startsWith("https://")) {
+                const label = typeof payload.file_name === "string" ? payload.file_name : "Open attachment"
+                lines.push("", "[" + label + "](" + payload.url + ")")
+              }
+              if (item.parent_contribution_id) lines.splice(0, 0, "> Reply to contribution " + item.parent_contribution_id)
+              lines.push("", "---", "")
+              return lines
+            }),
+          ].filter((line) => line !== undefined).join("\n")
+
+      const blob = new Blob([content], {
+        type: exportFormat === "json" ? "application/json;charset=utf-8" : "text/markdown;charset=utf-8",
+      })
+      const downloadUrl = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      const safeName = chain.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "loop-chain"
+      link.href = downloadUrl
+      link.download = safeName + (exportFormat === "json" ? ".json" : ".md")
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(downloadUrl)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not export this Chain")
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -400,7 +488,21 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">The result grows here</p>
             <h2 className="mt-1 text-2xl font-bold tracking-tight">Contribution history</h2>
           </div>
-          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><GitBranch className="h-3.5 w-3.5" /> {contributions.length} shown</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><GitBranch className="h-3.5 w-3.5" /> {contributions.length} shown</span>
+            <select
+              aria-label="Chain export format"
+              value={exportFormat}
+              onChange={(event) => setExportFormat(event.target.value as typeof exportFormat)}
+              className="h-9 rounded-lg border border-input bg-background px-2 text-xs"
+            >
+              <option value="markdown">Markdown</option>
+              <option value="json">JSON</option>
+            </select>
+            <Button type="button" size="sm" variant="outline" onClick={() => void exportChain()} disabled={exporting}>
+              <Download className="h-3.5 w-3.5" /> {exporting ? "Exporting…" : "Export"}
+            </Button>
+          </div>
         </div>
 
         {canContribute ? (
