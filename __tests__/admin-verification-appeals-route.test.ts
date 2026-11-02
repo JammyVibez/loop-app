@@ -6,6 +6,7 @@ const state = vi.hoisted(() => ({
   rpc: vi.fn(),
   from: vi.fn(),
   order: vi.fn(),
+  notificationInsert: vi.fn(),
 }))
 
 vi.mock("@/lib/server-auth", () => ({
@@ -28,8 +29,15 @@ beforeEach(() => {
     error: null,
   })
   state.order.mockResolvedValue({ data: [{ id: appealId, status: "pending" }], error: null })
-  state.from.mockReturnValue({
-    select: () => ({ order: state.order }),
+  state.notificationInsert.mockResolvedValue({ error: null })
+  state.from.mockImplementation((table: string) => {
+    if (table === "verification_appeals") {
+      return { select: () => ({ order: () => ({ limit: state.order }) }) }
+    }
+    if (table === "notifications") {
+      return { insert: state.notificationInsert }
+    }
+    return {}
   })
 })
 

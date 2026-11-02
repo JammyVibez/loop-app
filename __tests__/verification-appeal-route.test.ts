@@ -5,7 +5,6 @@ const state = vi.hoisted(() => ({
   getUser: vi.fn(),
   rpc: vi.fn(),
   maybeSingle: vi.fn(),
-  eq: vi.fn(),
   select: vi.fn(),
   from: vi.fn(),
 }))
@@ -39,8 +38,13 @@ beforeEach(() => {
     },
     error: null,
   })
-  state.eq.mockReturnValue({ eq: state.maybeSingle })
-  state.select.mockReturnValue({ eq: state.eq })
+  state.select.mockReturnValue({
+    eq: () => ({
+      eq: () => ({
+        maybeSingle: state.maybeSingle,
+      }),
+    }),
+  })
   state.from.mockReturnValue({ select: state.select })
 })
 
