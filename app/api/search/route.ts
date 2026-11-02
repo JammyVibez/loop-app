@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic"
 
 
 function escapeIlike(value: string) {
-  return value.replace(/[%_,]/g, " ").trim()
+  return value.replace(/[%,_()]/g, " ").trim()
 }
 
 export async function GET(request: NextRequest) {
@@ -21,8 +21,14 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(40, Number.parseInt(searchParams.get("limit") || "20") || 20)
     const offset = Number.parseInt(searchParams.get("offset") || "0") || 0
 
-    if (!rawQuery || rawQuery.length < 1) {
+    if (!rawQuery) {
       return NextResponse.json({ error: "Search query is required" }, { status: 400 })
+    }
+    if (rawQuery.length > 120) {
+      return NextResponse.json({ error: "Search terms are limited to 120 characters" }, { status: 400 })
+    }
+    if (!["all", "loops", "users", "hashtags", "circles"].includes(type)) {
+      return NextResponse.json({ error: "Unsupported search type" }, { status: 400 })
     }
 
     const user = await getUserFromRequest(request)
@@ -128,6 +134,7 @@ export async function GET(request: NextRequest) {
           `,
           )
           .is("parent_loop_id", null)
+          .eq("visibility", "public")
           .ilike("content", pattern)
           .order("created_at", { ascending: false })
           .range(offset, offset + limit - 1)
@@ -179,6 +186,7 @@ export async function GET(request: NextRequest) {
           `,
           )
           .is("parent_loop_id", null)
+          .eq("visibility", "public")
           .contains("hashtags", [tag])
           .order("created_at", { ascending: false })
           .limit(limit)
@@ -289,6 +297,7 @@ export async function GET(request: NextRequest) {
         const { data: recent } = await supabase
           .from("loops")
           .select("hashtags")
+          .eq("visibility", "public")
           .not("hashtags", "eq", "{}")
           .order("created_at", { ascending: false })
           .limit(120)
