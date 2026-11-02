@@ -1190,7 +1190,8 @@ pub async fn contribute(
     notification_events::notify_chain_contribution(
         &mut transaction,
         chain_id,
-        row.try_get("id").map_err(|error| db_error(error, "read new contribution id"))?,
+        row.try_get("id")
+            .map_err(|error| db_error(error, "read new contribution id"))?,
         user.id,
         &user.display_name,
         &chain_title,
