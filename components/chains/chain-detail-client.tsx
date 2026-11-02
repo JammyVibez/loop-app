@@ -50,6 +50,15 @@ type Contribution = {
   created_at: string
 }
 
+type ContributionRevision = {
+  id: string
+  revision_number: number
+  title: string | null
+  content: string
+  editor_username: string
+  created_at: string
+}
+
 type ChainResponse = {
   chain: Chain
   contributions: Contribution[]
@@ -92,6 +101,15 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
   const attachmentInputRef = useRef<HTMLInputElement>(null)
   const [submitting, setSubmitting] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [forking, setForking] = useState(false)
+  const [forkError, setForkError] = useState("")
+  const [editingContributionId, setEditingContributionId] = useState<string | null>(null)
+  const [editingTitle, setEditingTitle] = useState("")
+  const [editingContent, setEditingContent] = useState("")
+  const [savingContribution, setSavingContribution] = useState(false)
+  const [revisionHistory, setRevisionHistory] = useState<Record<string, ContributionRevision[]>>({})
+  const [expandedHistory, setExpandedHistory] = useState<string | null>(null)
+  const [revisionLoading, setRevisionLoading] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -139,6 +157,88 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
       setError(cause instanceof Error ? cause.message : "Could not load more contributions")
     } finally {
       setLoadingMore(false)
+    }
+  }
+
+  const remixChain = async () => {
+    if (!user) {
+      router.push("/auth?returnTo=/chains/" + encodeURIComponent(chainId))
+      return
+    }
+    setForking(true)
+    setForkError("")
+    try {
+      const response = await fetch("/api/v1/chains/" + encodeURIComponent(chainId) + "/fork", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({}),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.message || result.error || "Could not remix this Chain")
+      router.push("/chains/" + encodeURIComponent(result.id))
+    } catch (cause) {
+      setForkError(cause instanceof Error ? cause.message : "Could not remix this Chain")
+    } finally {
+      setForking(false)
+    }
+  }
+
+  const beginEdit = (contribution: Contribution) => {
+    setEditingContributionId(contribution.id)
+    setEditingTitle(contribution.title || "")
+    setEditingContent(contribution.content || "")
+    setError("")
+  }
+
+  const saveContributionEdit = async (contribution: Contribution) => {
+    setSavingContribution(true)
+    setError("")
+    try {
+      const response = await fetch(
+        "/api/v1/chains/" + encodeURIComponent(chainId) + "/contributions/" + encodeURIComponent(contribution.id),
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...getAuthHeader() },
+          body: JSON.stringify({
+            title: editingTitle.trim() || null,
+            content: editingContent,
+            payload: contribution.payload,
+          }),
+        },
+      )
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.message || result.error || "Could not update contribution")
+      setEditingContributionId(null)
+      await load()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not update contribution")
+    } finally {
+      setSavingContribution(false)
+    }
+  }
+
+  const toggleRevisionHistory = async (contributionId: string) => {
+    if (expandedHistory === contributionId) {
+      setExpandedHistory(null)
+      return
+    }
+    setExpandedHistory(contributionId)
+    if (revisionHistory[contributionId]) return
+    setRevisionLoading(contributionId)
+    try {
+      const response = await fetch(
+        "/api/v1/chains/" + encodeURIComponent(chainId) + "/contributions/" +
+          encodeURIComponent(contributionId) + "/revisions",
+        { headers: getAuthHeader(), cache: "no-store" },
+      )
+      const revisions = await response.json()
+      if (!response.ok) throw new Error(revisions.message || revisions.error || "Could not load revision history")
+      setRevisionHistory((current) => ({ ...current, [contributionId]: Array.isArray(revisions) ? revisions : [] }))
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not load revision history")
+      setExpandedHistory(null)
+    } finally {
+      setRevisionLoading(null)
     }
   }
 
@@ -283,7 +383,11 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-1">
             <div className="rounded-xl border border-border p-3"><p className="text-xl font-bold tabular-nums">{chain.contribution_count}</p><p className="text-xs text-muted-foreground">Contributions</p></div>
             <div className="rounded-xl border border-border p-3"><p className="text-xl font-bold tabular-nums">{chain.participant_count}</p><p className="text-xs text-muted-foreground">Contributors</p></div>
+            <Button type="button" variant="outline" size="sm" className="col-span-2 sm:col-span-1" onClick={() => void remixChain()} disabled={forking}>
+              <GitBranch className="h-3.5 w-3.5" /> {forking ? "Creating remix…" : "Remix Chain"}
+            </Button>
             {chain.circle_id && <Link href={"/communities/" + chain.circle_id} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold transition hover:bg-muted sm:col-span-1">Open Circle <ArrowUpRight className="h-3.5 w-3.5" /></Link>}
+            {forkError && <p role="alert" className="col-span-2 text-xs text-destructive">{forkError}</p>}
           </div>
         </div>
       </article>
@@ -437,6 +541,50 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
                       </a>
                     )}
                     {contribution.parent_contribution_id && <p className="mt-2 text-[11px] text-muted-foreground">Part of a contribution thread</p>}
+                    {user?.id === contribution.author_id && (
+                      <div className="mt-3 flex flex-wrap items-center gap-3">
+                        <button type="button" onClick={() => beginEdit(contribution)} className="text-xs font-semibold text-primary hover:underline">Edit contribution</button>
+                        <button type="button" onClick={() => void toggleRevisionHistory(contribution.id)} className="text-xs font-semibold text-muted-foreground hover:text-foreground">
+                          {expandedHistory === contribution.id ? "Hide history" : "Revision history"}
+                        </button>
+                      </div>
+                    )}
+                    {editingContributionId === contribution.id && (
+                      <div className="mt-3 space-y-2 rounded-xl border border-primary/20 bg-muted/20 p-3">
+                        <Input value={editingTitle} onChange={(event) => setEditingTitle(event.target.value)} maxLength={120} placeholder="Contribution title" />
+                        <Textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} maxLength={8000} rows={3} placeholder="Update your contribution text" />
+                        <p className="text-[11px] text-muted-foreground">Existing attachments and structured data are preserved. Each save records the previous version.</p>
+                        <div className="flex justify-end gap-2">
+                          <Button type="button" variant="ghost" size="sm" onClick={() => setEditingContributionId(null)} disabled={savingContribution}>Cancel</Button>
+                          <Button type="button" size="sm" onClick={() => void saveContributionEdit(contribution)} disabled={savingContribution}>
+                            {savingContribution ? "Saving…" : "Save revision"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {expandedHistory === contribution.id && (
+                      <div className="mt-3 rounded-xl border border-border bg-muted/20 p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Previous versions</p>
+                        {revisionLoading === contribution.id ? (
+                          <p className="mt-2 text-xs text-muted-foreground">Loading history…</p>
+                        ) : (revisionHistory[contribution.id] || []).length === 0 ? (
+                          <p className="mt-2 text-xs text-muted-foreground">No previous versions have been saved yet.</p>
+                        ) : (
+                          <ol className="mt-2 space-y-3">
+                            {(revisionHistory[contribution.id] || []).map((revision) => (
+                              <li key={revision.id} className="border-t border-border pt-2 text-xs">
+                                <div className="flex flex-wrap justify-between gap-2 text-muted-foreground">
+                                  <span>Revision {revision.revision_number} · @{revision.editor_username}</span>
+                                  <time dateTime={revision.created_at}>{dateLabel(revision.created_at)}</time>
+                                </div>
+                                {revision.title && <p className="mt-1 font-semibold">{revision.title}</p>}
+                                {revision.content && <p className="mt-1 whitespace-pre-wrap">{revision.content}</p>}
+                              </li>
+                            ))}
+                          </ol>
+                        )}
+                      </div>
+                    )}
                     {canContribute && (
                       <button type="button" onClick={() => { setParentContributionId(contribution.id); document.getElementById("chain-contribution")?.scrollIntoView({ behavior: "smooth", block: "center" }) }} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
                         Reply to this <ArrowUpRight className="h-3 w-3" />
