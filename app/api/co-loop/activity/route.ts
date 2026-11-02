@@ -20,19 +20,15 @@ const ACTIONS = [
 
 type ActivityAction = (typeof ACTIONS)[number]
 
-/**
- * A participant is anyone who can see the room: the owner, a listed co-author,
- * or an open-invite participant. If the session record does not exist yet there
- * is nothing to log against, so we let it through and the insert fails safely.
- */
+/** A participant must be present in the persisted room roster. */
 async function isParticipant(supabase: any, sessionId: string, userId: string) {
-  const { data: session } = await supabase
+  const { data: session, error } = await supabase
     .from("co_loop_sessions")
     .select("owner_id, co_authors, deleted_at")
     .eq("session_id", sessionId)
     .maybeSingle()
 
-  if (!session) return { ok: true, status: null }
+  if (error || !session) return { ok: false, status: "missing" }
   if (session.deleted_at) return { ok: false, status: "deleted" }
   if (session.owner_id === userId) return { ok: true, status: session }
   const inRoster = (Array.isArray(session.co_authors) ? session.co_authors : []).some((c: any) => c?.id === userId)
@@ -51,11 +47,22 @@ async function isParticipant(supabase: any, sessionId: string, userId: string) {
 /** GET – the room's timeline, newest first. */
 export async function GET(request: NextRequest) {
   try {
+    const user = await getUserFromRequest(request)
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
     const { searchParams } = new URL(request.url)
     const sessionId = searchParams.get("session_id") || searchParams.get("session")
     if (!sessionId) return NextResponse.json({ error: "session_id is required" }, { status: 400 })
 
     const supabase = createServerClient()
+    const membership = await isParticipant(supabase, sessionId, user.id)
+    if (!membership.ok) {
+      return NextResponse.json(
+        { error: membership.status === "deleted" ? "This room has been deleted" : "You are not in this room" },
+        { status: membership.status === "deleted" ? 410 : membership.status === "missing" ? 404 : 403 },
+      )
+    }
+
     const { data, error } = await supabase
       .from("co_loop_activity")
       .select("*")
@@ -98,7 +105,7 @@ export async function POST(request: NextRequest) {
     if (!membership.ok) {
       return NextResponse.json(
         { error: membership.status === "deleted" ? "This room has been deleted" : "You are not in this room" },
-        { status: membership.status === "deleted" ? 410 : 403 }
+        { status: membership.status === "deleted" ? 410 : membership.status === "missing" ? 404 : 403 }
       )
     }
 

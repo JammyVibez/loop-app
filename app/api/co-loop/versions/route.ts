@@ -38,16 +38,27 @@ function normalizeMediaUrls(value: unknown): string[] {
 }
 
 /** Confirm the caller owns or co-authors the session before letting them write history. */
-async function canWriteToSession(supabase: any, sessionId: string, userId: string) {
-  const { data: session } = await supabase
+async function getSessionAccess(supabase: any, sessionId: string, userId: string) {
+  const { data: session, error } = await supabase
     .from("co_loop_sessions")
-    .select("owner_id, co_authors")
+    .select("owner_id, co_authors, deleted_at, status")
     .eq("session_id", sessionId)
     .maybeSingle()
+  if (error || !session || session.deleted_at) return { canRead: false, canWrite: false }
 
-  if (!session) return true // session record not written yet; the owner creates it on first sync
-  if (session.owner_id === userId) return true
-  return (Array.isArray(session.co_authors) ? session.co_authors : []).some((c: any) => c?.id === userId)
+  const inRoster = session.owner_id === userId || (Array.isArray(session.co_authors) ? session.co_authors : []).some((entry: any) => entry?.id === userId)
+  let isOpenParticipant = false
+  if (!inRoster) {
+    const { data: openJoin, error: participantError } = await supabase
+      .from("open_co_loop_participants")
+      .select("id")
+      .eq("session_id", sessionId)
+      .eq("user_id", userId)
+      .maybeSingle()
+    isOpenParticipant = !participantError && Boolean(openJoin)
+  }
+  const canRead = inRoster || isOpenParticipant
+  return { canRead, canWrite: canRead && session.status === "active" }
 }
 
 /**
@@ -56,6 +67,9 @@ async function canWriteToSession(supabase: any, sessionId: string, userId: strin
  */
 export async function GET(request: NextRequest) {
   try {
+    const user = await getUserFromRequest(request)
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
     const { searchParams } = new URL(request.url)
     const sessionId = searchParams.get("session_id") || searchParams.get("session")
     if (!sessionId) {
@@ -63,6 +77,8 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = createServerClient()
+    const access = await getSessionAccess(supabase, sessionId, user.id)
+    if (!access.canRead) return NextResponse.json({ error: "You are not a participant in this Co-Loop" }, { status: 403 })
     const { data, error } = await supabase
       .from("co_loop_versions")
       .select("*")
@@ -98,7 +114,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "session_id is required" }, { status: 400 })
     }
 
-    if (!(await canWriteToSession(supabase, sessionId, user.id))) {
+    if (!(await getSessionAccess(supabase, sessionId, user.id)).canWrite) {
       return NextResponse.json({ error: "You are not a collaborator on this Co-Loop" }, { status: 403 })
     }
 

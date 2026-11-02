@@ -32,7 +32,7 @@ async function isParticipant(supabase: any, sessionId: string, userId: string) {
     .eq("session_id", sessionId)
     .maybeSingle()
 
-  if (!session) return { ok: true, deleted: false }
+  if (!session) return { ok: false, deleted: false }
   if (session.deleted_at) return { ok: false, deleted: true }
   if (session.owner_id === userId) return { ok: true, deleted: false }
   const inRoster = (Array.isArray(session.co_authors) ? session.co_authors : []).some(
@@ -85,6 +85,14 @@ export async function GET(request: NextRequest) {
     if (!sessionId) return NextResponse.json({ error: "session_id is required" }, { status: 400 })
 
     const supabase = createServerClient()
+    const membership = await isParticipant(supabase, sessionId, user.id)
+    if (!membership.ok) {
+      return NextResponse.json(
+        { error: membership.deleted ? "This room has been deleted" : "You are not in this room" },
+        { status: membership.deleted ? 410 : 403 },
+      )
+    }
+
     const { data, error } = await supabase
       .from("co_loop_chat_messages")
       .select("id, session_id, sender_id, content, reactions, created_at")

@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
-import { isCoLoopParticipant } from "@/lib/co-loop-session-access"
+import { decideCoLoopJoin, isCoLoopParticipant } from "@/lib/co-loop-session-access"
 
 export const dynamic = "force-dynamic"
 
@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const session_id = body.session_id || body.sessionId
 
-    if (!session_id) {
-      return NextResponse.json({ error: "session_id is required" }, { status: 400 })
+    if (typeof session_id !== "string" || !session_id.trim() || session_id.length > 160) {
+      return NextResponse.json({ error: "A valid session_id is required" }, { status: 400 })
     }
 
     const { data: callerProfile } = await supabase
@@ -59,27 +59,63 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (existingSession) {
-      // A retired room can never be rejoined — the published Loop it produced
-      // is the durable artifact, not the studio session.
-      if (existingSession.deleted_at) {
-        return NextResponse.json({ error: "This room has been deleted", deleted: true }, { status: 410 })
+      const alreadyParticipant = isCoLoopParticipant(existingSession, callingUser.id)
+      let inviteExists = false
+      if (!alreadyParticipant) {
+        const { data: inviteNotification, error: notificationError } = await supabase
+          .from("notifications")
+          .select("id")
+          .eq("user_id", callingUser.id)
+          .eq("type", "co_loop_invite")
+          .filter("data->>session_id", "eq", session_id)
+          .limit(1)
+          .maybeSingle()
+        if (notificationError) {
+          console.error("Could not verify Co-Loop invitation:", notificationError.message)
+          return NextResponse.json({ error: "Could not verify this invitation" }, { status: 500 })
+        }
+        const { data: inviteMessage, error: messageError } = await supabase
+          .from("messages")
+          .select("id")
+          .eq("recipient_id", callingUser.id)
+          .eq("message_type", "co_loop_invite")
+          .like("media_url", `%${encodeURIComponent(session_id)}%`)
+          .limit(1)
+          .maybeSingle()
+        if (messageError) {
+          console.error("Could not verify Co-Loop invitation message:", messageError.message)
+          return NextResponse.json({ error: "Could not verify this invitation" }, { status: 500 })
+        }
+        inviteExists = Boolean(inviteNotification || inviteMessage)
       }
 
-      // Caller is not the owner and not already a co-author — persist them as
-      // a real co-author of this session (this is the durable roster that
-      // both the Primary Creator's and every Co-Author's studio view read
-      // from, instead of relying solely on ephemeral realtime presence).
+      const decision = decideCoLoopJoin(existingSession, callingUser.id, inviteExists)
+      if (decision !== "allowed") {
+        const errors = {
+          deleted: { status: 410, message: "This room has been deleted" },
+          inactive: { status: 410, message: "This Co-Loop is no longer accepting collaborators" },
+          locked: { status: 423, message: "The host has locked this room" },
+          not_invited: { status: 403, message: "You need a direct invitation to join this Co-Loop" },
+        } as const
+        return NextResponse.json({ error: errors[decision].message, deleted: decision === "deleted" }, { status: errors[decision].status })
+      }
+
       let coAuthors = Array.isArray(existingSession.co_authors) ? existingSession.co_authors : []
-      if (existingSession.owner_id !== callingUser.id && callerProfile) {
+      if (!alreadyParticipant && callerProfile) {
         const nextCoAuthors = mergeCoAuthors(coAuthors, toCoAuthorEntry(callerProfile))
         if (nextCoAuthors.length !== coAuthors.length) {
-          const { data: updated } = await supabase
+          const { data: updated, error: rosterError } = await supabase
             .from("co_loop_sessions")
             .update({ co_authors: nextCoAuthors, updated_at: new Date().toISOString() })
             .eq("session_id", session_id)
+            .eq("owner_id", existingSession.owner_id)
             .select("co_authors")
             .maybeSingle()
-          coAuthors = updated?.co_authors || nextCoAuthors
+          if (rosterError || !updated) {
+            console.error("Could not persist Co-Loop participant:", rosterError?.message)
+            return NextResponse.json({ error: "Could not join this Co-Loop. Please try again." }, { status: 500 })
+          }
+          coAuthors = updated.co_authors || nextCoAuthors
         }
       }
 
@@ -220,155 +256,4 @@ const session_id = body.session_id || body.sessionId
   }
 }
 
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const session_id = searchParams.get("session") || searchParams.get("id")
-    const invited_by = searchParams.get("invitedBy") || searchParams.get("inviter")
-    const is_invited_flag = searchParams.get("invited") === "true"
-
-    if (!session_id) {
-      return NextResponse.json({ error: "Session ID is required" }, { status: 400 })
-    }
-
-    const supabase = createServerClient()
-
-    // Extract calling user if present (best-effort — this GET is guest-safe)
-    const callingUser = await getUserFromRequest(request).catch(() => null)
-
-    let inviterProfile: any = null
-    let coAuthors: any[] = []
-
-    // 1. Check existing co_loop_sessions table
-    const { data: sessionRecord } = await supabase
-      .from("co_loop_sessions")
-      .select("*, owner:profiles!owner_id(id, username, display_name, avatar_url, video_avatar_url, bio, is_verified)")
-      .eq("session_id", session_id)
-      .maybeSingle()
-
-    if (sessionRecord) {
-      coAuthors = Array.isArray(sessionRecord.co_authors) ? sessionRecord.co_authors : []
-    }
-
-    if (sessionRecord?.owner) {
-      inviterProfile = sessionRecord.owner
-    } else if (sessionRecord?.owner_id) {
-      const { data: p } = await supabase
-        .from("profiles")
-        .select("id, username, display_name, avatar_url, video_avatar_url, bio, is_verified")
-        .eq("id", sessionRecord.owner_id)
-        .maybeSingle()
-      if (p) inviterProfile = p
-    }
-
-    // 2. Fallback: check invitedBy parameter
-    if (!inviterProfile && invited_by) {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, username, display_name, avatar_url, video_avatar_url, bio, is_verified")
-        .ilike("username", invited_by.trim())
-        .maybeSingle()
-      if (data) inviterProfile = data
-    }
-
-    // 3. Fallback: check notifications table for co_loop_invite
-    if (!inviterProfile) {
-      const { data: notif } = await supabase
-        .from("notifications")
-        .select("data")
-        .eq("type", "co_loop_invite")
-        .filter("data->>session_id", "eq", session_id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      if (notif?.data?.inviter_id) {
-        const { data: p } = await supabase
-          .from("profiles")
-          .select("id, username, display_name, avatar_url, video_avatar_url, bio, is_verified")
-          .eq("id", notif.data.inviter_id)
-          .maybeSingle()
-        if (p) inviterProfile = p
-      }
-    }
-
-    // 4. Fallback: check direct messages for co_loop_invite
-    if (!inviterProfile) {
-      const { data: msg } = await supabase
-        .from("messages")
-        .select("sender_id, author_id")
-        .eq("message_type", "co_loop_invite")
-        .like("media_url", `%${session_id}%`)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      const senderId = msg?.sender_id || msg?.author_id
-      if (senderId) {
-        const { data: p } = await supabase
-          .from("profiles")
-          .select("id, username, display_name, avatar_url, video_avatar_url, bio, is_verified")
-          .eq("id", senderId)
-          .maybeSingle()
-        if (p) inviterProfile = p
-      }
-    }
-
-    // If an inviter Profile was resolved but sessionRecord wasn't in DB, record it now
-    if (inviterProfile && !sessionRecord) {
-      try {
-        await supabase
-          .from("co_loop_sessions")
-          .insert({
-            session_id,
-            owner_id: inviterProfile.id,
-            owner_username: inviterProfile.username,
-            co_authors: [],
-          })
-      } catch (err) {
-        // ignore duplicate
-      }
-    }
-
-    // 5. If session STILL does not exist and caller is NOT explicitly invited, caller is the creator
-    if (!sessionRecord && !inviterProfile && callingUser && !is_invited_flag && !invited_by) {
-      const { data: callerProfile } = await supabase
-        .from("profiles")
-        .select("id, username, display_name, avatar_url, video_avatar_url, bio, is_verified")
-        .eq("id", callingUser.id)
-        .maybeSingle()
-
-      if (callerProfile) {
-        inviterProfile = callerProfile
-        try {
-          await supabase
-            .from("co_loop_sessions")
-            .insert({
-              session_id,
-              owner_id: callerProfile.id,
-              owner_username: callerProfile.username,
-              co_authors: [],
-            })
-        } catch (err) {
-          // ignore duplicate
-        }
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      session_id,
-      inviter: inviterProfile || (invited_by ? {
-        username: invited_by,
-        display_name: invited_by,
-        avatar_url: null,
-      } : null),
-      owner_id: inviterProfile?.id || null,
-      owner_username: inviterProfile?.username || null,
-      co_authors: coAuthors,
-    })
-  } catch (error: any) {
-    console.error("Session info API error:", error)
-    return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 })
-  }
-}
+replace public session info GET
