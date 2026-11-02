@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     if (rawQuery.length > 120) {
       return NextResponse.json({ error: "Search terms are limited to 120 characters" }, { status: 400 })
     }
-    if (!["all", "loops", "users", "hashtags", "circles"].includes(type)) {
+    if (!["all", "loops", "users", "hashtags", "circles", "chains", "collections"].includes(type)) {
       return NextResponse.json({ error: "Unsupported search type" }, { status: 400 })
     }
 
@@ -45,8 +45,10 @@ export async function GET(request: NextRequest) {
       users: any[]
       hashtags: any[]
       circles: any[]
+      chains: any[]
+      collections: any[]
       total: number
-    } = { loops: [], users: [], hashtags: [], circles: [], total: 0 }
+    } = { loops: [], users: [], hashtags: [], circles: [], chains: [], collections: [], total: 0 }
 
     // Resolve block relationships once for cross-type filtering below.
 
@@ -68,6 +70,8 @@ export async function GET(request: NextRequest) {
     const wantUsers = (type === "all" || type === "users") && !isHashtagIntent
     const wantHashtags = (type === "all" || type === "hashtags") && !isUserIntent
     const wantCircles = (type === "all" || type === "circles") && !isUserIntent && !isHashtagIntent
+    const wantChains = (type === "all" || type === "chains") && !isUserIntent && !isHashtagIntent
+    const wantCollections = (type === "all" || type === "collections") && !isUserIntent && !isHashtagIntent
 
     // Private (and followers-only) profiles never surface in public search for
     // people who don't follow them — neither their loops nor their profile.
@@ -80,6 +84,31 @@ export async function GET(request: NextRequest) {
       for (const row of follows || []) {
         if (row.following_id) followingIds.add(row.following_id)
       }
+    }
+
+    // Public search results must not expose work owned by blocked or restricted
+    // profiles. A failed owner lookup is treated as unavailable, not public.
+    const filterPublicOwnerItems = async (items: any[], ownerField: "author_id" | "creator_id" | "owner_id") => {
+      if (!items.length) return []
+      const publicItems = items.filter((item) => item.visibility === "public")
+      const ownerIds = [...new Set(publicItems.map((item) => item[ownerField]).filter(Boolean))] as string[]
+      if (!ownerIds.length) return []
+      const blockedIds = await getBlockedProfileIds(supabase, user?.id || null, ownerIds).catch(() => new Set<string>())
+      const { data: owners, error: ownerError } = await supabase
+        .from("profiles")
+        .select("id, privacy_settings")
+        .in("id", ownerIds)
+      if (ownerError || !owners) return []
+      const ownerById = new Map(owners.map((owner: any) => [owner.id, owner]))
+      return publicItems.filter((item) => {
+        const ownerId = item[ownerField]
+        if (!ownerId || blockedIds.has(ownerId)) return false
+        const owner = ownerById.get(ownerId)
+        if (!owner) return false
+        const visibility = owner.privacy_settings?.profile_visibility
+        const restricted = visibility === "private" || visibility === "followers"
+        return !restricted || (user && (ownerId === user.id || followingIds.has(ownerId)))
+      })
     }
 
     const filterPrivateLoops = async (loops: any[]) => {
@@ -311,6 +340,86 @@ export async function GET(request: NextRequest) {
         }))
     }
 
+
+    if (wantChains) {
+      const pattern = `%${query}%`
+      const selection = `
+        id, creator_id, circle_id, title, description, prompt, kind, category,
+        visibility, status, cover_image_url, contribution_count, participant_count,
+        created_at, updated_at,
+        creator:profiles!creator_id(id, username, display_name, avatar_url, is_verified)
+      `
+      let chains: any[] | null = null
+      const primary = await supabase
+        .from("chains")
+        .select(selection)
+        .eq("visibility", "public")
+        // The Chain access policy requires Circle membership whenever a Chain
+        // is attached to a Circle, even if its visibility is otherwise public.
+        .is("circle_id", null)
+        .in("status", ["active", "completed"])
+        .or(`title.ilike.${pattern},description.ilike.${pattern},prompt.ilike.${pattern}`)
+        .order("updated_at", { ascending: false })
+        .range(offset, offset + limit - 1)
+
+      if (!primary.error) {
+        chains = primary.data
+      } else {
+        const fallback = await supabase
+          .from("chains")
+          .select(selection)
+          .eq("visibility", "public")
+          .is("circle_id", null)
+          .in("status", ["active", "completed"])
+          .ilike("title", pattern)
+          .order("updated_at", { ascending: false })
+          .range(offset, offset + limit - 1)
+        chains = fallback.error ? [] : fallback.data
+      }
+
+      const visibleChains = (chains || []).filter((chain: any) =>
+        chain.visibility === "public" &&
+        chain.circle_id == null &&
+        ["active", "completed"].includes(chain.status),
+      )
+      results.chains = await filterPublicOwnerItems(visibleChains, "creator_id")
+    }
+
+    if (wantCollections) {
+      const pattern = `%${query}%`
+      const selection = `
+        id, owner_id, title, description, visibility, is_collaborative,
+        created_at, updated_at,
+        owner:profiles!owner_id(id, username, display_name, avatar_url, is_verified)
+      `
+      let collections: any[] | null = null
+      const primary = await supabase
+        .from("collections")
+        .select(selection)
+        .eq("visibility", "public")
+        .or(`title.ilike.${pattern},description.ilike.${pattern}`)
+        .order("updated_at", { ascending: false })
+        .range(offset, offset + limit - 1)
+
+      if (!primary.error) {
+        collections = primary.data
+      } else {
+        const fallback = await supabase
+          .from("collections")
+          .select(selection)
+          .eq("visibility", "public")
+          .ilike("title", pattern)
+          .order("updated_at", { ascending: false })
+          .range(offset, offset + limit - 1)
+        collections = fallback.error ? [] : fallback.data
+      }
+
+      results.collections = await filterPublicOwnerItems(
+        (collections || []).filter((collection: any) => collection.visibility === "public"),
+        "owner_id",
+      )
+    }
+
     if (wantCircles) {
       const pattern = `%${query}%`
       let circles: any[] | null = null
@@ -345,7 +454,8 @@ export async function GET(request: NextRequest) {
     }
 
     results.total =
-      results.loops.length + results.users.length + results.hashtags.length + results.circles.length
+      results.loops.length + results.users.length + results.hashtags.length + results.circles.length +
+      results.chains.length + results.collections.length
 
     return NextResponse.json({
       success: true,
@@ -356,6 +466,8 @@ export async function GET(request: NextRequest) {
       users: results.users,
       hashtags: results.hashtags,
       circles: results.circles,
+      chains: results.chains,
+      collections: results.collections,
       results,
       pagination: { limit, offset, total: results.total },
     })

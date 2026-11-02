@@ -91,3 +91,11 @@ Finish and verify: durable invitations and revocation, active-session authorizat
 - Achievement/profile visibility and earned-achievement showcase tests were added; live PostgreSQL reward/migration checks remain release gates.
 - Circle Events now require the server-only client and use an atomic RSVP lifecycle; real PostgreSQL concurrency checks remain release gates.
 - This batch hardens Circle member APIs and private-Circle access: privileged routes require the server key, public member rosters return only deliberate identity fields, and private access fails closed when infrastructure or lookups fail.
+
+
+## 69. Collaborative objects are now part of universal search — 2026-11-02
+
+- Extended the existing search API to index public Chains and public Collections alongside people, Loops, hashtags and Circles.
+- Search discovery excludes private/unlisted Chains and Collections, Circle-attached Chains (whose access depends on Circle membership), inactive/archived Chains and objects owned by blocked/restricted profiles. Owner lookup failures fail closed.
+- Added dedicated Chain and Collection result cards and tabs, with stable links to their existing detail pages. Updated the search page description to reflect the broader object graph.
+- Added route-level regression coverage for public-only visibility, Circle-scope exclusion and private/blocked owner filtering. CI on the exact head remains the verification gate.
