@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { decideCoLoopJoin, isCoLoopParticipant } from "@/lib/co-loop-session-access"
+import {
+  decideCoLoopJoin,
+  isCoLoopParticipant,
+  isRevokedCoLoopInvitationStatus,
+} from "@/lib/co-loop-session-access"
 
 describe("isCoLoopParticipant", () => {
   it("recognizes the host and persisted co-authors", () => {
@@ -31,5 +35,21 @@ describe("decideCoLoopJoin", () => {
     expect(decideCoLoopJoin({ ...session, deleted_at: "2026-01-01" }, "visitor-3", true)).toBe("deleted")
     expect(decideCoLoopJoin({ ...session, status: "ended" }, "visitor-3", true)).toBe("inactive")
     expect(decideCoLoopJoin({ ...session, locked: true }, "visitor-3", true)).toBe("locked")
+  })
+})
+
+
+describe("Co-Loop invitation revocation", () => {
+  it("treats declined, revoked and expired invitation states as denials", () => {
+    expect(isRevokedCoLoopInvitationStatus("declined")).toBe(true)
+    expect(isRevokedCoLoopInvitationStatus("revoked")).toBe(true)
+    expect(isRevokedCoLoopInvitationStatus("expired")).toBe(true)
+  })
+
+  it("keeps pending and accepted invitations distinct from revoked ones", () => {
+    expect(isRevokedCoLoopInvitationStatus("pending")).toBe(false)
+    expect(isRevokedCoLoopInvitationStatus("accepted")).toBe(false)
+    expect(isRevokedCoLoopInvitationStatus(null)).toBe(false)
+    expect(isRevokedCoLoopInvitationStatus(undefined)).toBe(false)
   })
 })
