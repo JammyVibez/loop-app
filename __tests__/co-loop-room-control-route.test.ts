@@ -49,12 +49,27 @@ beforeEach(() => {
     },
     error: null,
   })
-  state.from.mockReturnValue({
-    select: () => ({
-      eq: () => ({
-        maybeSingle: state.sessionLookup,
-      }),
-    }),
+  state.from.mockImplementation((table: string) => {
+    if (table === "co_loop_sessions") {
+      return {
+        select: () => ({
+          eq: () => ({
+            maybeSingle: state.sessionLookup,
+          }),
+        }),
+      }
+    }
+    if (table === "notifications" || table === "messages") {
+      const query: Record<string, any> = {}
+      query.delete = () => query
+      query.eq = () => query
+      query.filter = () => query
+      query.like = () => query
+      query.then = (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) =>
+        Promise.resolve({ error: null }).then(resolve, reject)
+      return query
+    }
+    return {}
   })
   state.rpc.mockResolvedValue({
     data: { target_user_id: targetId, removed_entry: { id: targetId, username: "writer" } },
