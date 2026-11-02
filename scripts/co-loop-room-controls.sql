@@ -32,8 +32,6 @@ ALTER TABLE public.co_loop_activity ENABLE ROW LEVEL SECURITY;
 DO $$
 BEGIN
     DROP POLICY IF EXISTS "Anyone can read co_loop_activity" ON public.co_loop_activity;
-    CREATE POLICY "Anyone can read co_loop_activity" ON public.co_loop_activity
-        FOR SELECT USING (true);
 
     -- All direct table access is restricted to service_role. User-facing
     -- reads and writes must pass through /api/co-loop/activity, which verifies
