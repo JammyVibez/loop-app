@@ -201,6 +201,10 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
+    if (!membership.canWrite) {
+      return NextResponse.json({ error: "This Co-Loop is no longer accepting reactions" }, { status: 409 })
+    }
+
     const current = readReactions(message.reactions)
     const reactors = current[emoji] || []
     const has = reactors.includes(user.id)
