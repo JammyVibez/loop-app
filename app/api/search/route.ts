@@ -277,48 +277,35 @@ export async function GET(request: NextRequest) {
     }
 
     if (wantHashtags) {
+      // Derive search suggestions only from public Loops. A global hashtag
+      // counter cannot prove whether a tag originated solely in private posts.
       const tagQuery = query.toLowerCase().replace(/^#/, "")
-      let hashtags: any[] = []
+      const { data: recent } = await supabase
+        .from("loops")
+        .select("hashtags")
+        .eq("visibility", "public")
+        .is("parent_loop_id", null)
+        .not("hashtags", "eq", "{}")
+        .order("created_at", { ascending: false })
+        .limit(300)
 
-      const { data: fromTable } = await supabase
-        .from("hashtags")
-        .select("*")
-        .ilike("tag", `%${tagQuery}%`)
-        .order("usage_count", { ascending: false })
-        .limit(12)
-
-      if (fromTable?.length) {
-        hashtags = fromTable.map((h) => ({
-          tag: String(h.tag || "").replace(/^#/, ""),
-          usage_count: h.usage_count || h.count || 0,
-          is_trending: Boolean(h.is_trending),
-          loop_count: h.usage_count || h.count || 0,
-        }))
-      } else {
-        // Derive from recent loops hashtags
-        const { data: recent } = await supabase
-          .from("loops")
-          .select("hashtags")
-          .eq("visibility", "public")
-          .not("hashtags", "eq", "{}")
-          .order("created_at", { ascending: false })
-          .limit(120)
-
-        const counts = new Map<string, number>()
-        for (const row of recent || []) {
-          for (const raw of row.hashtags || []) {
-            const tag = String(raw).toLowerCase().replace(/^#/, "")
-            if (!tag || (tagQuery && !tag.includes(tagQuery))) continue
-            counts.set(tag, (counts.get(tag) || 0) + 1)
-          }
+      const counts = new Map<string, number>()
+      for (const row of recent || []) {
+        for (const raw of row.hashtags || []) {
+          const tag = String(raw).toLowerCase().replace(/^#/, "")
+          if (!tag || (tagQuery && !tag.includes(tagQuery))) continue
+          counts.set(tag, (counts.get(tag) || 0) + 1)
         }
-        hashtags = [...counts.entries()]
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 12)
-          .map(([tag, count]) => ({ tag, usage_count: count, loop_count: count, is_trending: count >= 3 }))
       }
-
-      results.hashtags = hashtags
+      results.hashtags = [...counts.entries()]
+        .sort((left, right) => right[1] - left[1])
+        .slice(0, 12)
+        .map(([tag, count]) => ({
+          tag,
+          usage_count: count,
+          loop_count: count,
+          is_trending: count >= 3,
+        }))
     }
 
     if (wantCircles) {
@@ -333,6 +320,7 @@ export async function GET(request: NextRequest) {
         `,
         )
         .or(`name.ilike.${pattern},description.ilike.${pattern}`)
+        .eq("is_private", false)
         .order("member_count", { ascending: false })
         .limit(12)
 
@@ -343,6 +331,7 @@ export async function GET(request: NextRequest) {
           .from("circles")
           .select("id, name, description, avatar_url, member_count, is_private")
           .ilike("name", pattern)
+          .eq("is_private", false)
           .limit(12)
         circles = fallback.data
       }
