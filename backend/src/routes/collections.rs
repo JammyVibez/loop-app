@@ -590,28 +590,31 @@ pub async fn add_member(
         )
     })?;
 
-    let collection = sqlx::query(
-        "SELECT owner_id, is_collaborative FROM collections WHERE id = $1 FOR UPDATE",
-    )
-    .bind(collection_id)
-    .fetch_optional(&mut *transaction)
-    .await
-    .map_err(|error| {
-        tracing::error!(%error, "could not authorize collaborator invitation");
-        api_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "collection_collaborator_permission_failed",
-            "Could not authorize this invitation.",
-        )
-    })?
-    .ok_or_else(|| api_error(
-        StatusCode::NOT_FOUND,
-        "collection_not_found",
-        "This collection is unavailable.",
-    ))?;
+    let collection =
+        sqlx::query("SELECT owner_id, is_collaborative FROM collections WHERE id = $1 FOR UPDATE")
+            .bind(collection_id)
+            .fetch_optional(&mut *transaction)
+            .await
+            .map_err(|error| {
+                tracing::error!(%error, "could not authorize collaborator invitation");
+                api_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "collection_collaborator_permission_failed",
+                    "Could not authorize this invitation.",
+                )
+            })?
+            .ok_or_else(|| {
+                api_error(
+                    StatusCode::NOT_FOUND,
+                    "collection_not_found",
+                    "This collection is unavailable.",
+                )
+            })?;
 
     let owner_id: Uuid = collection.try_get("owner_id").map_err(internal_db_error)?;
-    let is_collaborative: bool = collection.try_get("is_collaborative").map_err(internal_db_error)?;
+    let is_collaborative: bool = collection
+        .try_get("is_collaborative")
+        .map_err(internal_db_error)?;
     if owner_id != user.id {
         return Err(api_error(
             StatusCode::FORBIDDEN,
@@ -627,25 +630,26 @@ pub async fn add_member(
         ));
     }
 
-    let target_user_id = sqlx::query_scalar::<_, Uuid>(
-        "SELECT id FROM profiles WHERE lower(username) = $1",
-    )
-    .bind(&username)
-    .fetch_optional(&mut *transaction)
-    .await
-    .map_err(|error| {
-        tracing::error!(%error, "could not resolve collection collaborator");
-        api_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "collection_collaborator_lookup_failed",
-            "Could not find that account.",
-        )
-    })?
-    .ok_or_else(|| api_error(
-        StatusCode::NOT_FOUND,
-        "collection_collaborator_not_found",
-        "No LOOP account has that username.",
-    ))?;
+    let target_user_id =
+        sqlx::query_scalar::<_, Uuid>("SELECT id FROM profiles WHERE lower(username) = $1")
+            .bind(&username)
+            .fetch_optional(&mut *transaction)
+            .await
+            .map_err(|error| {
+                tracing::error!(%error, "could not resolve collection collaborator");
+                api_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "collection_collaborator_lookup_failed",
+                    "Could not find that account.",
+                )
+            })?
+            .ok_or_else(|| {
+                api_error(
+                    StatusCode::NOT_FOUND,
+                    "collection_collaborator_not_found",
+                    "No LOOP account has that username.",
+                )
+            })?;
 
     if target_user_id == owner_id {
         return Err(api_error(
@@ -689,9 +693,15 @@ pub async fn add_member(
 
     let result = CollectionCollaborator {
         user_id: row.try_get("user_id").map_err(internal_db_error)?,
-        username: collaborator.try_get("username").map_err(internal_db_error)?,
-        display_name: collaborator.try_get("display_name").map_err(internal_db_error)?,
-        avatar_url: collaborator.try_get("avatar_url").map_err(internal_db_error)?,
+        username: collaborator
+            .try_get("username")
+            .map_err(internal_db_error)?,
+        display_name: collaborator
+            .try_get("display_name")
+            .map_err(internal_db_error)?,
+        avatar_url: collaborator
+            .try_get("avatar_url")
+            .map_err(internal_db_error)?,
         role: row.try_get("role").map_err(internal_db_error)?,
         joined_at: row.try_get("joined_at").map_err(internal_db_error)?,
     };
@@ -722,25 +732,26 @@ pub async fn remove_member(
         )
     })?;
 
-    let collection = sqlx::query(
-        "SELECT owner_id, is_collaborative FROM collections WHERE id = $1 FOR UPDATE",
-    )
-    .bind(collection_id)
-    .fetch_optional(&mut *transaction)
-    .await
-    .map_err(|error| {
-        tracing::error!(%error, "could not authorize collaborator removal");
-        api_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "collection_collaborator_permission_failed",
-            "Could not authorize this change.",
-        )
-    })?
-    .ok_or_else(|| api_error(
-        StatusCode::NOT_FOUND,
-        "collection_not_found",
-        "This collection is unavailable.",
-    ))?;
+    let collection =
+        sqlx::query("SELECT owner_id, is_collaborative FROM collections WHERE id = $1 FOR UPDATE")
+            .bind(collection_id)
+            .fetch_optional(&mut *transaction)
+            .await
+            .map_err(|error| {
+                tracing::error!(%error, "could not authorize collaborator removal");
+                api_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "collection_collaborator_permission_failed",
+                    "Could not authorize this change.",
+                )
+            })?
+            .ok_or_else(|| {
+                api_error(
+                    StatusCode::NOT_FOUND,
+                    "collection_not_found",
+                    "This collection is unavailable.",
+                )
+            })?;
 
     let owner_id: Uuid = collection.try_get("owner_id").map_err(internal_db_error)?;
     let is_collaborative: bool = collection.try_get("is_collaborative").map_err(internal_db_error)?;
@@ -1271,7 +1282,10 @@ mod tests {
     #[test]
     fn restricts_collection_collaborator_roles_to_editor_and_viewer() {
         assert_eq!(normalize_collection_member_role(None), Ok("editor"));
-        assert_eq!(normalize_collection_member_role(Some("viewer")), Ok("viewer"));
+        assert_eq!(
+            normalize_collection_member_role(Some("viewer")),
+            Ok("viewer")
+        );
         assert!(normalize_collection_member_role(Some("owner")).is_err());
         assert!(normalize_collection_member_role(Some("admin")).is_err());
     }
