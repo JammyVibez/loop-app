@@ -20,6 +20,7 @@ import { ParticipationDiscovery } from "@/components/explore/participation-disco
 import { ExploreSearchAutocomplete } from "@/components/explore/explore-search-autocomplete"
 import { Calendar } from "lucide-react"
 import { Spinner } from "@/components/ui/skeletons"
+import { ExploreSearchResults } from "@/components/explore/explore-search-results"
 
 type ExploreTab = "events" | "recent" | "deepest" | "creative" | "hashtags"
 
@@ -51,6 +52,7 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
   const [hashtags, setHashtags] = useState<TrendingHashtag[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedTab, setSelectedTab] = useState<ExploreTab>(initialTab)
+  const [searchQuery, setSearchQuery] = useState("")
   const [interacting, setInteracting] = useState<string | null>(null)
   const [live, setLive] = useState(false)
 
@@ -239,10 +241,14 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
       <GlobalEventBanner />
 
       {/* Search Autocomplete */}
-      <ExploreSearchAutocomplete onSearch={(q) => {/* search handled by tabs */}} />
+      <ExploreSearchAutocomplete onSearch={setSearchQuery} />
 
-      {/* Participation discovery — live duels, co-loops, circles, creators */}
-      <ParticipationDiscovery />
+      {searchQuery.trim() ? (
+        <ExploreSearchResults query={searchQuery} onClear={() => setSearchQuery("")} />
+      ) : (
+        <>
+          {/* Participation discovery — live duels, co-loops, circles, creators */}
+          <ParticipationDiscovery />
 
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -385,6 +391,8 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
           )}
         </TabsContent>
       </Tabs>
+        </>
+      )}
     </div>
   )
 }
