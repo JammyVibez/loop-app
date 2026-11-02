@@ -296,3 +296,7 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Tightened the security-definer RPC search path to prefer pg_catalog and schema-qualified application tables.
 - Added an optional HTTPS evidence-link field to the primary verification page, so both entry points submit the same supported application shape.
 - Review remains a manual identity process independent of Premium. Appeals, independent reviewer auditing and live-database migration validation remain open before this workflow can be called release-ready.
+## 16. Verification SQL review correction — 2026-11-02
+
+- Corrected the policy-cleanup section to use explicit idempotent DROP POLICY statements for the three legacy applicant policies defined by the repository's older verification schema. This keeps the migration compatible with the production setup runner's dollar-quoted statement splitter.
+- The SQL migration remains unexecuted against a live database. Review syntax and schema assumptions in an actual PostgreSQL/Supabase staging database before production rollout.
