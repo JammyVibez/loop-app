@@ -71,6 +71,8 @@ const files = [
   "scripts/fix-profiles-cosmetics-column.sql",
   // Private profiles: follow_requests table + realtime (see /api/users/follow-requests).
   "scripts/private-profiles-schema.sql",
+  // Hashtag trends must only aggregate publicly visible Loops.
+  "scripts/trending-hashtags-function.sql",
   // Native (Capacitor) FCM device tokens — see /api/push/native and lib/fcm.ts.
   "scripts/native-push-schema.sql",
   // Clutch Duel columns + clutch_duel_predictions, admin ad system (ads /
