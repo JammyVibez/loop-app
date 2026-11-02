@@ -11,52 +11,59 @@ environment.** Before adding a new `.sql` file here, read this first.
 
 1. `schema-compat-alignment.sql`
 2. `complete-database-setup.sql`
-3. `premium-subscriptions-migration.sql` — Pro subscription ledger, Stripe
+3. `backend/migrations/0001_collections.sql` — ensure the shared profile/session,
+   Circle, and Collection foundations exist for the Rust API.
+4. `backend/migrations/0004_chains.sql` — canonical Chain, member and
+   contribution tables.
+5. `backend/migrations/0005_chain_collections.sql` — attach Chains to Collections.
+6. `backend/migrations/0006_chain_lifecycle.sql` — remix lineage and immutable
+   contribution revision history.
+11. `premium-subscriptions-migration.sql` — Pro subscription ledger, Stripe
    identifiers/periods, and auditable grant metadata.
-4. `launch-schema-alignment.sql`
-5. `loops-and-media.sql`
-6. `moderation-schema.sql`
-7. `circles-schema-alignment.sql`
-8. `enhanced-database-schema-part2.sql`
-9. `enhanced-database-schema-part3.sql`
-10. `wallet-and-events-schema.sql`
-11. `developer-features.sql`
-12. `co-loop-sessions-schema.sql`
-13. `message-reactions-schema-fix.sql`
-14. `dm-read-receipts-compat.sql`
-15. `messages-edit-forward-schema.sql`
-16. `circles-enhancements-schema.sql`
-17. `fix-circle-event-participants.sql` — repairs the event participant foreign
+8. `launch-schema-alignment.sql`
+9. `loops-and-media.sql`
+10. `moderation-schema.sql`
+11. `circles-schema-alignment.sql`
+12. `enhanced-database-schema-part2.sql`
+13. `enhanced-database-schema-part3.sql`
+14. `wallet-and-events-schema.sql`
+15. `developer-features.sql`
+16. `co-loop-sessions-schema.sql`
+17. `message-reactions-schema-fix.sql`
+18. `dm-read-receipts-compat.sql`
+19. `messages-edit-forward-schema.sql`
+20. `circles-enhancements-schema.sql`
+21. `fix-circle-event-participants.sql` — repairs the event participant foreign
     key, removes orphan RSVP rows, and ensures one RSVP per event/member.
-18. `circle-event-rsvp-lifecycle.sql` — installs the row-locked RSVP RPC that
+22. `circle-event-rsvp-lifecycle.sql` — installs the row-locked RSVP RPC that
     prevents capacity races and synchronizes attendee counts.
-19. `dev-quests-schema.sql`
-20. `developer-hub-v2.sql`
-21. `dev-collaborators-schema.sql`
-22. `dev-repo-schema.sql`
-23. `rls-policies.sql`
-24. `realtime-functions.sql`
-25. `coin-packs-refunds-schema.sql`
-26. `fix-profiles-cosmetics-column.sql`
-27. `private-profiles-schema.sql`
-28. `native-push-schema.sql`
-29. `clutch-duel-ads-tags-schema.sql`
-30. `awards-pro-circle-moments-schema.sql`
-31. `events-moderation-schema.sql`
-32. `custom-checkmarks-schema.sql`
-33. `update-coin-packs.sql`
-34. `open-co-loop-invites-schema.sql`
-35. `curated-emojis-schema.sql`
-36. `add-is-spoiler-column.sql`
-37. `explore-reels-indexes.sql`
-38. `community-chat-post-enhancements.sql`
-39. `community-fixes-2026-09.sql`
-40. `community-admin-settings-2026-09.sql`
-41. `fix-duel-votes-type.sql`
-42. `fix-poll-option-id-type.sql`
-43. `fix-poll-votes-poll-id-type.sql`
-44. `community-chat-schema.sql`
-45. `community-post-enhancements.sql`
+23. `dev-quests-schema.sql`
+24. `developer-hub-v2.sql`
+25. `dev-collaborators-schema.sql`
+26. `dev-repo-schema.sql`
+27. `rls-policies.sql`
+28. `realtime-functions.sql`
+29. `coin-packs-refunds-schema.sql`
+30. `fix-profiles-cosmetics-column.sql`
+31. `private-profiles-schema.sql`
+32. `native-push-schema.sql`
+33. `clutch-duel-ads-tags-schema.sql`
+34. `awards-pro-circle-moments-schema.sql`
+35. `events-moderation-schema.sql`
+36. `custom-checkmarks-schema.sql`
+37. `update-coin-packs.sql`
+38. `open-co-loop-invites-schema.sql`
+39. `curated-emojis-schema.sql`
+40. `add-is-spoiler-column.sql`
+41. `explore-reels-indexes.sql`
+42. `community-chat-post-enhancements.sql`
+43. `community-fixes-2026-09.sql`
+44. `community-admin-settings-2026-09.sql`
+45. `fix-duel-votes-type.sql`
+46. `fix-poll-option-id-type.sql`
+47. `fix-poll-votes-poll-id-type.sql`
+48. `community-chat-schema.sql`
+49. `community-post-enhancements.sql`
 
 The Premium migration runs after the profile table is created. Circle event
 repair runs after the event/participant tables are created; the lifecycle
@@ -93,12 +100,12 @@ real source-of-truth tables.
 
 ## Adding new schema
 
-1. Prefer extending an existing canonical file (idempotent
+5. Prefer extending an existing canonical file (idempotent
    `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`) over creating a new one.
-2. If a new table is unavoidable, add it as a new idempotent `.sql` file
+6. If a new table is unavoidable, add it as a new idempotent `.sql` file
    and add it to the `files` array in `run-production-setup.mjs` in the
    same PR — a migration that isn't wired into the pipeline doesn't
    exist as far as any real environment is concerned.
-3. Never seed fake/demo rows in a migration that's part of the canonical
+7. Never seed fake/demo rows in a migration that's part of the canonical
    pipeline (see `developer-features.sql`'s history — it used to insert
    a canned sample project).
