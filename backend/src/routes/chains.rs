@@ -1267,12 +1267,15 @@ mod tests {
         let drop_id = Uuid::parse_str("11111111-1111-4111-8111-111111111111").unwrap();
         let circle_id = Uuid::parse_str("22222222-2222-4222-8222-222222222222").unwrap();
 
-        assert!(insert_circle_challenge_origin(
-            &mut metadata,
-            drop_id,
-            circle_id,
-            "Community prompt".to_owned(),
-        ).is_ok());
+        assert!(
+            insert_circle_challenge_origin(
+                &mut metadata,
+                drop_id,
+                circle_id,
+                "Community prompt".to_owned(),
+            )
+            .is_ok()
+        );
 
         assert_eq!(metadata["origin"]["type"], "circle_challenge");
         assert_eq!(metadata["origin"]["id"], drop_id.to_string());
