@@ -149,11 +149,14 @@ pub async fn list(
                 $1::uuid IS NOT NULL
                 AND (
                     c.owner_id = $1
-                    OR EXISTS (
-                        SELECT 1
-                        FROM collection_members AS member
-                        WHERE member.collection_id = c.id
-                          AND member.user_id = $1
+                    OR (
+                        c.is_collaborative IS TRUE
+                        AND EXISTS (
+                            SELECT 1
+                            FROM collection_members AS member
+                            WHERE member.collection_id = c.id
+                              AND member.user_id = $1
+                        )
                     )
                 )
             )
@@ -298,11 +301,14 @@ pub async fn get(
                 $2::uuid IS NOT NULL
                 AND (
                     c.owner_id = $2
-                    OR EXISTS (
-                        SELECT 1 FROM collection_members AS member
-                        WHERE member.collection_id = c.id
-                          AND member.user_id = $2
-                          AND member.role = 'editor'
+                    OR (
+                        c.is_collaborative IS TRUE
+                        AND EXISTS (
+                            SELECT 1 FROM collection_members AS member
+                            WHERE member.collection_id = c.id
+                              AND member.user_id = $2
+                              AND member.role = 'editor'
+                        )
                     )
                 ),
                 false
@@ -316,10 +322,13 @@ pub async fn get(
                   $2::uuid IS NOT NULL
                   AND (
                       c.owner_id = $2
-                      OR EXISTS (
-                          SELECT 1 FROM collection_members AS member
-                          WHERE member.collection_id = c.id
-                            AND member.user_id = $2
+                      OR (
+                          c.is_collaborative IS TRUE
+                          AND EXISTS (
+                              SELECT 1 FROM collection_members AS member
+                              WHERE member.collection_id = c.id
+                                AND member.user_id = $2
+                          )
                       )
                   )
               )

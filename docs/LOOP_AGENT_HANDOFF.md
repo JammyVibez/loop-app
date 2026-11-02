@@ -428,3 +428,11 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Fixed the admin appeal route's nullable RPC result guard before it returns `request_status`.
 - The workflow remains intentionally separate from the Admin Dashboard redevelopment track: this extends the existing verification review surface only. Audit-event persistence is in the migration; direct applicant reads cannot access reviewer notes or the event log.
 - Validate on CI: applicant/admin API tests, full TypeScript/Vitest suite, Next production build, Rust format/check/test/Clippy. Live migration application and real-database tests remain release gates.
+
+
+## 37. Collaborative Collection revocation and access levels — 2026-11-02
+
+- Hardened Rust Collection list/detail SQL so collaborator-based access to a private Collection and editor access to items apply only while `is_collaborative = true`. Disabling collaboration now stops old membership rows from granting visibility or edit rights; the owner can still remove members or re-enable collaboration.
+- Added an explicit owner-side access-level choice when inviting a collaborator: editor or viewer. The backend remains authoritative and accepts only those two roles.
+- Membership rows are preserved when collaboration is switched off rather than silently deleted, so owners can re-enable it without losing the roster. The collaboration flag is the active permission gate.
+- Validate on Rust CI and frontend build/verification. Production database checks should include toggling collaboration off and on with existing members.

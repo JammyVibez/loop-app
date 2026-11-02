@@ -73,6 +73,7 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
   const [adding, setAdding] = useState(false)
   const [removing, setRemoving] = useState<string | null>(null)
   const [inviteUsername, setInviteUsername] = useState("")
+  const [inviteRole, setInviteRole] = useState<"editor" | "viewer">("editor")
   const [inviting, setInviting] = useState(false)
   const [removingCollaborator, setRemovingCollaborator] = useState<string | null>(null)
 
@@ -174,12 +175,17 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
             "Content-Type": "application/json",
             ...getAuthHeader(),
           },
-          body: JSON.stringify({ username, role: "editor" }),
+          body: JSON.stringify({ username, role: inviteRole }),
         },
       )
       setInviteUsername("")
       await load()
-      toast({ title: "Collaborator added", description: `@${username} can now edit this collection.` })
+      toast({
+        title: "Collaborator added",
+        description: inviteRole === "editor"
+          ? `@${username} can now edit this collection.`
+          : `@${username} can view this collection.`,
+      })
     } catch (error) {
       toast({
         title: "Couldn't add collaborator",
@@ -324,6 +330,15 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
                     }
                   }}
                 />
+                <select
+                  aria-label="Collaborator access level"
+                  value={inviteRole}
+                  onChange={(event) => setInviteRole(event.target.value as "editor" | "viewer")}
+                  className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="editor">Can edit</option>
+                  <option value="viewer">Can view</option>
+                </select>
                 <Button onClick={() => void inviteCollaborator()} disabled={inviting || !inviteUsername.trim()} className="loop-tactile gap-2">
                   <Plus className="h-4 w-4" />
                   {inviting ? "Adding…" : "Add editor"}
