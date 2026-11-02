@@ -1006,81 +1006,105 @@ pub async fn update(
         ));
     }
 
-    let title = input.title.map(|value| {
-        let value = value.trim().to_owned();
-        if value.is_empty() || value.chars().count() > 120 {
-            Err(api_error(
-                StatusCode::UNPROCESSABLE_ENTITY,
-                "invalid_chain_title",
-                "Chain titles must contain between 1 and 120 characters.",
-            ))
-        } else {
-            Ok(value)
-        }
-    }).transpose()?;
-    let description = input.description.map(|value| {
-        if value.chars().count() > 2_000 {
-            Err(api_error(
-                StatusCode::UNPROCESSABLE_ENTITY,
-                "chain_text_too_long",
-                "Descriptions are limited to 2,000 characters.",
-            ))
-        } else {
-            Ok(value.trim().to_owned())
-        }
-    }).transpose()?;
-    let prompt = input.prompt.map(|value| {
-        if value.chars().count() > 1_200 {
-            Err(api_error(
-                StatusCode::UNPROCESSABLE_ENTITY,
-                "chain_text_too_long",
-                "Opening prompts are limited to 1,200 characters.",
-            ))
-        } else {
-            Ok(value.trim().to_owned())
-        }
-    }).transpose()?;
-    let category = input.category.map(|value| {
-        let value = value.trim().to_lowercase();
-        if value.is_empty() || value.chars().count() > 40 {
-            Err(api_error(
-                StatusCode::UNPROCESSABLE_ENTITY,
-                "invalid_chain_category",
-                "Choose a category of 1 to 40 characters.",
-            ))
-        } else {
-            Ok(value)
-        }
-    }).transpose()?;
-    let visibility = input.visibility.map(|value| {
-        valid_visibility(Some(&value)).ok_or_else(|| {
-            api_error(
-                StatusCode::UNPROCESSABLE_ENTITY,
-                "invalid_chain_visibility",
-                "Visibility must be public, unlisted, private or circle.",
-            )
+    let title = input
+        .title
+        .map(|value| {
+            let value = value.trim().to_owned();
+            if value.is_empty() || value.chars().count() > 120 {
+                Err(api_error(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    "invalid_chain_title",
+                    "Chain titles must contain between 1 and 120 characters.",
+                ))
+            } else {
+                Ok(value)
+            }
         })
-    }).transpose()?;
-    let contribution_policy = input.contribution_policy.map(|value| {
-        valid_policy(Some(&value)).ok_or_else(|| {
-            api_error(
-                StatusCode::UNPROCESSABLE_ENTITY,
-                "invalid_contribution_policy",
-                "Contribution policy must be open, members or circle_members.",
-            )
+        .transpose()?;
+    let description = input
+        .description
+        .map(|value| {
+            if value.chars().count() > 2_000 {
+                Err(api_error(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    "chain_text_too_long",
+                    "Descriptions are limited to 2,000 characters.",
+                ))
+            } else {
+                Ok(value.trim().to_owned())
+            }
         })
-    }).transpose()?;
-    let status = input.status.map(|value| {
-        valid_chain_status(&value).ok_or_else(|| {
-            api_error(
-                StatusCode::UNPROCESSABLE_ENTITY,
-                "invalid_chain_status",
-                "Status must be active, paused, completed or archived.",
-            )
+        .transpose()?;
+    let prompt = input
+        .prompt
+        .map(|value| {
+            if value.chars().count() > 1_200 {
+                Err(api_error(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    "chain_text_too_long",
+                    "Opening prompts are limited to 1,200 characters.",
+                ))
+            } else {
+                Ok(value.trim().to_owned())
+            }
         })
-    }).transpose()?;
+        .transpose()?;
+    let category = input
+        .category
+        .map(|value| {
+            let value = value.trim().to_lowercase();
+            if value.is_empty() || value.chars().count() > 40 {
+                Err(api_error(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    "invalid_chain_category",
+                    "Choose a category of 1 to 40 characters.",
+                ))
+            } else {
+                Ok(value)
+            }
+        })
+        .transpose()?;
+    let visibility = input
+        .visibility
+        .map(|value| {
+            valid_visibility(Some(&value)).ok_or_else(|| {
+                api_error(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    "invalid_chain_visibility",
+                    "Visibility must be public, unlisted, private or circle.",
+                )
+            })
+        })
+        .transpose()?;
+    let contribution_policy = input
+        .contribution_policy
+        .map(|value| {
+            valid_policy(Some(&value)).ok_or_else(|| {
+                api_error(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    "invalid_contribution_policy",
+                    "Contribution policy must be open, members or circle_members.",
+                )
+            })
+        })
+        .transpose()?;
+    let status = input
+        .status
+        .map(|value| {
+            valid_chain_status(&value).ok_or_else(|| {
+                api_error(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    "invalid_chain_status",
+                    "Status must be active, paused, completed or archived.",
+                )
+            })
+        })
+        .transpose()?;
 
-    let mut transaction = state.database.begin().await
+    let mut transaction = state
+        .database
+        .begin()
+        .await
         .map_err(|error| db_error(error, "begin Chain update"))?;
     let current = sqlx::query(
         "SELECT creator_id, circle_id FROM chains WHERE id = $1 FOR UPDATE",
@@ -1095,18 +1119,21 @@ pub async fn update(
         "This Chain is unavailable.",
     ))?;
 
-    let creator_id: Uuid = current.try_get("creator_id")
+    let creator_id: Uuid = current
+        .try_get("creator_id")
         .map_err(|error| db_error(error, "read Chain creator"))?;
-    let circle_id: Option<Uuid> = current.try_get("circle_id")
+    let circle_id: Option<Uuid> = current
+        .try_get("circle_id")
         .map_err(|error| db_error(error, "read Chain Circle"))?;
-    let is_owner = creator_id == user.id || sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS (SELECT 1 FROM chain_members WHERE chain_id = $1 AND user_id = $2 AND role = 'owner')",
-    )
-    .bind(chain_id)
-    .bind(user.id)
-    .fetch_one(&mut *transaction)
-    .await
-    .map_err(|error| db_error(error, "verify Chain owner"))?;
+    let is_owner = creator_id == user.id
+        || sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS (SELECT 1 FROM chain_members WHERE chain_id = $1 AND user_id = $2 AND role = 'owner')",
+        )
+        .bind(chain_id)
+        .bind(user.id)
+        .fetch_one(&mut *transaction)
+        .await
+        .map_err(|error| db_error(error, "verify Chain owner"))?;
 
     if !is_owner {
         return Err(api_error(
@@ -1116,7 +1143,9 @@ pub async fn update(
         ));
     }
 
-    if circle_id.is_some() && visibility.as_deref().is_some_and(|value| value != "circle") {
+    if circle_id.is_some()
+        && visibility.as_deref().is_some_and(|value| value != "circle")
+    {
         return Err(api_error(
             StatusCode::CONFLICT,
             "circle_chain_scope_locked",
@@ -1188,7 +1217,9 @@ pub async fn update(
     .await
     .map_err(|error| db_error(error, "update Chain"))?;
 
-    transaction.commit().await
+    transaction
+        .commit()
+        .await
         .map_err(|error| db_error(error, "commit Chain update"))?;
 
     let row = sqlx::query(&format!("{SUMMARY_SELECT} WHERE chain.id = $1"))
