@@ -319,12 +319,12 @@ export async function GET(request: NextRequest) {
               success: true,
               data: [],
               loops: [],
-              recommendation_basis: "Your public liked and saved Loops do not have enough topic tags yet.",
+              recommendation_basis: "Choose a topic or like/save public Loops with topic tags to build your interest feed.",
             })
           }
 
           const queries = await Promise.all(preferredTags.map(async ([tag]) => {
-            const { data, error } = await supabase
+            let candidateQuery = supabase
               .from("loops")
               .select(`
                 *,
@@ -334,7 +334,12 @@ export async function GET(request: NextRequest) {
               .eq("visibility", "public")
               .is("parent_loop_id", null)
               .contains("hashtags", [tag])
-              .not("id", "in", `(${signalIds.join(",")})`)
+
+            if (signalIds.length > 0) {
+              candidateQuery = candidateQuery.not("id", "in", `(${signalIds.join(",")})`)
+            }
+
+            const { data, error } = await candidateQuery
               .order("created_at", { ascending: false })
               .limit(Math.max(limit * 2, 24))
             return { tag, data: data || [], error }

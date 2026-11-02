@@ -531,3 +531,10 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Integrated the preferences panel into the For you tab with suggested public hashtags, add/remove preferred topics, mute/unmute and a personalization pause.
 - Added API contract tests for authentication, member-owned reads/writes and malformed topic updates.
 - The feed request refreshes after a preference save; the other Discover tabs remain independent of personalization.
+
+## 50. Push preference module and explicit-topic Discover edge cases — 2026-11-02
+
+- Restored the shared `lib/notification-preferences.ts` module referenced by notification delivery and made Web Push use the same global/category/quiet-hours resolver as native FCM.
+- Push preference checks now have a single source of truth. Missing browser subscriptions do not change member preference decisions; notification orchestration separately checks preferences before both transports.
+- Fixed the personalized Discover query when a member chooses topics but has no prior liked/saved signals: no empty PostgREST `IN ()` filter is emitted. Empty preferred-topic/signal combinations now return a useful empty state instead of being treated as a query failure.
+- Re-run frontend verification and production build on the PR merge ref after this commit.
