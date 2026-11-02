@@ -561,3 +561,11 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Views, likes and comments are explicitly described as lifetime totals on Loops published in the selected range, not as impressions generated only during those dates.
 - Replaced invented “best time to post” wording with the observed most-active posting hour in UTC.
 - Added deterministic unit tests for metric aggregation, engagement rate, UTC posting hour and rolling weekly activity.
+
+## 54. Creator revenue presentation and accounting boundaries — 2026-11-02
+
+- Removed computed Creator Fund, live-stream, subscription and per-post earnings claims that were not backed by a verified creator payout ledger. These sources are no longer presented as revenue.
+- Creator earnings balances are converted from the existing USD-equivalent ledger amounts into Loop Coins at the ledger's documented conversion of 1 coin = $0.01, matching the creator wallet's displayed unit.
+- Gift value is reported separately as received Loop Coins. Promotion purchases remain explicitly separate spending, not revenue. Monthly history is grouped from actual gift records by UTC month.
+- Removed the invented next-payout date. Top-content values use real views and engagement counters rather than calculated money amounts.
+- Added tests for measured coin aggregation and monthly gift activity.
