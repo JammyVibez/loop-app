@@ -329,3 +329,9 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 
 - Enabled RLS on content_flags. Public direct access is revoked, authenticated SELECT is allowed only when the viewer's canonical profile is an administrator or moderator, and service-role server routes retain required CRUD access.
 - The moderation panel no longer subscribes with a public-key browser client to report records. It refreshes through the server-authenticated moderator endpoint every 20 seconds and preserves its initial loading state only for the first fetch.
+## 23. Atomic ban appeal decisions — 2026-11-02
+
+- Added the account-status/ban-appeals schema to canonical production setup after community chat schema creation. The migration adds the missing account status fields, appeal indexes and a status constraint, and records server-only access to appeal data using RLS with no direct client policies.
+- Added a SECURITY DEFINER appeal-review transaction. It locks the pending appeal, validates the canonical moderator/admin role, clears is_banned/ban_reason/suspension_reason/suspended_at when approving, then updates the appeal decision in the same transaction. Denials require a reason.
+- Replaced the admin appeal route's previously separate appeal update and account unban with the transactional RPC. Queue status and pagination are validated; notifications are sent only after the decision commits.
+- The appeal panel requires a reviewer reason before denial. Parser and route tests cover approval, required denial feedback, invalid requests, stale decisions and unauthorized reviewers.
