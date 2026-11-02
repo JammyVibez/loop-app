@@ -12,7 +12,7 @@ function buildMonthlyGiftActivity(rows: Array<{ cost?: number | string | null; c
   for (let offset = 5; offset >= 0; offset -= 1) {
     const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offset, 1))
     const key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`
-    months.set(key, { month: date.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" }), earnings: 0, gifts: 0, engagement: 0 })
+    months.set(key, { month: date.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }), earnings: 0, gifts: 0, engagement: 0 })
   }
   for (const row of rows) {
     const date = new Date(String(row.created_at || ""))

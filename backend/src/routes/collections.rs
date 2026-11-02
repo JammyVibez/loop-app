@@ -102,7 +102,7 @@ pub struct CollectionInvitation {
 }
 
 #[derive(Serialize)]
-struct CollectionMemberInvitationResult {
+pub struct CollectionMemberInvitationResult {
     collection_id: Uuid,
     user_id: Uuid,
     username: String,

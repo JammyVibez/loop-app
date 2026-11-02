@@ -33,3 +33,9 @@ The success redirect carries the Stripe Checkout Session ID to /premium. LOOP re
 - The base `complete-database-setup.sql` profiles table did not define `premium_expires_at`; the recurring billing migration now creates that column idempotently alongside its grant-source fields.
 - Explicitly revoked direct public/anon/authenticated access to the subscription ledger and granted CRUD only to the server service role. Authenticated users continue to read their own billing state through server-authenticated APIs.
 - Fresh and existing database migration execution remains to be verified against actual PostgreSQL environments.
+
+
+## 63. Latest CI fixes — Collection result visibility and deterministic month labels — 2026-11-02
+
+- Made the Rust Collection invitation response DTO public because it is returned by a public Axum handler; the API struct fields remain private.
+- Stabilized the creator-revenue month test with an explicit US short-month locale. The test expected the three-letter `Sep` label but `en-GB` emits `Sept` in Node's ICU data; this was a test-fixture locale mismatch, not an analytics calculation error.
