@@ -26,6 +26,8 @@ const files = [
   "scripts/launch-schema-alignment.sql",
   "scripts/loops-and-media.sql",
   "scripts/moderation-schema.sql",
+  // Race-safe reports and transactional moderation actions.
+  "scripts/moderation-integrity.sql",
   "scripts/circles-schema-alignment.sql",
   "scripts/enhanced-database-schema-part2.sql",
   "scripts/enhanced-database-schema-part3.sql",
@@ -229,7 +231,7 @@ function applyFile(file, { strict = false } = {}) {
 for (const file of files) {
   // Verification owns private identity evidence and the admin review function;
   // never report setup success when any part of this security migration fails.
-  applyFile(file, { strict: file === "scripts/verification-lifecycle.sql" })
+  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/moderation-integrity.sql"].includes(file) })
 }
 
 if (process.argv.includes("--with-seed")) {
