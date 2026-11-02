@@ -610,6 +610,7 @@ pub async fn create(
         circle_id: inserted
             .try_get("circle_id")
             .map_err(|e| db_error(e, "read Circle id"))?,
+        source_chain_id: None,
         title: inserted
             .try_get("title")
             .map_err(|e| db_error(e, "read title"))?,
