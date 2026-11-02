@@ -38,6 +38,7 @@ type ChallengeResponse = {
   challenge: Challenge
   can_submit: boolean
   is_member: boolean
+  can_create_chain: boolean
   viewer_id: string | null
 }
 
@@ -275,7 +276,7 @@ export function ChallengeDetailClient({
           <Link href={"/communities/" + circleId} className="inline-flex text-xs font-semibold text-primary hover:underline">
             Open Circle
           </Link>
-          {data.is_member && (
+          {data.can_create_chain && (
             <Link
               href={"/chains?" + chainParams.toString()}
               className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10"
