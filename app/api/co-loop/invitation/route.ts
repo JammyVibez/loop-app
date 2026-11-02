@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
+import { decideCoLoopInvitationResponse } from "@/lib/co-loop-session-access"
 
 export const dynamic = "force-dynamic"
 
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient()
     const { data: session, error: sessionError } = await supabase
       .from("co_loop_sessions")
-      .select("session_id, owner_id, deleted_at, status")
+      .select("session_id, owner_id, deleted_at, status, locked")
       .eq("session_id", sessionId)
       .maybeSingle()
     if (sessionError) {
@@ -46,6 +47,30 @@ export async function POST(request: NextRequest) {
     if (ledgerError) {
       console.error("Co-Loop invitation ledger lookup failed:", ledgerError.message)
       return NextResponse.json({ error: "Could not verify this invitation" }, { status: 500 })
+    }
+
+    if (ledger) {
+      const decision = decideCoLoopInvitationResponse(session, ledger.status, status)
+      if (decision === "inactive") {
+        return NextResponse.json({ error: "This Co-Loop is no longer accepting collaborators" }, { status: 410 })
+      }
+      if (decision === "locked") {
+        return NextResponse.json({ error: "The host has locked this room" }, { status: 423 })
+      }
+      if (decision === "already_responded") {
+        return NextResponse.json({ error: "This invitation is no longer active" }, { status: 409 })
+      }
+      if (decision === "already_accepted") {
+        return NextResponse.json({ success: true, sessionId, status, alreadyAccepted: true })
+      }
+    } else if (status === "accepted") {
+      const decision = decideCoLoopInvitationResponse(session, null, status)
+      if (decision === "inactive") {
+        return NextResponse.json({ error: "This Co-Loop is no longer accepting collaborators" }, { status: 410 })
+      }
+      if (decision === "locked") {
+        return NextResponse.json({ error: "The host has locked this room" }, { status: 423 })
+      }
     }
 
     const encodedSessionId = encodeURIComponent(sessionId)

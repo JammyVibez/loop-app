@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  decideCoLoopInvitationResponse,
   decideCoLoopJoin,
   isCoLoopParticipant,
   isRevokedCoLoopInvitationStatus,
@@ -51,5 +52,34 @@ describe("Co-Loop invitation revocation", () => {
     expect(isRevokedCoLoopInvitationStatus("accepted")).toBe(false)
     expect(isRevokedCoLoopInvitationStatus(null)).toBe(false)
     expect(isRevokedCoLoopInvitationStatus(undefined)).toBe(false)
+  })
+})
+
+
+describe("Co-Loop invitation response eligibility", () => {
+  const activeRoom = {
+    owner_id: "host-1",
+    co_authors: [],
+    status: "active",
+    locked: false,
+  }
+
+  it("allows acceptance only while the room is active and unlocked", () => {
+    expect(decideCoLoopInvitationResponse(activeRoom, "pending", "accepted")).toBe("allowed")
+    expect(decideCoLoopInvitationResponse({ ...activeRoom, status: "ended" }, "pending", "accepted")).toBe("inactive")
+    expect(decideCoLoopInvitationResponse({ ...activeRoom, status: "published" }, "pending", "accepted")).toBe("inactive")
+    expect(decideCoLoopInvitationResponse({ ...activeRoom, locked: true }, "pending", "accepted")).toBe("locked")
+  })
+
+  it("allows decline after a room ends or is locked", () => {
+    expect(decideCoLoopInvitationResponse({ ...activeRoom, status: "ended" }, "pending", "declined")).toBe("allowed")
+    expect(decideCoLoopInvitationResponse({ ...activeRoom, locked: true }, "pending", "declined")).toBe("allowed")
+  })
+
+  it("keeps duplicate and stale responses idempotent or denied", () => {
+    expect(decideCoLoopInvitationResponse(activeRoom, "accepted", "accepted")).toBe("already_accepted")
+    expect(decideCoLoopInvitationResponse(activeRoom, "accepted", "declined")).toBe("already_responded")
+    expect(decideCoLoopInvitationResponse(activeRoom, "revoked", "accepted")).toBe("already_responded")
+    expect(decideCoLoopInvitationResponse({ ...activeRoom, deleted_at: "2026-11-01" }, "pending", "declined")).toBe("deleted")
   })
 })

@@ -461,3 +461,10 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Distinguished an occupied reservation from an already-joined participant in the open Co-Loop join RPC. A pending direct invite reserves capacity but remains pending until the invitee joins; joining converts that exact seat to accepted without charging a second place.
 - Existing participants can reconnect while the host has locked the room, while a newly arriving participant (including a pending invitee) cannot bypass the lock.
 - Public joins now create the open-participant record and update the shared roster through one row-locked transaction; returned participant counts reflect the canonical combined roster rather than just the open-participant table.
+
+
+## 41. Co-Loop invitation response lifecycle — 2026-11-02
+
+- Added an explicit invitation-response decision helper and applied it to the direct invitation endpoint. New acceptances now fail when a room is ended/published or locked, matching the session-info access decision instead of saving an acceptance the recipient cannot use.
+- Declining remains available for a pending invitation after a room ends or is locked, so recipients can clear old invitations and release reserved seats. Repeated acceptance of an already accepted invitation remains idempotent.
+- Added coverage for active/unlocked acceptance, locked/ended acceptance, late decline, deleted rooms and stale response states.
