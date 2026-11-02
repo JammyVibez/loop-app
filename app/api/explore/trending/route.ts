@@ -90,7 +90,6 @@ export async function GET(request: NextRequest) {
 
         // Private profiles never rank in trending users unless the viewer
         // already follows them.
-        const following = await getFollowingIds(supabase, user?.id || null)
         const hiddenIds = await getBlockedProfileIds(supabase, user?.id || null, (users || []).map((entry: any) => entry.id))
         const privateIds = await getPrivateProfileIds(supabase, (users || []).map((u: any) => u.id))
         const visible = (users || []).filter((u: any) => {
@@ -112,7 +111,7 @@ export async function GET(request: NextRequest) {
           supabase
             .from("loop_duels")
             .select(`
-              id, prompt, status, expires_at, stake_coins, loop_id, created_at,
+              id, creator_id, prompt, status, expires_at, stake_coins, loop_id, created_at,
               creator:profiles!creator_id(id, username, display_name, avatar_url, video_avatar_url),
               entries:loop_duel_entries(id, side, title, content, votes_count)
             `)
@@ -143,8 +142,22 @@ export async function GET(request: NextRequest) {
             .limit(30),
         ])
 
+        // Resolve the viewer's approved follows once, then apply the same
+        // two-way block and profile-visibility gate to every participation
+        // surface. A public Loop/duel is not permission to expose a restricted
+        // creator's profile or content.
+        const following = await getFollowingIds(supabase, user?.id || null)
+        const duelRows = await filterPrivateContent(
+          supabase,
+          (duelsRes.data || []).map((duel: any) => ({
+            ...duel,
+            author_id: duel.creator_id || duel.creator?.id,
+          })),
+          user?.id || null,
+          following,
+        )
+
         // 1) Active duels ranked by current vote totals with live splits
-        const duelRows = duelsRes.data || []
         const duels = duelRows
           .map((duel: any) => {
             const entries = Array.isArray(duel.entries) ? duel.entries : []
@@ -187,6 +200,14 @@ export async function GET(request: NextRequest) {
             return l.is_co_loop || (Array.isArray(meta?.co_authors) && meta.co_authors.length > 0)
           })
         }
+        // Participation discovery must honour the same private-profile and
+        // block rules as the primary Explore feed, including its fallback query.
+        coLoopRows = await filterPrivateContent(
+          supabase,
+          coLoopRows,
+          user?.id || null,
+          following,
+        )
         const coLoops = coLoopRows.slice(0, 4).map((loop: any) => {
           const meta = loop.content_metadata
           const coAuthors = Array.isArray(meta?.co_authors) ? meta.co_authors : []
