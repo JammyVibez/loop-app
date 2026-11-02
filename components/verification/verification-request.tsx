@@ -40,6 +40,7 @@ export function VerificationRequest() {
     realName: "",
     socialLinks: "",
     reason: "",
+    documents: "",
     category: "creator" as VerificationType,
   });
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -48,7 +49,7 @@ export function VerificationRequest() {
   const { toast } = useToast()
   const { user, getAuthHeader } = useAuth()
 
-  // Load the authenticated account's verification state and request history.
+  // Load the signed-in account's verification state and request history.
   useEffect(() => {
     let mounted = true
     async function load() {
@@ -97,7 +98,7 @@ export function VerificationRequest() {
           socialLinks: formData.socialLinks,
           reason: formData.reason,
           verificationType: formData.category,
-          documents: null,
+          documents: formData.documents,
         }),
       })
 
@@ -117,6 +118,7 @@ export function VerificationRequest() {
         realName: "",
         socialLinks: "",
         reason: "",
+        documents: "",
         category: prev.category,
       }))
       // Refresh request history so the pending banner shows immediately.
@@ -255,6 +257,21 @@ export function VerificationRequest() {
                   placeholder={"Instagram: @username\nWebsite: https://..."}
                   rows={3}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="documents">Supporting link (optional)</Label>
+                <Input
+                  id="documents"
+                  type="url"
+                  maxLength={2048}
+                  value={formData.documents}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, documents: e.target.value }))}
+                  placeholder="https://your-official-site.example"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Add a public portfolio, press page or official website. Do not submit identity documents here.
+                </p>
               </div>
 
               <div className="space-y-2">

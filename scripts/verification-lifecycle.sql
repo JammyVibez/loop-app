@@ -97,9 +97,23 @@ CREATE INDEX IF NOT EXISTS idx_verification_requests_user_created
 -- server-only Supabase service role. Remove the old broad applicant policies
 -- so clients cannot read legal names or evidence URLs directly.
 ALTER TABLE public.verification_requests ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS verification_requests_select_policy ON public.verification_requests;
-DROP POLICY IF EXISTS verification_requests_insert_policy ON public.verification_requests;
-DROP POLICY IF EXISTS verification_requests_update_policy ON public.verification_requests;
+DO $
+DECLARE
+  policy_row RECORD;
+BEGIN
+  FOR policy_row IN
+    SELECT policyname
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'verification_requests'
+  LOOP
+    EXECUTE FORMAT(
+      'DROP POLICY %I ON public.verification_requests',
+      policy_row.policyname
+    );
+  END LOOP;
+END
+$;
 
 DO $$
 BEGIN
@@ -126,7 +140,7 @@ CREATE OR REPLACE FUNCTION public.review_verification_request(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public, pg_temp
 AS $$
 DECLARE
   v_request public.verification_requests%ROWTYPE;

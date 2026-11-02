@@ -289,3 +289,10 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - The admin review route now uses the strict shared admin guard and the atomic database function. A request cannot remain approved while the profile update silently failed. Notifications are best-effort after the committed decision.
 - Applicant history now exposes the designated rejection_reason field rather than internal admin_notes. Verification settings correct their text-length control, evidence-link input type and signed-out/profile-unavailable form state.
 - Validation coverage for the route payload is kept separate from admin capabilities. This remains a staged Next.js/Supabase workflow; it is not yet moved to the Rust API. The migration has not yet been executed against a live database in this development session.
+## 15. Verification route coverage and applicant experience — 2026-11-02
+
+- Added a focused route-level test plan for the actual admin decision handler: authorized decisions call the atomic review RPC, stale requests produce a conflict without sending notifications, invalid request IDs are rejected, and unauthorized reviewers never reach the database.
+- Removed all existing RLS policies on the verification request table during setup, rather than only known legacy policy names. The server-side service role remains the sole application data path.
+- Tightened the security-definer RPC search path to prefer pg_catalog and schema-qualified application tables.
+- Added an optional HTTPS evidence-link field to the primary verification page, so both entry points submit the same supported application shape.
+- Review remains a manual identity process independent of Premium. Appeals, independent reviewer auditing and live-database migration validation remain open before this workflow can be called release-ready.
