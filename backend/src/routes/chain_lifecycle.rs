@@ -472,9 +472,9 @@ pub async fn update_contribution(
                 Some(value)
             }
         })
-        .unwrap_or(old_title);
-    let next_content = input.content.unwrap_or(old_content);
-    let next_payload = input.payload.unwrap_or(old_payload);
+        .unwrap_or(old_title.clone());
+    let next_content = input.content.unwrap_or_else(|| old_content.clone());
+    let next_payload = input.payload.unwrap_or_else(|| old_payload.clone());
 
     validate_edited_contribution(
         &contribution_type,
