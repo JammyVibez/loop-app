@@ -87,7 +87,7 @@ export async function checkCirclePrivateAccess(
       return { isPrivate: false, canView: true }
     }
 
-    const token = authHeader?.replace(/^Bearer\\s+/i, "").trim() || null
+    const token = authHeader?.replace(/^Bearer\s+/i, "").trim() || null
     const userId = token ? await getUserIdFromToken(token, supabase) : null
     if (!userId) return { isPrivate: true, canView: false }
 
