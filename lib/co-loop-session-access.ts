@@ -88,3 +88,9 @@ export function decideCoLoopInvitationResponse(
   if (session.locked === true) return "locked"
   return "allowed"
 }
+
+
+/** Durable Co-Loop writes stop when the session is completed or deleted. */
+export function canWriteCoLoopSession(session: CoLoopJoinState): boolean {
+  return !session.deleted_at && session.status === "active"
+}
