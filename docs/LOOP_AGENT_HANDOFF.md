@@ -106,3 +106,12 @@ Finish and verify: durable invitations and revocation, active-session authorizat
 - Consolidated Explore search to consume the shared `/api/search` response for people, Loops, hashtags, Circles, Chains and Collections; Drops remain on their dedicated endpoint because they are a separately permissioned aggregation.
 - Removed duplicate direct Chain and Collection search calls from the Explore search component, so public visibility and blocked/restricted-owner filtering are consistent between Explore and the dedicated Search page.
 - Extended autocomplete suggestions to include Chains, Collections and Circles, with type-specific icons and concise context labels.
+
+
+## 71. Circle auxiliary routes and Drops visibility — 2 November 2026
+
+- Circle bookmarks, check-ins, tags and bot triggers now require server-side privileged access. Check-in status reads and writes both require active/approved membership; bookmark output is restricted to published posts and an explicit post/author field set.
+- Circle bot triggers now require an active member; muted members are denied, moderation triggers are staff-only, and writing a bot response as a post requires the configured post-create permission (or staff).
+- Individual Circle post detail no longer exposes pending content to non-staff users; interaction endpoints require active/approved membership.
+- Circle-to-Loop feed sharing uses the server-only client and a current active/approved membership. Private Circles remain ineligible for public feed mirroring.
+- Drops now includes events and challenges from public Circles, plus the viewer's own/private-active-member Circles; private content remains scoped to its owner or active/approved members.

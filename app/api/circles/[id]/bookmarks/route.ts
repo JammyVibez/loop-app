@@ -36,8 +36,8 @@ export async function GET(
         id,
         created_at,
         post:circle_posts!post_id(
-          *,
-          author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_premium)
+          id, circle_id, content, post_type, status, created_at, like_count, comment_count,
+          author:profiles!author_id(id, username, display_name, avatar_url, is_verified)
         )
       `)
       .eq("user_id", user.id)

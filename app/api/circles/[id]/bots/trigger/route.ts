@@ -10,6 +10,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { id: circleId } = await params
+    const body = await request.json().catch(() => ({}))
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: "Circle bots are unavailable" }, { status: 503 })
+    }
     const triggerType = String(body.trigger_type || "chat")
     if (!["welcome", "chat", "moderation"].includes(triggerType)) {
       return NextResponse.json({ error: "Unsupported bot trigger" }, { status: 400 })

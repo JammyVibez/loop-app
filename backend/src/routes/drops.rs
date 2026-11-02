@@ -733,7 +733,6 @@ mod tests {
     }
 }
 
-
 #[cfg(test)]
 mod drops_visibility_tests {
     #[test]
