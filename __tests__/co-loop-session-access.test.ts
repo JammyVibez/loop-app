@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  canWriteCoLoopSession,
   decideCoLoopInvitationResponse,
   decideCoLoopJoin,
   isCoLoopParticipant,
@@ -81,5 +82,17 @@ describe("Co-Loop invitation response eligibility", () => {
     expect(decideCoLoopInvitationResponse(activeRoom, "accepted", "declined")).toBe("already_responded")
     expect(decideCoLoopInvitationResponse(activeRoom, "revoked", "accepted")).toBe("already_responded")
     expect(decideCoLoopInvitationResponse({ ...activeRoom, deleted_at: "2026-11-01" }, "pending", "declined")).toBe("deleted")
+  })
+})
+
+
+describe("Co-Loop session write lifecycle", () => {
+  it("allows durable writes only while a session is active", () => {
+    expect(canWriteCoLoopSession({ status: "active" })).toBe(true)
+    expect(canWriteCoLoopSession({ status: "completed" })).toBe(false)
+    expect(canWriteCoLoopSession({ status: "inactive" })).toBe(false)
+    expect(canWriteCoLoopSession({ status: "archived" })).toBe(false)
+    expect(canWriteCoLoopSession({ status: "active", deleted_at: "2026-11-02T12:00:00Z" })).toBe(false)
+    expect(canWriteCoLoopSession({})).toBe(false)
   })
 })
