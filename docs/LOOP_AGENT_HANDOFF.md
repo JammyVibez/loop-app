@@ -347,3 +347,9 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - The join API now uses the database outcome as the source of truth. Existing active/pending members do not trigger duplicate welcome effects; private requests notify Circle staff; successful public joins retain welcome bot/default Power/quest integrations after commit.
 - Added route tests for atomic delegation, full-Circle conflict, already-member idempotency and private join request notification.
 - Private join approvals still need the same row-locked capacity check; that is the next membership lifecycle step, rather than treating this join-request endpoint as complete.
+## 26. Circle join approval lifecycle — 2026-11-02
+
+- Private join approvals and rejections now use a second row-locked database function, sharing the Circle-row lock with public joins so `max_members` cannot be bypassed by simultaneous approvals or joins.
+- The review function independently validates the reviewer’s active Circle role, owner/admin/moderator role hierarchy, target profile account status, pending request state, capacity and requested role. It prevents moderators from granting moderator/admin roles and only lets the Circle owner grant admin.
+- Rejections now transition the join row to `rejected` instead of deleting it, preserving a membership-request audit trail and allowing a future re-application through the join function.
+- The API calls the RPC and only sends the appropriate recipient notification after the transaction commits. Added route coverage for approval, rejection, capacity conflicts and invalid role requests.

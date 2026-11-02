@@ -48,24 +48,17 @@ beforeEach(() => {
     error: null,
   })
   state.from.mockImplementation((table: string) => {
-    if (table === "circles") {
-      return {
-        select: () => ({
-          eq: () => ({
-            maybeSingle: state.circleLookup,
-          }),
-        }),
-      }
-    }
-    return {
-      select: () => ({
-        eq: () => ({
-          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-        }),
-        in: () => Promise.resolve({ data: [], error: null }),
-      }),
-      upsert: vi.fn().mockResolvedValue({ error: null }),
-    }
+    const builder: Record<string, any> = {}
+    builder.select = () => builder
+    builder.eq = () => builder
+    builder.in = () => builder
+    builder.maybeSingle = table === "circles"
+      ? state.circleLookup
+      : vi.fn().mockResolvedValue({ data: null, error: null })
+    builder.upsert = vi.fn().mockResolvedValue({ error: null })
+    builder.then = (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) =>
+      Promise.resolve({ data: [], error: null }).then(resolve, reject)
+    return builder
   })
 })
 

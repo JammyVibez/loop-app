@@ -997,6 +997,16 @@ export interface Database {
         }
         Returns: Json
       }
+      review_circle_join_request: {
+        Args: {
+          p_circle_id: string
+          p_member_id: string
+          p_actor_id: string
+          p_action: string
+          p_role?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

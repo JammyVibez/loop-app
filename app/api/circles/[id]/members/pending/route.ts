@@ -72,27 +72,60 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await getUserFromRequest(request)
-    if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { id: circleId } = await params
-    const body = await request.json().catch(() => null)
+    let body: unknown
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: "Request body must be valid JSON" }, { status: 400 })
+    }
     if (!body || typeof body !== "object" || Array.isArray(body)) {
       return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
     }
-    const { memberId, action, role } = body as Record<string, unknown>
-    if (typeof memberId !== "string" || !memberId.trim()) {
-      return NextResponse.json({ error: "Member ID is required" }, { status: 400 })
+
+    const input = body as Record<string, unknown>
+    if (typeof input.memberId !== "string" || !/^[0-9a-f-]{36}$/i.test(input.memberId)) {
+      return NextResponse.json({ error: "A valid member ID is required" }, { status: 400 })
     }
-    if (action !== "approve" && action !== "reject") {
+    if (input.action !== "approve" && input.action !== "reject") {
       return NextResponse.json({ error: "Action must be approve or reject" }, { status: 400 })
     }
+    const requestedRole = input.role === undefined ? "member" : input.role
+    if (input.action === "approve" && (typeof requestedRole !== "string" || !["member", "moderator", "admin"].includes(requestedRole))) {
+      return NextResponse.json({ error: "Choose a valid Circle role" }, { status: 400 })
+    }
 
-    const actorRole = await getCircleStaffRole(circleId, user.id)
-    if (!actorRole) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    // The RPC independently rechecks staff authority, target profile status,
+    // request state and max_members under the same Circle row lock as joins.
+    const { data, error } = await supabase.rpc("review_circle_join_request", {
+      p_circle_id: circleId,
+      p_member_id: input.memberId,
+      p_actor_id: user.id,
+      p_action: input.action,
+      p_role: typeof requestedRole === "string" ? requestedRole : "member",
+    })
 
-    const requestedRole = role === undefined ? "member" : role
-    if (action === "approve" && (typeof requestedRole !== "string" || !canApproveCircleRole(actorRole, requestedRole))) {
-      return NextResponse.json({ error: "You cannot approve a request with that role" }, { status: 403 })
+    if (error) {
+      console.error("Atomic Circle join review failed:", error)
+      if (error.code === "42501") return NextResponse.json({ error: error.message || "Insufficient Circle permissions" }, { status: 403 })
+      if (error.code === "P0002") return NextResponse.json({ error: "Circle or join request not found" }, { status: 404 })
+      if (error.code === "55000") return NextResponse.json({ error: "This join request has already been handled" }, { status: 409 })
+      if (error.code === "22023") return NextResponse.json({ error: error.message || "The Circle cannot accept this member" }, { status: 409 })
+      if (["42883", "42P01", "42703"].includes(error.code || "")) {
+        return NextResponse.json({ error: "Circle membership review is unavailable until the database migration is applied." }, { status: 503 })
+      }
+      return NextResponse.json({ error: "Could not update Circle membership" }, { status: 500 })
+    }
+
+    const reviewed = (Array.isArray(data) ? data[0] : data) as {
+      status?: string
+      user_id?: string
+      role?: string
+    } | null
+    if (!reviewed?.user_id || !["active", "rejected"].includes(reviewed.status || "")) {
+      return NextResponse.json({ error: "Circle membership review returned an invalid result" }, { status: 500 })
     }
 
     const { data: circle, error: circleError } = await supabase
@@ -100,62 +133,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .select("name")
       .eq("id", circleId)
       .maybeSingle()
-    if (circleError) return NextResponse.json({ error: "Could not load Circle" }, { status: 500 })
-    if (!circle) return NextResponse.json({ error: "Circle not found" }, { status: 404 })
+    if (circleError) console.error("Could not load Circle name for notification:", circleError)
 
-    if (action === "approve") {
-      const { data: approved, error } = await supabase
-        .from("circle_members")
-        .update({
-          status: "active",
-          role: requestedRole,
-          joined_at: new Date().toISOString(),
-        })
-        .eq("id", memberId)
-        .eq("circle_id", circleId)
-        .eq("status", "pending")
-        .select("user_id")
-        .maybeSingle()
-      if (error) {
-        console.error("Join approval failed:", error)
-        return NextResponse.json({ error: "Failed to approve member" }, { status: 500 })
-      }
-      if (!approved) return NextResponse.json({ error: "Join request is no longer pending" }, { status: 409 })
-
-      const { error: countError } = await syncCircleMemberCount(supabase, circleId)
-      if (countError) console.error("Circle member count sync failed after approval:", countError)
-
+    if (reviewed.status === "active") {
       await notifyUser(supabase, {
-        userId: approved.user_id,
+        userId: reviewed.user_id,
         type: "circle_join_approved",
         title: "Join request approved",
-        message: `You're in! Your request to join ${circle.name} was approved.`,
+        message: `You're in! Your request to join ${circle?.name || "the Circle"} was approved.`,
         actionUrl: `/circles/${circleId}`,
         pushCategory: "circleInvites",
         data: { circleId },
       })
-      return NextResponse.json({ success: true, message: "Member approved successfully", role: requestedRole })
+      return NextResponse.json({ success: true, message: "Member approved successfully", role: reviewed.role })
     }
-
-    const { data: rejected, error: deleteError } = await supabase
-      .from("circle_members")
-      .delete()
-      .eq("id", memberId)
-      .eq("circle_id", circleId)
-      .eq("status", "pending")
-      .select("user_id")
-      .maybeSingle()
-    if (deleteError) {
-      console.error("Join rejection failed:", deleteError)
-      return NextResponse.json({ error: "Failed to reject member" }, { status: 500 })
-    }
-    if (!rejected) return NextResponse.json({ error: "Join request is no longer pending" }, { status: 409 })
 
     await notifyUser(supabase, {
-      userId: rejected.user_id,
+      userId: reviewed.user_id,
       type: "circle_join_rejected",
       title: "Join request declined",
-      message: `Your request to join ${circle.name} was declined.`,
+      message: `Your request to join ${circle?.name || "the Circle"} was declined.`,
       pushCategory: "circleInvites",
       inAppOnly: true,
       data: { circleId },
