@@ -1,10 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase";
+import { createServerClient } from "@/lib/supabase";
 import { notifyUser } from "@/lib/notifications";
 import { getUserFromRequest } from "@/lib/server-auth"
 import { normalizeRole } from "@/lib/circle-permissions"
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co", process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder")
+const supabase = createServerClient()
 
 async function getCircleStaffRole(circleId: string, userId: string): Promise<"owner" | "admin" | "moderator" | null> {
   const { data: circle, error: circleError } = await supabase
@@ -29,7 +29,9 @@ async function getCircleStaffRole(circleId: string, userId: string): Promise<"ow
 // Get pending join requests
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: "Circle membership service is unavailable" }, { status: 503 })
+    }
     const user = await getUserFromRequest(request)
 
     if (!user) {
@@ -70,6 +72,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 // Approve or reject a join request
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: "Circle membership service is unavailable" }, { status: 503 })
+    }
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 

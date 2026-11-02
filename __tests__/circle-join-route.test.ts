@@ -16,7 +16,7 @@ vi.mock("@/lib/notifications", () => ({
   notifyUsers: (...args: unknown[]) => state.notify(...args),
 }))
 vi.mock("@/lib/supabase", () => ({
-  createClient: () => ({
+  createServerClient: () => ({
     rpc: state.rpc,
     from: (...args: unknown[]) => state.from(...args),
   }),

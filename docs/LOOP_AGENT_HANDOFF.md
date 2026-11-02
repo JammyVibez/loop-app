@@ -358,3 +358,7 @@ The product remains intentionally unfinished until these gates pass. Keep PR #1 
 - Removed the now-obsolete API-side role promotion check and member-count sync import from the join-review route; the transaction is the authoritative policy gate and count updater.
 - The Circle staff read gate now uses the canonical owner_id only, matching the row-locked review function rather than retaining creator_id access after ownership changes.
 - Tightened pending membership identifiers to a canonical UUID pattern before calling the database.
+## 28. Circle migration ordering and service-role boundary — 2026-11-02
+
+- Moved the Circle membership lifecycle migration after the account-status migration so its locked functions are installed only after `profiles.is_banned` and `profiles.is_deleted` exist.
+- Circle join and join-review routes now instantiate the server-only Supabase client and return 503 when the service-role key is absent. They no longer fall back to the public anon key for privileged membership mutations.
