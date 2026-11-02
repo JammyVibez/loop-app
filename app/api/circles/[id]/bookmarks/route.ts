@@ -1,12 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase"
+import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
 import { checkCirclePrivateAccess } from "@/lib/circle-access"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder",
-)
+function getCircleBookmarksClient() {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return null
+  return createServerClient()
+}
 
 /**
  * GET /api/circles/[id]/bookmarks
@@ -20,6 +20,8 @@ export async function GET(
   try {
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const supabase = getCircleBookmarksClient()
+    if (!supabase) return NextResponse.json({ error: "Circle bookmarks are unavailable" }, { status: 503 })
 
     const { id: circleId } = await params
     const access = await checkCirclePrivateAccess(circleId, request.headers.get("authorization"))
@@ -53,7 +55,11 @@ export async function GET(
     const bookmarks = (saves || [])
       .map((save: any) => {
         const post = Array.isArray(save.post) ? save.post[0] : save.post
-        if (!post || String(post.circle_id) !== String(circleId)) return null
+        if (
+          !post ||
+          String(post.circle_id) !== String(circleId) ||
+          (post.status && post.status !== "published")
+        ) return null
         const author = Array.isArray(post.author) ? post.author[0] : post.author
         return {
           id: post.id,
