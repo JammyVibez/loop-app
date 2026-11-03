@@ -5,7 +5,8 @@ const state = vi.hoisted(() => ({
   user: vi.fn(),
   from: vi.fn(),
   blocked: vi.fn(),
-  queries: [] as Array<{ table: string; calls: Array<[string, unknown[]]> }>,
+  filterCircles: vi.fn(),
+  queries: [] as Array<{ table: string; calls: Array<[string, unknown[]] }>,
   fixtures: {} as Record<string, { data: unknown; error: unknown }>,
 }))
 
@@ -27,12 +28,18 @@ vi.mock("@/lib/supabase", () => ({
   } }),
 }))
 vi.mock("@/lib/privacy", () => ({ getBlockedProfileIds: state.blocked }))
+vi.mock("@/lib/circle-content-privacy", () => ({
+  filterCircleScopedContent: (...args: unknown[]) => state.filterCircles(...args),
+}))
+vi.mock("@/lib/normalize-loop", () => ({ normalizeLoops: (rows: unknown[]) => rows }))
+vi.mock("@/lib/enrich-loops", () => ({ enrichLoopsWithPollsAndDuels: async (_supabase: unknown, rows: unknown[]) => rows }))
+vi.mock("@/lib/loop-stats", () => ({ applyRealCommentCounts: async (_supabase: unknown, rows: unknown[]) => rows }))
 
 import { GET } from "@/app/api/search/route"
 
 const creatorId = "11111111-1111-4111-8111-111111111111"
 
-function request(type: "chains" | "collections") {
+function request(type: "loops" | "chains" | "collections") {
   return new NextRequest(`https://loopapp.me/api/search?q=worldbuilding&type=${type}`)
 }
 
@@ -42,9 +49,47 @@ beforeEach(() => {
   state.fixtures = {}
   state.user.mockResolvedValue(null)
   state.blocked.mockResolvedValue(new Set<string>())
+  state.filterCircles.mockImplementation(async (_supabase: unknown, rows: any[]) =>
+    rows.filter((row) => row.circle_id !== "private-circle"),
+  )
 })
 
 describe("universal collaborative-object search", () => {
+  it("filters private Circle Loops before returning universal Search results", async () => {
+    state.fixtures.loops = {
+      data: [
+        {
+          id: "private-circle-loop",
+          author_id: creatorId,
+          circle_id: "private-circle",
+          visibility: "public",
+          content: "worldbuilding",
+          created_at: "2026-11-02T10:00:00Z",
+        },
+        {
+          id: "public-loop",
+          author_id: creatorId,
+          circle_id: null,
+          visibility: "public",
+          content: "worldbuilding",
+          created_at: "2026-11-02T09:00:00Z",
+        },
+      ],
+      error: null,
+    }
+    state.fixtures.profiles = {
+      data: [{ id: creatorId, privacy_settings: { profile_visibility: "public" } }],
+      error: null,
+    }
+
+    const response = await GET(request("loops"))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.loops.map((loop: any) => loop.id)).toEqual(["public-loop"])
+    expect(state.filterCircles).toHaveBeenCalledOnce()
+  })
+
   it("returns public, unscoped, active Chains and excludes Circle-scoped or inactive records", async () => {
     state.fixtures.chains = {
       data: [{
