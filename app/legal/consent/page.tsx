@@ -41,7 +41,9 @@ export default function LegalConsentPage() {
 function LegalConsentContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { user, loading, getAuthHeader } = useAuth()
+  const { user, loading } = useAuth()
+  const authToken = user?.access_token || user?.token
+  const authHeaders = authToken ? { Authorization: `Bearer ${authToken}` } : {}
   const destination = safeReturnPath(searchParams.get("returnTo"))
   const [status, setStatus] = useState<LegalAcceptanceStatus | null>(null)
   const [accepted, setAccepted] = useState(false)
@@ -63,7 +65,7 @@ function LegalConsentContent() {
     setError("")
 
     rustApiRequest<LegalAcceptanceStatus>("legal/acceptance", {
-      headers: getAuthHeader(),
+      headers: authHeaders,
     })
       .then((result) => {
         if (!active) return
@@ -81,7 +83,7 @@ function LegalConsentContent() {
     return () => {
       active = false
     }
-  }, [user?.id, loading, getAuthHeader, router, destination, retryCount])
+  }, [user?.id, authToken, loading, router, destination, retryCount])
 
   const confirmAgreement = async () => {
     if (!accepted || saving) return
@@ -92,7 +94,7 @@ function LegalConsentContent() {
       const result = await rustApiRequest<LegalAcceptanceStatus>("legal/acceptance", {
         method: "POST",
         headers: {
-          ...getAuthHeader(),
+          ...authHeaders,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
