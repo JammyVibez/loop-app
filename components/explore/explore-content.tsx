@@ -56,11 +56,20 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
   const [searchQuery, setSearchQuery] = useState("")
   const [interacting, setInteracting] = useState<string | null>(null)
   const [live, setLive] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [nextOffset, setNextOffset] = useState(0)
+  const [loadingMore, setLoadingMore] = useState(false)
 
   const authToken = user?.access_token || user?.token || ""
 
-  const fetchExplore = useCallback(async (tab: ExploreTab = selectedTab, silent = false) => {
-    if (!silent) setLoading(true)
+  const fetchExplore = useCallback(async (
+    tab: ExploreTab = selectedTab,
+    silent = false,
+    offset = 0,
+    append = false,
+  ) => {
+    if (!silent && !append) setLoading(true)
+    if (append) setLoadingMore(true)
     try {
       if (tab === "hashtags") {
         const response = await fetch("/api/explore/trending?type=hashtags&limit=24", { cache: "no-store" })
@@ -70,6 +79,8 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
         setHashtags(rows)
         setLoops([])
         setChains([])
+        setHasMore(false)
+        setNextOffset(0)
         return
       }
 
@@ -84,6 +95,8 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
         setChains(Array.isArray(data.chains) ? data.chains : [])
         setLoops([])
         setHashtags([])
+        setHasMore(false)
+        setNextOffset(0)
         return
       }
 
@@ -92,13 +105,23 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
           : tab === "following" ? "following"
           : tab === "community" ? "community"
             : "recent"
-      const response = await fetch(`/api/explore/trending?type=loops&sort=${sort}&limit=24`, {
+      const response = await fetch(`/api/explore/trending?type=loops&sort=${sort}&limit=24&offset=${offset}`, {
         headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
         cache: "no-store",
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || "Failed to load explore")
-      setLoops(normalizeLoops(data.loops || data.data || []))
+      const incoming = normalizeLoops(data.loops || data.data || [])
+      setLoops((previous) => {
+        if (!append) return incoming
+        const merged = new Map(previous.map((loop) => [loop.id, loop]))
+        for (const loop of incoming) merged.set(loop.id, loop)
+        return [...merged.values()]
+      })
+      setHasMore(data.pagination?.has_more === true)
+      setNextOffset(Number.isFinite(data.pagination?.next_offset)
+        ? Number(data.pagination.next_offset)
+        : offset + incoming.length)
       setChains([])
       setHashtags([])
     } catch (error: any) {
@@ -111,7 +134,8 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
         })
       }
     } finally {
-      if (!silent) setLoading(false)
+      if (!silent && !append) setLoading(false)
+      if (append) setLoadingMore(false)
     }
   }, [authToken, selectedTab, toast])
 
@@ -212,6 +236,20 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
     return String(num)
   }
+
+  const renderLoadMore = () => hasMore ? (
+    <div className="flex justify-center pt-3">
+      <Button
+        variant="outline"
+        className="min-w-40 rounded-full"
+        disabled={loadingMore || loading}
+        onClick={() => void fetchExplore(selectedTab, false, nextOffset, true)}
+      >
+        {loadingMore ? <Spinner className="mr-2 h-4 w-4" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+        {loadingMore ? "Loading more…" : "Load more"}
+      </Button>
+    </div>
+  ) : null
 
   const renderLoops = (items: NormalizedLoop[], emptyLabel: string) => {
     if (loading) {
@@ -324,6 +362,7 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
             <Badge variant="secondary">Newest first</Badge>
           </div>
           {renderLoops(loops, "No recent loops yet")}
+          {renderLoadMore()}
         </TabsContent>
 
         {user && (
@@ -339,6 +378,7 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
               </p>
             </div>
             {renderLoops(loops, "No interest matches yet. Like or save public Loops with topic tags to build this feed.")}
+          {renderLoadMore()}
           </TabsContent>
         )}
 
@@ -350,6 +390,7 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
               <Badge variant="secondary">Latest first</Badge>
             </div>
             {renderLoops(loops, "No recent public Loops from people you follow yet")}
+          {renderLoadMore()}
           </TabsContent>
         )}
 
@@ -360,6 +401,7 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
             <Badge variant="secondary">Public community work</Badge>
           </div>
           {renderLoops(loops, "No public Circle Loops found yet")}
+          {renderLoadMore()}
         </TabsContent>
 
         <TabsContent value="deepest" className="mt-6 space-y-4">
@@ -411,6 +453,7 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
             <Badge variant="secondary">Highest engagement</Badge>
           </div>
           {renderLoops(loops, "No creative loops yet")}
+          {renderLoadMore()}
         </TabsContent>
 
         <TabsContent value="hashtags" className="mt-6 space-y-4">
