@@ -360,6 +360,7 @@ export default function HelpPage() {
                         <option value="billing">Billing & Payments</option>
                         <option value="account">Account Management</option>
                         <option value="feature">Feature Request</option>
+                        <option value="privacy">Privacy &amp; data request</option>
                         <option value="other">Other</option>
                       </select>
                     </div>
@@ -398,21 +399,17 @@ export default function HelpPage() {
                   <h2 className="text-2xl font-semibold leading-none tracking-tight">Other Ways to Reach Us</h2>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center gap-3 p-3 border rounded-lg">
-                    <Mail className="h-5 w-5 text-primary" />
-                    <div>
-                      <p className="font-medium">Email Support</p>
-                      <p className="text-sm text-muted-foreground">support@loop.com</p>
-                      <p className="text-xs text-muted-foreground">Response within 24 hours</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 border rounded-lg">
-                    <Phone className="h-5 w-5 text-primary" />
-                    <div>
-                      <p className="font-medium">Phone Support</p>
-                      <p className="text-sm text-muted-foreground">+1 (555) 123-4567</p>
-                      <p className="text-xs text-muted-foreground">Mon-Fri, 9AM-6PM EST</p>
-                    </div>
+                  <div className="rounded-xl border border-border bg-muted/30 p-4">
+                    <p className="font-medium">Account-based support</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Sign in to submit a ticket and keep replies linked to your account. Choose
+                      “Privacy &amp; data request” for access, correction, deletion or other privacy requests.
+                    </p>
+                    {!user && (
+                      <Button asChild size="sm" className="mt-3 rounded-full">
+                        <Link href="/login?redirect=%2Fhelp">Sign in to contact support</Link>
+                      </Button>
+                    )}
                   </div>
                   <div className="flex items-center gap-3 p-3 border rounded-lg">
                     <MessagesSquare className="h-5 w-5 text-primary" />
