@@ -29,6 +29,8 @@ interface User {
   premium_expires_at?: string
   is_verified: boolean
   is_team_member?: boolean
+  is_moderator?: boolean
+  staff_role?: StaffRole | null
   is_sponsor?: boolean
   is_admin: boolean
   is_organization?: boolean
@@ -119,6 +121,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       premium_expires_at: undefined,
       is_verified: false,
       is_admin: false,
+      is_moderator: false,
+      staff_role: null,
       is_organization: false,
       theme_data: undefined,
       interests: [],
@@ -142,6 +146,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         : onboardingCompleted
 
     const token = sessionData.session?.token || sessionData.session?.id || sessionData.user.id
+    const staffRole: StaffRole | null =
+      profileData.staff_role === "developer" || profileData.staff_role === "admin" || profileData.staff_role === "moderator"
+        ? profileData.staff_role
+        : profileData.is_admin === true
+          ? "developer"
+          : profileData.is_moderator === true
+            ? "moderator"
+            : previous?.staff_role ?? null
 
     return {
       id: sessionData.user.id,
@@ -160,7 +172,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       is_premium: profileData.is_premium ?? previous?.is_premium ?? false,
       premium_expires_at: profileData.premium_expires_at ?? previous?.premium_expires_at,
       is_verified: profileData.is_verified ?? previous?.is_verified ?? false,
-      is_admin: profileData.is_admin ?? previous?.is_admin ?? false,
+      is_admin: staffRole === "developer" || staffRole === "admin",
+      is_moderator: staffRole === "moderator",
+      staff_role: staffRole,
       is_team_member: profileData.is_team_member ?? previous?.is_team_member ?? false,
       is_organization: Boolean(profileData.is_organization ?? previous?.is_organization ?? false),
       organization_name: profileData.organization_name ?? previous?.organization_name,

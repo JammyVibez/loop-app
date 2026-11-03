@@ -1,3 +1,4 @@
+import { resolveStaffRole } from "@/lib/staff-roles"
 import { randomUUID } from "node:crypto"
 import { type NextRequest, NextResponse } from "next/server"
 import { auth, authDbPool } from "@/lib/auth"
@@ -149,15 +150,15 @@ export async function requireAdmin(request: NextRequest) {
   const supabase = createServerClient()
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, is_admin, is_moderator")
+    .select("id, is_admin, is_moderator, staff_role")
     .eq("id", user.id)
     .maybeSingle()
 
   // Privileged access must come only from the canonical profile role.
   // An email address is user-controlled identity data, never an authorization claim.
-  const isAdmin = profile?.is_admin === true
+  const staffRole = resolveStaffRole(profile)
 
-  if (!isAdmin) {
+  if (staffRole !== "developer" && staffRole !== "admin") {
     return {
       user,
       profile,
@@ -165,7 +166,39 @@ export async function requireAdmin(request: NextRequest) {
     }
   }
 
-  return { user, profile, response: null }
+  return { user, profile: profile ? { ...profile, staff_role: staffRole } : profile, response: null }
+}
+
+export async function requireDeveloper(request: NextRequest) {
+  const { user, profile, response } = await requireAdmin(request)
+  if (response || !user) return { user, profile, response }
+  if (resolveStaffRole(profile) !== "developer") {
+    return { user, profile, response: NextResponse.json({ error: "Developer access required" }, { status: 403 }) }
+  }
+  return { user, profile: profile ? { ...profile, staff_role: staffRole } : profile, response: null }
+}
+
+export async function requireDashboardAccess(request: NextRequest) {
+  const { user, response: authResponse } = await requireUser(request)
+  if (authResponse || !user) return { user: null, profile: null, response: authResponse }
+
+  const supabase = createServerClient()
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, is_admin, is_moderator, is_team_member, staff_role")
+    .eq("id", user.id)
+    .maybeSingle()
+
+  const staffRole = resolveStaffRole(profile)
+  if (!staffRole) {
+    return {
+      user,
+      profile,
+      response: NextResponse.json({ error: "Admin dashboard access required" }, { status: 403 }),
+    }
+  }
+
+  return { user, profile: profile ? { ...profile, staff_role: staffRole } : profile, response: null }
 }
 
 export async function requireModerator(request: NextRequest) {
@@ -179,7 +212,8 @@ export async function requireModerator(request: NextRequest) {
     .eq("id", user.id)
     .single()
 
-  if (error || (!profile?.is_admin && !profile?.is_moderator)) {
+  const staffRole = resolveStaffRole(profile)
+  if (error || !staffRole) {
     return {
       user,
       profile,

@@ -5,7 +5,7 @@ const state = vi.hoisted(() => ({
   getSession: vi.fn(),
   query: vi.fn(),
   createServerClient: vi.fn(),
-  profile: null as null | { is_admin?: boolean; is_moderator?: boolean },
+  profile: null as null | { is_admin?: boolean; is_moderator?: boolean; staff_role?: string | null },
 }))
 
 vi.mock("@/lib/auth", () => ({
@@ -90,6 +90,22 @@ describe("requireAdmin", () => {
 
     expect(result.response).toBeNull()
     expect(result.profile?.is_admin).toBe(true)
+  })
+
+  it("allows an explicitly assigned Admin role", async () => {
+    configureProfile({ is_admin: true, is_moderator: false, staff_role: "admin" })
+    const { requireAdmin } = await import("@/lib/server-auth")
+    const result = await requireAdmin(request())
+    expect(result.response).toBeNull()
+    expect(result.profile?.staff_role).toBe("admin")
+  })
+
+  it("preserves explicit Developer role resolution", async () => {
+    configureProfile({ is_admin: true, is_moderator: false, staff_role: "developer" })
+    const { requireAdmin } = await import("@/lib/server-auth")
+    const result = await requireAdmin(request())
+    expect(result.response).toBeNull()
+    expect(result.profile?.staff_role).toBe("developer")
   })
 
   it("fails closed when no profile role can be loaded", async () => {
