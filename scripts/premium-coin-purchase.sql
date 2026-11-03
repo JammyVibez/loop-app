@@ -168,7 +168,10 @@ BEGIN
   IF p_user_id IS NULL
      OR p_transaction_id IS NULL
      OR char_length(p_transaction_id) <= 15
-     OR left(p_transaction_id, 15) NOT IN ('stripe_cs_test_', 'stripe_cs_live_')
+     OR NOT (
+       left(p_transaction_id, 15) IN ('stripe_cs_test_', 'stripe_cs_live_')
+       OR left(p_transaction_id, 10) = 'stripe_pi_'
+     )
      OR translate(p_transaction_id, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_', '') <> ''
      OR p_days IS NULL OR p_days < 1 OR p_days > 3660
      OR p_amount_usd IS NULL OR p_amount_usd < 0
@@ -192,6 +195,12 @@ BEGIN
   SELECT * INTO v_existing
     FROM public.wallet_transactions
    WHERE id = p_transaction_id
+      OR (
+        p_payment_intent_id IS NOT NULL
+        AND payment_intent_id = p_payment_intent_id
+        AND payment_method = 'stripe'
+      )
+   LIMIT 1
    FOR UPDATE;
 
   IF FOUND THEN
