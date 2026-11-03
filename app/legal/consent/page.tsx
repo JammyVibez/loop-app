@@ -48,6 +48,7 @@ function LegalConsentContent() {
   const [checking, setChecking] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
+  const [retryCount, setRetryCount] = useState(0)
 
   useEffect(() => {
     if (loading) return
@@ -58,6 +59,7 @@ function LegalConsentContent() {
 
     let active = true
     setChecking(true)
+    setStatus(null)
     setError("")
 
     rustApiRequest<LegalAcceptanceStatus>("legal/acceptance", {
@@ -79,7 +81,7 @@ function LegalConsentContent() {
     return () => {
       active = false
     }
-  }, [user?.id, loading, getAuthHeader, router, destination])
+  }, [user?.id, loading, getAuthHeader, router, destination, retryCount])
 
   const confirmAgreement = async () => {
     if (!accepted || saving) return
@@ -149,6 +151,11 @@ function LegalConsentContent() {
             <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground">
               Please review the documents below. We’ll save your agreement to your account with the document versions and the time you accepted them.
             </p>
+            {status && (
+              <p className="mt-3 text-[11px] font-medium tracking-wide text-muted-foreground">
+                CURRENT VERSIONS · TERMS {status.terms_version} · PRIVACY {status.privacy_version}
+              </p>
+            )}
           </div>
 
           <div className="space-y-4 px-6 py-6 sm:px-9 sm:py-8">
@@ -187,7 +194,7 @@ function LegalConsentContent() {
             {error && (
               <div role="alert" className="rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">
                 {error}
-                <button type="button" className="ml-2 font-semibold underline underline-offset-4" onClick={() => router.refresh()}>Retry</button>
+                <button type="button" className="ml-2 font-semibold underline underline-offset-4" onClick={() => setRetryCount((count) => count + 1)}>Retry</button>
               </div>
             )}
 
