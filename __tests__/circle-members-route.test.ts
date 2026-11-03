@@ -112,20 +112,22 @@ describe("Circle member service boundary", () => {
     expect(state.broadcast).toHaveBeenCalledOnce()
   })
 
-  it("rejects owner-only moderation overrides before calling the database", async () => {
+  it("leaves owner-only moderation override authority to the database", async () => {
     const circleId = "22222222-2222-4222-8222-222222222222"
     const targetUserId = "33333333-3333-4333-8333-333333333333"
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "test-service-role")
+    state.rpc.mockResolvedValue({ data: null, error: { code: "42501", message: "Only the Circle owner can grant moderation permission overrides" } })
+    state.createServerClient.mockReturnValue({ rpc: state.rpc })
     const response = await PUT(new NextRequest(`https://loopapp.me/api/circles/${circleId}/members`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ targetUserId, permissions: { can_moderate: true } }),
     }), { params: Promise.resolve({ id: circleId }) })
 
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(403)
     expect(state.rpc).toHaveBeenCalledWith("update_circle_member", expect.objectContaining({
       p_permissions: { can_moderate: true },
     }))
-    // The database, not a client role assertion, remains authoritative.
   })
 
   it("rejects unsupported or non-boolean permission overrides", async () => {
