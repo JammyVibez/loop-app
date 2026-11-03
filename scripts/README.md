@@ -6,8 +6,11 @@ environment.** Before adding a new `.sql` file here, read this first.
 
 ## The canonical path
 
-`scripts/run-production-setup.mjs` is the production schema setup runner
-(`npm run db:setup:production`). It applies files in this exact order:
+`scripts/run-production-setup.mjs` is the single source of truth for the production
+schema setup (`npm run db:setup:production`). Its `files` array defines the exact
+execution order; its strict-migration list defines which failures stop deployment.
+The list below highlights important stages and dependencies, but is not exhaustive.
+Do not use it as a substitute for reading the runner when changing migration order.
 
 1. `schema-compat-alignment.sql`
 2. `complete-database-setup.sql`
@@ -71,11 +74,16 @@ environment.** Before adding a new `.sql` file here, read this first.
 60. `community-chat-schema.sql`
 61. `community-post-enhancements.sql`
 
-The expiry and legal-acceptance migrations are strict: setup must fail if either
-cannot be installed. Collection expiry follows the Collection tables; legal
-acceptance follows Better Auth's user/session tables. Circle membership
-lifecycle runs after account suspension/deletion fields so joins, approvals,
-leave, kick and ban share the same Circle row lock and canonical member count.
+The security-sensitive migrations are strict: setup must fail rather than silently
+skip verification, discovery preferences, account blocks, public-trending privacy,
+moderation integrity, account appeals, Circle membership/ownership/event lifecycles,
+Co-Loop lifecycle/expiry, core Collections/legal acceptance, Premium billing/purchases,
+and achievement integrity. In particular, `trending-hashtags-function.sql` is strict
+because a missing or failed privacy filter must never leave public trend aggregation
+on a permissive legacy definition. Collection expiry follows the Collection tables;
+legal acceptance follows Better Auth's user/session tables. Circle membership lifecycle
+runs after account suspension/deletion fields so joins, approvals, leave, kick and ban
+share the same Circle row lock and canonical member count.
 
 ## Everything else in this folder
 
