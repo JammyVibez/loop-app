@@ -10,7 +10,11 @@ use sqlx::Row;
 use url::Url;
 use uuid::Uuid;
 
-use crate::{auth::AuthenticatedUser, state::AppState};
+use crate::{
+    auth::AuthenticatedUser,
+    routes::chains::can_contribute_to_chain,
+    state::AppState,
+};
 
 #[derive(Serialize)]
 struct ApiErrorBody {
@@ -432,49 +436,46 @@ pub async fn update_contribution(
         .map_err(|error| db_error(error, "begin contribution revision"))?;
     let current = sqlx::query(
         r#"
-        SELECT contribution.author_id, contribution.contribution_type,
-               contribution.title, contribution.content, contribution.payload
+        SELECT
+            contribution.author_id,
+            contribution.contribution_type,
+            contribution.title,
+            contribution.content,
+            contribution.payload,
+            chain.creator_id,
+            chain.circle_id,
+            chain.contribution_policy,
+            chain.visibility,
+            (
+                SELECT member.role
+                FROM chain_members AS member
+                WHERE member.chain_id = chain.id
+                  AND member.user_id = $3
+            ) AS chain_member_role,
+            EXISTS (
+                SELECT 1
+                FROM circles AS circle
+                WHERE circle.id = chain.circle_id
+                  AND (
+                      circle.owner_id = $3
+                      OR EXISTS (
+                          SELECT 1
+                          FROM circle_members AS circle_member
+                          WHERE circle_member.circle_id = circle.id
+                            AND circle_member.user_id = $3
+                            AND circle_member.status IN ('active', 'approved')
+                      )
+                  )
+            ) AS is_circle_member
         FROM chain_contributions AS contribution
         JOIN chains AS chain ON chain.id = contribution.chain_id
-        WHERE chain.id = $1 AND contribution.id = $2
+        WHERE chain.id = $1
+          AND contribution.id = $2
           AND chain.status = 'active'
           AND contribution.status = 'published'
           AND contribution.author_id = $3
-          AND (
-              chain.visibility <> 'circle'
-              OR EXISTS (
-                  SELECT 1 FROM circle_members AS circle_member
-                  WHERE circle_member.circle_id = chain.circle_id
-                    AND circle_member.user_id = $3
-                    AND circle_member.status IN ('active', 'approved')
-              )
-              OR EXISTS (
-                  SELECT 1 FROM circles AS circle
-                  WHERE circle.id = chain.circle_id AND circle.owner_id = $3
-              )
-          )
-          AND (
-              chain.creator_id = $3
-              OR EXISTS (
-                  SELECT 1 FROM chain_members AS member
-                  WHERE member.chain_id = chain.id AND member.user_id = $3
-              )
-              OR (
-                  chain.visibility IN ('public', 'unlisted', 'circle')
-                  AND (
-                      chain.circle_id IS NULL
-                      OR EXISTS (
-                          SELECT 1 FROM circle_members AS member
-                          WHERE member.circle_id = chain.circle_id
-                            AND member.user_id = $3
-                            AND member.status IN ('active', 'approved')
-                      )
-                  )
-              )
-          )
-        FOR UPDATE OF contribution
-        "#,
-    )
+        FOR UPDATE OF contribution, chain
+        "#,    )
     .bind(chain_id)
     .bind(contribution_id)
     .bind(user.id)
@@ -488,6 +489,40 @@ pub async fn update_contribution(
             "This contribution is unavailable.",
         )
     })?;
+
+    let creator_id: Uuid = current
+        .try_get("creator_id")
+        .map_err(|error| db_error(error, "read Chain creator"))?;
+    let circle_id: Option<Uuid> = current
+        .try_get("circle_id")
+        .map_err(|error| db_error(error, "read Chain Circle"))?;
+    let contribution_policy: String = current
+        .try_get("contribution_policy")
+        .map_err(|error| db_error(error, "read Chain contribution policy"))?;
+    let visibility: String = current
+        .try_get("visibility")
+        .map_err(|error| db_error(error, "read Chain visibility"))?;
+    let chain_member_role: Option<String> = current
+        .try_get("chain_member_role")
+        .map_err(|error| db_error(error, "read Chain member role"))?;
+    let is_circle_member: bool = current
+        .try_get("is_circle_member")
+        .map_err(|error| db_error(error, "read Circle membership"))?;
+    if !can_contribute_to_chain(
+        &contribution_policy,
+        &visibility,
+        circle_id.is_some(),
+        creator_id == user.id,
+        chain_member_role.as_deref(),
+        is_circle_member,
+    ) {
+        return Err(api_error(
+            StatusCode::NOT_FOUND,
+            "contribution_not_found",
+            "This contribution is unavailable or you can no longer edit it.",
+        ));
+    }
+
 
     let author_id: Uuid = current
         .try_get("author_id")
@@ -736,8 +771,37 @@ pub async fn restore_contribution_revision(
 
     let current = sqlx::query(
         r#"
-        SELECT contribution.author_id, contribution.contribution_type,
-               contribution.title, contribution.content, contribution.payload
+        SELECT
+            contribution.author_id,
+            contribution.contribution_type,
+            contribution.title,
+            contribution.content,
+            contribution.payload,
+            chain.creator_id,
+            chain.circle_id,
+            chain.contribution_policy,
+            chain.visibility,
+            (
+                SELECT member.role
+                FROM chain_members AS member
+                WHERE member.chain_id = chain.id
+                  AND member.user_id = $3
+            ) AS chain_member_role,
+            EXISTS (
+                SELECT 1
+                FROM circles AS circle
+                WHERE circle.id = chain.circle_id
+                  AND (
+                      circle.owner_id = $3
+                      OR EXISTS (
+                          SELECT 1
+                          FROM circle_members AS circle_member
+                          WHERE circle_member.circle_id = circle.id
+                            AND circle_member.user_id = $3
+                            AND circle_member.status IN ('active', 'approved')
+                      )
+                  )
+            ) AS is_circle_member
         FROM chain_contributions AS contribution
         JOIN chains AS chain ON chain.id = contribution.chain_id
         WHERE chain.id = $1
@@ -745,41 +809,8 @@ pub async fn restore_contribution_revision(
           AND chain.status = 'active'
           AND contribution.status = 'published'
           AND contribution.author_id = $3
-          AND (
-              chain.visibility <> 'circle'
-              OR EXISTS (
-                  SELECT 1 FROM circle_members AS circle_member
-                  WHERE circle_member.circle_id = chain.circle_id
-                    AND circle_member.user_id = $3
-                    AND circle_member.status IN ('active', 'approved')
-              )
-              OR EXISTS (
-                  SELECT 1 FROM circles AS circle
-                  WHERE circle.id = chain.circle_id AND circle.owner_id = $3
-              )
-          )
-          AND (
-              chain.creator_id = $3
-              OR EXISTS (
-                  SELECT 1 FROM chain_members AS member
-                  WHERE member.chain_id = chain.id AND member.user_id = $3
-              )
-              OR (
-                  chain.visibility IN ('public', 'unlisted', 'circle')
-                  AND (
-                      chain.circle_id IS NULL
-                      OR EXISTS (
-                          SELECT 1 FROM circle_members AS member
-                          WHERE member.circle_id = chain.circle_id
-                            AND member.user_id = $3
-                            AND member.status IN ('active', 'approved')
-                      )
-                  )
-              )
-          )
-        FOR UPDATE OF contribution
-        "#,
-    )
+        FOR UPDATE OF contribution, chain
+        "#,    )
     .bind(chain_id)
     .bind(contribution_id)
     .bind(user.id)
@@ -793,6 +824,40 @@ pub async fn restore_contribution_revision(
             "This contribution is unavailable or you can no longer edit it.",
         )
     })?;
+
+    let creator_id: Uuid = current
+        .try_get("creator_id")
+        .map_err(|error| db_error(error, "read Chain creator"))?;
+    let circle_id: Option<Uuid> = current
+        .try_get("circle_id")
+        .map_err(|error| db_error(error, "read Chain Circle"))?;
+    let contribution_policy: String = current
+        .try_get("contribution_policy")
+        .map_err(|error| db_error(error, "read Chain contribution policy"))?;
+    let visibility: String = current
+        .try_get("visibility")
+        .map_err(|error| db_error(error, "read Chain visibility"))?;
+    let chain_member_role: Option<String> = current
+        .try_get("chain_member_role")
+        .map_err(|error| db_error(error, "read Chain member role"))?;
+    let is_circle_member: bool = current
+        .try_get("is_circle_member")
+        .map_err(|error| db_error(error, "read Circle membership"))?;
+    if !can_contribute_to_chain(
+        &contribution_policy,
+        &visibility,
+        circle_id.is_some(),
+        creator_id == user.id,
+        chain_member_role.as_deref(),
+        is_circle_member,
+    ) {
+        return Err(api_error(
+            StatusCode::NOT_FOUND,
+            "contribution_not_found",
+            "This contribution is unavailable or you can no longer edit it.",
+        ));
+    }
+
 
     let author_id: Uuid = current
         .try_get("author_id")
