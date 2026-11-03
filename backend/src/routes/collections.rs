@@ -1030,7 +1030,9 @@ pub async fn respond_to_invitation(
         ));
     }
 
-    let expires_at: DateTime<Utc> = invitation.try_get("expires_at").map_err(internal_db_error)?;
+    let expires_at: DateTime<Utc> = invitation
+        .try_get("expires_at")
+        .map_err(internal_db_error)?;
     if expires_at <= Utc::now() {
         sqlx::query(
             "UPDATE collection_members SET status = 'expired' WHERE collection_id = $1 AND user_id = $2",
