@@ -54,78 +54,69 @@ export async function POST(request: NextRequest) {
         }
 
         if (metadata.kind === "premium" && metadata.user_id) {
-          const userId = String(metadata.user_id)
-          const days = Math.max(1, Number(metadata.plan_days) || 30)
-          const txId = `stripe_${session.id}`
-
-          // Idempotency: never double-grant on webhook retries.
-          const { data: existingTx } = await supabase
-            .from("wallet_transactions")
-            .select("id")
-            .eq("id", txId)
-            .maybeSingle()
-
-          if (existingTx) {
-            console.log(`Premium checkout ${session.id} already granted, skipping`)
-            break
-          }
-
           if (session.payment_status !== "paid") {
             console.warn(`Premium checkout ${session.id} completed but payment_status=${session.payment_status}`)
             break
           }
 
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("premium_expires_at")
-            .eq("id", userId)
-            .maybeSingle()
-
-          const now = new Date()
-          const currentExpiry =
-            profile?.premium_expires_at && new Date(profile.premium_expires_at) > now
-              ? new Date(profile.premium_expires_at)
-              : now
-          const expiresAt = new Date(currentExpiry.getTime() + days * 24 * 60 * 60 * 1000)
-
-          const { error: grantError } = await supabase
-            .from("profiles")
-            .update({
-              is_premium: true,
-              premium_source: "stripe_one_time",
-              premium_expires_at: expiresAt.toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", userId)
-
-          if (grantError) {
-            console.error("Failed to grant premium from checkout session:", grantError)
+          const userId = String(metadata.user_id)
+          const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+          if (!uuidPattern.test(userId)) {
+            console.error(`Premium checkout ${session.id} contains an invalid account reference`)
             break
           }
 
+          const requestedDays = Number(metadata.plan_days)
+          const days = Number.isInteger(requestedDays) && requestedDays >= 1 && requestedDays <= 3660
+            ? requestedDays
+            : 30
+          const transactionId = `stripe_${session.id}`
           const amountUsd = typeof session.amount_total === "number" ? session.amount_total / 100 : 0
+          const paymentIntentId = typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : null
 
-          await supabase.from("wallet_transactions").insert({
-            id: txId,
-            user_id: userId,
-            amount_usd: amountUsd,
-            coins_amount: 0,
-            type: "premium_purchase",
-            description: `Loop Pro (${days} days)`,
-            status: "completed",
-            payment_method: "stripe",
-            payment_intent_id: session.payment_intent || null,
-            created_at: new Date().toISOString(),
+          // The SQL function locks the account and commits the entitlement
+          // with the unique transaction row, so concurrent webhook retries
+          // cannot extend Pro more than once for this Checkout Session.
+          const { data: grantData, error: grantError } = await supabase.rpc("grant_stripe_premium_checkout", {
+            p_user_id: userId,
+            p_transaction_id: transactionId,
+            p_days: days,
+            p_amount_usd: amountUsd,
+            p_payment_intent_id: paymentIntentId,
+            p_plan: typeof metadata.plan === "string" ? metadata.plan : null,
           })
 
-          await notifyUser(supabase, {
-            userId,
-            type: "system",
-            title: "Welcome to Loop Pro! 👑",
-            message: `Your Pro membership is active until ${expiresAt.toLocaleDateString()}.`,
-            data: { plan: metadata.plan, premium_expires_at: expiresAt.toISOString() },
-            actionUrl: "/lounge",
-          })
+          if (grantError) {
+            console.error("Atomic Stripe Premium grant failed:", grantError)
+            throw grantError
+          }
+
+          const grant = (Array.isArray(grantData) ? grantData[0] : grantData) as {
+            premium_expires_at?: string | null
+            already_processed?: boolean
+          } | null
+          if (!grant || typeof grant.premium_expires_at !== "string") {
+            throw new Error("Stripe Premium grant returned an invalid result")
+          }
+
+          if (!grant.already_processed) {
+            try {
+              await notifyUser(supabase, {
+                userId,
+                type: "system",
+                title: "Welcome to Loop Pro! 👑",
+                message: `Your Pro membership is active until ${new Date(grant.premium_expires_at).toLocaleDateString()}.`,
+                data: { plan: metadata.plan, premium_expires_at: grant.premium_expires_at },
+                actionUrl: "/lounge",
+              })
+            } catch (notificationError) {
+              // Payment and entitlement are already committed. A notification
+              // outage must not cause Stripe to retry a successfully granted purchase.
+              console.error("Could not send Premium activation notification:", notificationError)
+            }
+          }
           break
         }
 
