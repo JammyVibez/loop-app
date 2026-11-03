@@ -288,8 +288,6 @@ export async function GET(request: NextRequest) {
         profile.active_cosmetics && Object.keys(profile.active_cosmetics || {}).length
           ? profile.active_cosmetics
           : derivedCosmetics,
-      available_earnings: profile.available_earnings ?? 0,
-      total_earnings: profile.total_earnings ?? 0,
       recent_loops: normalizeLoops(recentLoops || []),
       recent_branches: normalizeLoops(recentBranches || []),
       media_loops: normalizeLoops(mediaLoops || []),
