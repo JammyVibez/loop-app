@@ -184,9 +184,6 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const supabase = getCircleMembersClient()
-    if (!supabase) return NextResponse.json({ error: "Circle member service is unavailable" }, { status: 503 })
-
     const { id: circleId } = await params
     const { searchParams } = new URL(request.url)
     const targetUserId = searchParams.get("userId")
@@ -202,6 +199,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (targetUserId === user.id) {
       return NextResponse.json({ error: "Use the leave Circle action to remove yourself" }, { status: 409 })
     }
+
+    const supabase = getCircleMembersClient()
+    if (!supabase) return NextResponse.json({ error: "Circle member service is unavailable" }, { status: 503 })
 
     // The RPC locks the Circle row, rechecks current actor/target roles and
     // changes membership + member_count together with join/approval traffic.
