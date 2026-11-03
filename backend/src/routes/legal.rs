@@ -9,8 +9,8 @@ use sqlx::Row;
 
 use crate::{auth::AuthenticatedUser, state::AppState};
 
-pub const TERMS_VERSION: &str = "2026-11-03";
-pub const PRIVACY_VERSION: &str = "2026-11-03";
+pub const TERMS_VERSION: &str = "1.0";
+pub const PRIVACY_VERSION: &str = "1.0";
 
 #[derive(Serialize)]
 struct LegalErrorBody {
