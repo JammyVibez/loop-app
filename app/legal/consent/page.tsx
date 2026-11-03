@@ -43,7 +43,7 @@ function LegalConsentContent() {
   const searchParams = useSearchParams()
   const { user, loading } = useAuth()
   const authToken = user?.access_token || user?.token
-  const authHeaders = authToken ? { Authorization: `Bearer ${authToken}` } : {}
+  const authHeaders: Record<string, string> = authToken ? { Authorization: `Bearer ${authToken}` } : {}
   const destination = safeReturnPath(searchParams.get("returnTo"))
   const [status, setStatus] = useState<LegalAcceptanceStatus | null>(null)
   const [accepted, setAccepted] = useState(false)
