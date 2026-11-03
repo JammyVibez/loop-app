@@ -369,11 +369,14 @@ SET search_path = pg_catalog, public, pg_temp
 AS $review_coin_withdrawal$
 DECLARE
   v_admin public.profiles%ROWTYPE;
+  v_owner public.profiles%ROWTYPE;
+  v_owner_id TEXT;
   v_request public.withdrawal_requests%ROWTYPE;
   v_already_processed BOOLEAN := FALSE;
 BEGIN
   IF p_admin_id IS NULL
      OR p_withdrawal_id IS NULL
+     OR p_status IS NULL
      OR p_status NOT IN ('approved', 'paid', 'rejected')
      OR (p_admin_note IS NOT NULL AND char_length(p_admin_note) > 1000) THEN
     RAISE EXCEPTION 'Invalid withdrawal review request'
@@ -388,6 +391,27 @@ BEGIN
   IF NOT FOUND OR v_admin.is_admin IS NOT TRUE THEN
     RAISE EXCEPTION 'Administrator access is required'
       USING ERRCODE = '42501';
+  END IF;
+
+  -- Keep the same lock order as request_coin_withdrawal: profile first,
+  -- then the withdrawal row. This prevents retry/rejection deadlocks.
+  SELECT user_id INTO v_owner_id
+    FROM public.withdrawal_requests
+   WHERE id = p_withdrawal_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Withdrawal request not found'
+      USING ERRCODE = 'P0002';
+  END IF;
+
+  SELECT * INTO v_owner
+    FROM public.profiles
+   WHERE id = v_owner_id::UUID
+   FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Withdrawal owner profile not found'
+      USING ERRCODE = 'P0002';
   END IF;
 
   SELECT * INTO v_request
@@ -420,12 +444,7 @@ BEGIN
     UPDATE public.profiles
        SET loop_coins = COALESCE(loop_coins, 0) + GREATEST(v_request.coins_amount, 0),
            updated_at = NOW()
-     WHERE id = v_request.user_id::UUID;
-
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'Withdrawal owner profile not found'
-        USING ERRCODE = 'P0002';
-    END IF;
+     WHERE id = v_owner_id::UUID;
   END IF;
 
   UPDATE public.withdrawal_requests
