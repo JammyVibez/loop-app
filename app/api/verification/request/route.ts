@@ -89,20 +89,17 @@ export async function POST(request: NextRequest) {
         .single())
     }
 
-    if (error?.code === "23514") {
-      // Very old schemas only accept the legacy influencer/root enum.
-      ;({ data: verificationRequest, error } = await supabase
-        .from("verification_requests")
-        .insert({ ...baseRow, verification_type: "influencer" })
-        .select("id, status, verification_type, created_at")
-        .single())
-    }
-
     if (error) {
       console.error("Failed to insert verification request:", error)
       if (error.code === "42P01") {
         return NextResponse.json(
           { error: "Verification is temporarily unavailable because the database migration is missing." },
+          { status: 503 },
+        )
+      }
+      if (error.code === "23514") {
+        return NextResponse.json(
+          { error: "Verification categories are not up to date. Apply the current verification migration before accepting applications." },
           { status: 503 },
         )
       }
