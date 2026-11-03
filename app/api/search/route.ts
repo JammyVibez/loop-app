@@ -6,6 +6,7 @@ import { applyRealCommentCounts } from "@/lib/loop-stats"
 import { getUserFromRequest } from "@/lib/server-auth";
 import { getBlockedProfileIds } from "@/lib/privacy"
 import { isRestrictedProfileVisibility } from "@/lib/profile-privacy"
+import { filterCircleScopedContent } from "@/lib/circle-content-privacy"
 
 export const dynamic = "force-dynamic"
 
@@ -23,6 +24,7 @@ export async function GET(request: NextRequest) {
     const requestedOffset = Number.parseInt(searchParams.get("offset") || "0", 10)
     const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(40, requestedLimit)) : 20
     const offset = Number.isFinite(requestedOffset) ? Math.max(0, Math.min(10_000, requestedOffset)) : 0
+    const candidateLimit = Math.min(2_000, offset + limit * 4)
 
     if (!rawQuery) {
       return NextResponse.json({ error: "Search query is required" }, { status: 400 })
@@ -133,7 +135,7 @@ export async function GET(request: NextRequest) {
         .eq("visibility", "public")
         .ilike("content", pattern)
         .order("created_at", { ascending: false })
-        .range(offset, offset + limit - 1)
+        .range(0, candidateLimit - 1)
 
       if (!primary.error) {
         loops = primary.data
@@ -151,7 +153,7 @@ export async function GET(request: NextRequest) {
           .eq("visibility", "public")
           .ilike("content", pattern)
           .order("created_at", { ascending: false })
-          .range(offset, offset + limit - 1)
+          .range(0, candidateLimit - 1)
         loops = fallback.data
         if (fallback.error) console.error("loops search fallback:", fallback.error.message)
       }
@@ -171,7 +173,7 @@ export async function GET(request: NextRequest) {
           .eq("visibility", "public")
           .ilike("content_text", pattern)
           .order("created_at", { ascending: false })
-          .limit(limit)
+          .limit(candidateLimit)
         if (!textHits.error && textHits.data?.length) {
           const merged = [...(loops || [])]
           const ids = new Set(merged.map((l) => l.id))
@@ -203,7 +205,7 @@ export async function GET(request: NextRequest) {
           .eq("visibility", "public")
           .contains("hashtags", [tag])
           .order("created_at", { ascending: false })
-          .limit(limit)
+          .limit(candidateLimit)
 
         const merged = [...(loops || [])]
         const ids = new Set(merged.map((l) => l.id))
@@ -213,10 +215,12 @@ export async function GET(request: NextRequest) {
             ids.add(row.id)
           }
         }
-        loops = merged.slice(0, limit)
+        loops = merged.slice(0, candidateLimit)
       }
 
-      const visibleLoops = (await filterPrivateLoops(loops || [])) || []
+      let visibleLoops = (await filterPrivateLoops(loops || [])) || []
+      visibleLoops = await filterCircleScopedContent(supabase, visibleLoops, user?.id || null)
+      visibleLoops = visibleLoops.slice(offset, offset + limit)
       results.loops = normalizeLoops(
         await applyRealCommentCounts(supabase, await enrichLoopsWithPollsAndDuels(supabase, visibleLoops)),
       )
@@ -232,7 +236,7 @@ export async function GET(request: NextRequest) {
         )
         .or(`username.ilike.${pattern},display_name.ilike.${pattern}`)
         .order("followers_count", { ascending: false })
-        .range(0, Math.min(limit, 20) - 1)
+        .range(0, Math.min(candidateLimit, 500) - 1)
 
       if (!primary.error) {
         users = primary.data
@@ -241,7 +245,7 @@ export async function GET(request: NextRequest) {
           .from("profiles")
           .select("id, username, display_name, avatar_url, video_avatar_url, bio, is_verified, is_premium")
           .or(`username.ilike.${pattern},display_name.ilike.${pattern}`)
-          .limit(20)
+          .limit(Math.min(candidateLimit, 500))
         users = fallback.data
       }
 
@@ -286,7 +290,7 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      results.users = users || []
+      results.users = (users || []).slice(offset, offset + limit)
     }
 
     if (wantHashtags) {
@@ -295,15 +299,17 @@ export async function GET(request: NextRequest) {
       const tagQuery = query.toLowerCase().replace(/^#/, "")
       const { data: recent } = await supabase
         .from("loops")
-        .select("hashtags")
+        .select("hashtags, author_id, circle_id, visibility")
         .eq("visibility", "public")
         .is("parent_loop_id", null)
         .not("hashtags", "eq", "{}")
         .order("created_at", { ascending: false })
         .limit(300)
 
+      let visibleHashtagLoops = await filterPrivateLoops(recent || [])
+      visibleHashtagLoops = await filterCircleScopedContent(supabase, visibleHashtagLoops, user?.id || null)
       const counts = new Map<string, number>()
-      for (const row of recent || []) {
+      for (const row of visibleHashtagLoops) {
         for (const raw of row.hashtags || []) {
           const tag = String(raw).toLowerCase().replace(/^#/, "")
           if (!tag || (tagQuery && !tag.includes(tagQuery))) continue
@@ -341,7 +347,7 @@ export async function GET(request: NextRequest) {
         .in("status", ["active", "completed"])
         .or(`title.ilike.${pattern},description.ilike.${pattern},prompt.ilike.${pattern}`)
         .order("updated_at", { ascending: false })
-        .range(offset, offset + limit - 1)
+        .range(0, candidateLimit - 1)
 
       if (!primary.error) {
         chains = primary.data
@@ -354,7 +360,7 @@ export async function GET(request: NextRequest) {
           .in("status", ["active", "completed"])
           .ilike("title", pattern)
           .order("updated_at", { ascending: false })
-          .range(offset, offset + limit - 1)
+          .range(0, candidateLimit - 1)
         chains = fallback.error ? [] : fallback.data
       }
 
@@ -363,7 +369,7 @@ export async function GET(request: NextRequest) {
         chain.circle_id == null &&
         ["active", "completed"].includes(chain.status),
       )
-      results.chains = await filterPublicOwnerItems(visibleChains, "creator_id")
+      results.chains = (await filterPublicOwnerItems(visibleChains, "creator_id")).slice(offset, offset + limit)
     }
 
     if (wantCollections) {
@@ -380,7 +386,7 @@ export async function GET(request: NextRequest) {
         .eq("visibility", "public")
         .or(`title.ilike.${pattern},description.ilike.${pattern}`)
         .order("updated_at", { ascending: false })
-        .range(offset, offset + limit - 1)
+        .range(0, candidateLimit - 1)
 
       if (!primary.error) {
         collections = primary.data
@@ -391,14 +397,14 @@ export async function GET(request: NextRequest) {
           .eq("visibility", "public")
           .ilike("title", pattern)
           .order("updated_at", { ascending: false })
-          .range(offset, offset + limit - 1)
+          .range(0, candidateLimit - 1)
         collections = fallback.error ? [] : fallback.data
       }
 
-      results.collections = await filterPublicOwnerItems(
+      results.collections = (await filterPublicOwnerItems(
         (collections || []).filter((collection: any) => collection.visibility === "public"),
         "owner_id",
-      )
+      )).slice(offset, offset + limit)
     }
 
     if (wantCircles) {
@@ -408,12 +414,13 @@ export async function GET(request: NextRequest) {
         .from("circles")
         .select(
           `
-          id, name, description, avatar_url, video_avatar_url, cover_url, member_count, is_private, slug,
+          id, name, description, avatar_url, video_avatar_url, cover_url, member_count, is_private, is_premium_only, slug,
           owner:profiles!owner_id(id, username, display_name, avatar_url, video_avatar_url, is_verified)
         `,
         )
         .or(`name.ilike.${pattern},description.ilike.${pattern}`)
         .eq("is_private", false)
+        .eq("is_premium_only", false)
         .order("member_count", { ascending: false })
         .limit(12)
 
@@ -422,16 +429,17 @@ export async function GET(request: NextRequest) {
       } else {
         const fallback = await supabase
           .from("circles")
-          .select("id, name, description, avatar_url, member_count, is_private")
+          .select("id, name, description, avatar_url, member_count, is_private, is_premium_only")
           .ilike("name", pattern)
           .eq("is_private", false)
+          .eq("is_premium_only", false)
           .limit(12)
         circles = fallback.data
       }
 
       // Circle discovery is public-only. Private Circle metadata should not
       // be exposed by search, even when a viewer guesses a matching name.
-      results.circles = (circles || []).filter((circle: any) => circle.is_private === false)
+      results.circles = (circles || []).filter((circle: any) => circle.is_private === false && circle.is_premium_only !== true)
     }
 
     results.total =
