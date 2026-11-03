@@ -175,7 +175,7 @@ export async function requireDeveloper(request: NextRequest) {
   if (resolveStaffRole(profile) !== "developer") {
     return { user, profile, response: NextResponse.json({ error: "Developer access required" }, { status: 403 }) }
   }
-  return { user, profile: profile ? { ...profile, staff_role: staffRole } : profile, response: null }
+  return { user, profile, response: null }
 }
 
 export async function requireDashboardAccess(request: NextRequest) {
@@ -208,9 +208,9 @@ export async function requireModerator(request: NextRequest) {
   const supabase = createServerClient()
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("id, is_admin, is_moderator")
+    .select("id, is_admin, is_moderator, staff_role")
     .eq("id", user.id)
-    .single()
+    .maybeSingle()
 
   const staffRole = resolveStaffRole(profile)
   if (error || !staffRole) {
@@ -221,5 +221,5 @@ export async function requireModerator(request: NextRequest) {
     }
   }
 
-  return { user, profile, response: null }
+  return { user, profile: profile ? { ...profile, staff_role: staffRole } : profile, response: null }
 }

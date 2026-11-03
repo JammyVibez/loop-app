@@ -109,7 +109,7 @@ BEGIN
       ELSE NULL
     END
   );
-  IF actor_role NOT IN ('developer', 'admin', 'moderator') THEN
+  IF actor_role IS NULL OR actor_role NOT IN ('developer', 'admin', 'moderator') THEN
     RAISE EXCEPTION 'Admin dashboard access required';
   END IF;
 
@@ -194,8 +194,8 @@ BEGIN
   UPDATE profiles
   SET
     staff_role = next_role,
-    is_admin = next_role IN ('developer', 'admin'),
-    is_moderator = next_role = 'moderator',
+    is_admin = COALESCE(next_role IN ('developer', 'admin'), FALSE),
+    is_moderator = COALESCE(next_role = 'moderator', FALSE),
     is_team_member = (next_role IS NOT NULL OR cardinality(next_permissions) > 0),
     updated_at = now()
   WHERE id = p_target_id;

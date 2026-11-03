@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { requireAdmin } from "@/lib/server-auth"
+import { resolveStaffRole } from "@/lib/staff-roles"
 import { maskAdminCopy } from "@/lib/notification-copy"
 import { deleteAccountAsAdmin } from "@/lib/admin-delete-account"
 
@@ -134,7 +135,7 @@ const USER_FIELDS =
 
 export async function POST(request: NextRequest) {
   try {
-    const { user: adminUser, response } = await requireAdmin(request)
+    const { user: adminUser, profile: adminProfile, response } = await requireAdmin(request)
     if (response) return response
     const supabase = createServerClient()
 
@@ -142,6 +143,9 @@ export async function POST(request: NextRequest) {
     const action = String(body.action || "")
     if (!action) {
       return NextResponse.json({ error: "action is required" }, { status: 400 })
+    }
+    if ((action === "make_admin" || action === "remove_admin") && resolveStaffRole(adminProfile) !== "developer") {
+      return NextResponse.json({ error: "Only Developers can change Admin roles" }, { status: 403 })
     }
 
     // Bulk mode: user_ids array applies the same action to many users.
@@ -218,10 +222,14 @@ export async function POST(request: NextRequest) {
             updates.is_premium = false
             break
           case "make_admin":
+            updates.staff_role = "admin"
             updates.is_admin = true
+            updates.is_moderator = false
             break
           case "remove_admin":
+            updates.staff_role = null
             updates.is_admin = false
+            updates.is_moderator = false
             break
           case "add_coins": {
             const amount = Math.max(0, Number(body.amount) || 0)
