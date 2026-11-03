@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
           supabase
             .from("loops")
             .select(`
-              id, content_text, content, created_at, author_id, is_co_loop, content_metadata,
+              id, content_text, content, created_at, author_id, circle_id, is_co_loop, content_metadata,
               author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url),
               loop_stats(likes_count, comments_count)
             `)
@@ -195,7 +195,7 @@ export async function GET(request: NextRequest) {
           const { data: fallback } = await supabase
             .from("loops")
             .select(`
-              id, content_text, content, created_at, author_id, is_co_loop, content_metadata,
+              id, content_text, content, created_at, author_id, circle_id, is_co_loop, content_metadata,
               author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url),
               loop_stats(likes_count, comments_count)
             `)
