@@ -355,6 +355,110 @@ BEGIN
   END IF;
 END
 $coin_withdrawal_acl$;
+-- Admin payout review and coin refunds are serialized with the request row.
+CREATE OR REPLACE FUNCTION public.review_coin_withdrawal(
+  p_admin_id UUID,
+  p_withdrawal_id TEXT,
+  p_status TEXT,
+  p_admin_note TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp
+AS $review_coin_withdrawal$
+DECLARE
+  v_admin public.profiles%ROWTYPE;
+  v_request public.withdrawal_requests%ROWTYPE;
+  v_already_processed BOOLEAN := FALSE;
+BEGIN
+  IF p_admin_id IS NULL
+     OR p_withdrawal_id IS NULL
+     OR p_status NOT IN ('approved', 'paid', 'rejected')
+     OR (p_admin_note IS NOT NULL AND char_length(p_admin_note) > 1000) THEN
+    RAISE EXCEPTION 'Invalid withdrawal review request'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT * INTO v_admin
+    FROM public.profiles
+   WHERE id = p_admin_id
+   FOR SHARE;
+
+  IF NOT FOUND OR v_admin.is_admin IS NOT TRUE THEN
+    RAISE EXCEPTION 'Administrator access is required'
+      USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_request
+    FROM public.withdrawal_requests
+   WHERE id = p_withdrawal_id
+   FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Withdrawal request not found'
+      USING ERRCODE = 'P0002';
+  END IF;
+
+  IF v_request.status = p_status THEN
+    v_already_processed := TRUE;
+    RETURN JSONB_BUILD_OBJECT(
+      'request', to_jsonb(v_request),
+      'already_processed', v_already_processed
+    );
+  END IF;
+
+  IF NOT (
+    (v_request.status = 'pending_review' AND p_status IN ('approved', 'rejected'))
+    OR (v_request.status = 'approved' AND p_status IN ('paid', 'rejected'))
+  ) THEN
+    RAISE EXCEPTION 'Invalid withdrawal status transition'
+      USING ERRCODE = '55000';
+  END IF;
+
+  IF p_status = 'rejected' THEN
+    UPDATE public.profiles
+       SET loop_coins = COALESCE(loop_coins, 0) + GREATEST(v_request.coins_amount, 0),
+           updated_at = NOW()
+     WHERE id = v_request.user_id::UUID;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Withdrawal owner profile not found'
+        USING ERRCODE = 'P0002';
+    END IF;
+  END IF;
+
+  UPDATE public.withdrawal_requests
+     SET status = p_status,
+         admin_note = NULLIF(btrim(p_admin_note), ''),
+         reviewed_at = NOW(),
+         reviewed_by = p_admin_id::TEXT
+   WHERE id = p_withdrawal_id
+   RETURNING * INTO v_request;
+
+  RETURN JSONB_BUILD_OBJECT(
+    'request', to_jsonb(v_request),
+    'already_processed', v_already_processed
+  );
+END;
+$review_coin_withdrawal$;
+
+REVOKE ALL ON FUNCTION public.review_coin_withdrawal(UUID, TEXT, TEXT, TEXT) FROM PUBLIC;
+
+DO $review_coin_withdrawal_acl$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE ALL ON FUNCTION public.review_coin_withdrawal(UUID, TEXT, TEXT, TEXT) FROM anon;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON FUNCTION public.review_coin_withdrawal(UUID, TEXT, TEXT, TEXT) FROM authenticated;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+    GRANT EXECUTE ON FUNCTION public.review_coin_withdrawal(UUID, TEXT, TEXT, TEXT) TO service_role;
+  END IF;
+END;
+$review_coin_withdrawal_acl$;
+
 -- Enable Supabase Realtime for Tables
 DO $$
 BEGIN
