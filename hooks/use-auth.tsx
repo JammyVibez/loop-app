@@ -455,7 +455,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithGoogle = async (callbackURL?: string) => {
     const result = await authClient.signIn.social({
       provider: "google",
-      callbackURL: callbackURL || `${window.location.origin}/onboarding`,
+      callbackURL: callbackURL || `${window.location.origin}/legal/consent?returnTo=${encodeURIComponent("/onboarding")}`,
     })
     // Surface provider/config failures to the caller instead of silently
     // leaving the user on the login page.
