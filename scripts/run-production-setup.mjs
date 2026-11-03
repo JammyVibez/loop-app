@@ -12,6 +12,8 @@ if (!databaseUrl) {
 const files = [
   "scripts/schema-compat-alignment.sql",
   "scripts/complete-database-setup.sql",
+  // Staff roles, scoped dashboard grants and access-change audit history.
+  "scripts/admin-access-control-schema.sql",
   // Independent blue identity verification: request lifecycle, privacy and atomic review.
   // Kept separate from Premium entitlement grants.
   "scripts/verification-lifecycle.sql",
