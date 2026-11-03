@@ -5,6 +5,7 @@ import {
   checkCoLoopInvitationRevocation,
   decideCoLoopJoin,
   isCoLoopParticipant,
+  canWriteCoLoopSession,
 } from "@/lib/co-loop-session-access"
 
 export const dynamic = "force-dynamic"
@@ -307,6 +308,9 @@ const session_id = body.session_id || body.sessionId
     if (!isCoLoopParticipant(current, callingUser.id)) {
       return NextResponse.json({ error: "You are not a participant in this room" }, { status: 403 })
     }
+    if (!canWriteCoLoopSession(current)) {
+      return NextResponse.json({ error: "This Co-Loop is no longer accepting changes" }, { status: 409 })
+    }
     const isHost = current.owner_id === callingUser.id
     if (current.locked && !isHost) {
       return NextResponse.json({ error: "The host has locked this room" }, { status: 403 })
@@ -314,10 +318,6 @@ const session_id = body.session_id || body.sessionId
     if ((status !== undefined || published_loop_id !== null) && !isHost) {
       return NextResponse.json({ error: "Only the host can change room status or publish it" }, { status: 403 })
     }
-    if (hasDraft && current.status !== "active" && !isHost) {
-      return NextResponse.json({ error: "This room is no longer accepting draft edits" }, { status: 409 })
-    }
-
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
     if (status !== undefined) patch.status = status
     if (published_loop_id !== null) patch.published_loop_id = published_loop_id
@@ -328,15 +328,40 @@ const session_id = body.session_id || body.sessionId
       patch.draft_updated_at = new Date().toISOString()
     }
 
-    const { error } = await supabase.from("co_loop_sessions").update(patch).eq("session_id", session_id).eq("owner_id", current.owner_id)
+    let updateQuery = supabase
+      .from("co_loop_sessions")
+      .update(patch)
+      .eq("session_id", session_id)
+      .eq("owner_id", current.owner_id)
+      .eq("status", "active")
+      .is("deleted_at", null)
 
-    if (error) {
-      // Older deployments may not have the draft columns yet.
-      console.warn("co_loop_sessions update failed:", error.message)
-      if (hasDraft) return NextResponse.json({ success: true, session_id, draft_persisted: false })
+    // A non-host write must still target the same unlocked participant roster
+    // that was authorized above. This prevents a stale request from racing a
+    // lock, revocation or participant removal.
+    if (!isHost) {
+      updateQuery = updateQuery
+        .eq("locked", false)
+        .eq("co_authors", Array.isArray(current.co_authors) ? current.co_authors : [])
     }
 
-    return NextResponse.json({ success: true, session_id, status, draft_persisted: hasDraft ? !error : undefined })
+    const { data: updatedSession, error } = await updateQuery
+      .select("session_id")
+      .maybeSingle()
+
+    if (error) {
+      console.error("Co-Loop conditional update failed:", error.message)
+      // A missing draft column is a deployment problem, not a successful save.
+      if (hasDraft && /draft_(title|content|updated_at)/i.test(error.message || "")) {
+        return NextResponse.json({ error: "Draft saving is not available until the database migration is applied" }, { status: 503 })
+      }
+      return NextResponse.json({ error: "Could not save this Co-Loop update" }, { status: 500 })
+    }
+    if (!updatedSession) {
+      return NextResponse.json({ error: "This room changed while you were editing. Refresh before trying again." }, { status: 409 })
+    }
+
+    return NextResponse.json({ success: true, session_id, status, draft_persisted: hasDraft ? true : undefined })
   } catch (error: any) {
     console.error("Session info PATCH error:", error)
     return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 })
