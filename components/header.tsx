@@ -116,7 +116,7 @@ export function Header() {
     )
   }
 
-  const isAdmin = user.is_admin || (user as any).role === "admin" || user.email === "useehamza0@gmail.com"
+  const isAdmin = Boolean(user.staff_role || user.is_admin || user.is_moderator)
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/70 bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">

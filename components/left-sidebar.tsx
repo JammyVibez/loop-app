@@ -130,7 +130,7 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
 
   if (!user) return null
 
-  const isAdmin = user.is_admin || user.email === "useehamza0@gmail.com"
+  const isAdmin = Boolean(user.staff_role || user.is_admin || user.is_moderator)
 
   const audience: SidebarAudience = {
     isPremium: Boolean(user.is_premium),
