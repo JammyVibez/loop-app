@@ -2259,12 +2259,22 @@ mod tests {
         ));
         // An explicit viewer assignment always stays read-only on public Chains.
         assert!(!can_contribute_to_chain(
-            "open", "public", false, false, Some("viewer"), false,
+            "open",
+            "public",
+            false,
+            false,
+            Some("viewer"),
+            false,
         ));
         // Active contributors and owners retain access on member-only Chains.
         for role in ["owner", "collaborator", "contributor"] {
             assert!(can_contribute_to_chain(
-                "members", "private", false, false, Some(role), false,
+                "members",
+                "private",
+                false,
+                false,
+                Some(role),
+                false,
             ));
         }
     }
