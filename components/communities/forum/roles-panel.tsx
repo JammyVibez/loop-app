@@ -180,7 +180,7 @@ export function RolesDialog({
     } finally {
       setLoading(false)
     }
-  }, [communityId, getAuthHeader, toast])
+  }, [communityId, getAuthHeader, toast, user?.id])
 
   useEffect(() => {
     if (open) void load()
