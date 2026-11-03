@@ -18,7 +18,7 @@ type LegalAcceptanceStatus = {
 }
 
 function safeReturnPath(value: string | null) {
-  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\") || value === "/legal/consent" || value.startsWith("/legal/consent/")) {
     return "/"
   }
   return value
