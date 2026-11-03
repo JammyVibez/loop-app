@@ -37,6 +37,8 @@ Or run the full local stack with docker compose up --build. PostgreSQL is expose
 - POST /v1/collections/{collection_id}/items — add an accessible Loop, Circle or HTTPS link.
 - DELETE /v1/collections/{collection_id}/items/{item_id} — remove an item with owner/editor permission.
 
+When deploying the Next.js frontend outside local development, set RUST_API_ORIGIN to the private or reverse-proxied base URL of this API (for example, https://api.example.com). Next.js forwards same-origin /api/v1/* calls to this origin. This is required for the legal consent gate and other migrated Rust API features. Keep the origin server-side; never expose it as a NEXT_PUBLIC variable.
+
 The S3 storage adapter is intentionally private to the backend. Local development uses SeaweedFS, an Apache-2.0 S3-compatible object store, at http://127.0.0.1:8333 with the private loop-dev bucket. The same Rust AWS S3 SDK adapter can use a self-hosted SeaweedFS endpoint or a compatible S3 provider without changing application code. Upload signing is not exposed until authenticated session and resource-authorization middleware is in place. Do not add an unauthenticated presign endpoint.
 
 ## Environment
