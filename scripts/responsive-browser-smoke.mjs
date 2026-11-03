@@ -54,10 +54,31 @@ try {
           bodyWidth: document.body ? document.body.scrollWidth : 0,
           title: document.title,
           viewportMeta: document.querySelector('meta[name="viewport"]')?.getAttribute("content") ?? "",
+          overflowingElements: document.documentElement.scrollWidth > window.innerWidth + 1
+            ? Array.from(document.querySelectorAll("body *"))
+                .map((element) => {
+                  const rect = element.getBoundingClientRect()
+                  const style = window.getComputedStyle(element)
+                  return {
+                    tag: element.tagName.toLowerCase(),
+                    id: element.id || "",
+                    className: typeof element.className === "string" ? element.className.slice(0, 140) : "",
+                    left: Math.round(rect.left * 10) / 10,
+                    right: Math.round(rect.right * 10) / 10,
+                    width: Math.round(rect.width * 10) / 10,
+                    scrollWidth: element.scrollWidth,
+                    overflowX: style.overflowX,
+                    position: style.position,
+                  }
+                })
+                .filter((element) => element.right > window.innerWidth + 1 || element.left < -1)
+                .sort((a, b) => b.right - a.right)
+                .slice(0, 12)
+            : [],
         }))
 
         if (layout.documentWidth > viewport.width + 1 || layout.bodyWidth > viewport.width + 1) {
-          throw new Error("Horizontal overflow: viewport=" + viewport.width + ", document=" + layout.documentWidth + ", body=" + layout.bodyWidth)
+          throw new Error("Horizontal overflow: viewport=" + viewport.width + ", document=" + layout.documentWidth + ", body=" + layout.bodyWidth + "; elements=" + JSON.stringify(layout.overflowingElements))
         }
         if (!layout.title.trim()) throw new Error("Page title is empty")
         if (!layout.viewportMeta.includes("width=device-width")) throw new Error("Responsive viewport metadata is missing")
