@@ -37,6 +37,34 @@ export async function GET(request: NextRequest) {
 
     const byUser = new Map<string, string[]>()
     for (const grant of grants || []) byUser.set(grant.user_id, [...(byUser.get(grant.user_id) || []), grant.permission_key])
+    if (!actorRole) return NextResponse.json({ error: "Staff role required" }, { status: 403 })
+
+    let accessAudit: Array<Record<string, unknown>> = []
+    if (actorRole === "developer" || actorRole === "admin") {
+      const { data: auditRows, error: auditError } = await supabase
+        .from("admin_access_audit")
+        .select("id, actor_id, target_user_id, previous_role, next_role, previous_permissions, next_permissions, created_at")
+        .order("created_at", { ascending: false })
+        .limit(15)
+      if (auditError) {
+        console.error("Access-control audit query failed:", auditError)
+        return NextResponse.json({ error: "Could not load access history" }, { status: 500 })
+      }
+      const auditUserIds = [...new Set((auditRows || []).flatMap((row) => [row.actor_id, row.target_user_id]).filter(Boolean))]
+      const { data: auditProfiles } = auditUserIds.length
+        ? await supabase.from("profiles").select("id, username, display_name").in("id", auditUserIds)
+        : { data: [] }
+      const auditNames = new Map((auditProfiles || []).map((entry) => [
+        entry.id,
+        entry.display_name || entry.username || entry.id,
+      ]))
+      accessAudit = (auditRows || []).map((row) => ({
+        ...row,
+        actor_name: row.actor_id ? auditNames.get(row.actor_id) || row.actor_id : "Deleted account",
+        target_name: row.target_user_id ? auditNames.get(row.target_user_id) || row.target_user_id : "Deleted account",
+      }))
+    }
+
     const users = (profiles || []).map((entry) => ({
       id: entry.id,
       username: entry.username,
@@ -56,6 +84,7 @@ export async function GET(request: NextRequest) {
       can_manage_roles: actorRole === "developer",
       can_assign_moderators: actorRole === "developer" || actorRole === "admin",
       current_user_id: user?.id,
+      access_audit: accessAudit,
     })
   } catch (error) {
     console.error("Access-control GET failed:", error)

@@ -21,12 +21,23 @@ interface AccessUser {
 }
 interface PermissionDef { key: string; label: string; description: string }
 interface Draft { staff_role: StaffRole; permissions: string[] }
+interface AccessAudit {
+  id: string
+  actor_name: string
+  target_name: string
+  previous_role: string
+  next_role: string
+  created_at: string
+  previous_permissions: string[]
+  next_permissions: string[]
+}
 const roleLabel = (role: StaffRole) => role === "user" ? "User" : role[0].toUpperCase() + role.slice(1)
 
 export function AdminAccessControl() {
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const [users, setUsers] = useState<AccessUser[]>([])
+  const [accessAudit, setAccessAudit] = useState<AccessAudit[]>([])
   const [permissions, setPermissions] = useState<PermissionDef[]>([])
   const [drafts, setDrafts] = useState<Record<string, Draft>>({})
   const [actorRole, setActorRole] = useState<StaffRole>("user")
@@ -50,6 +61,7 @@ export function AdminAccessControl() {
       if (!response.ok) throw new Error(data.error || "Could not load access settings")
       const loaded = (data.users || []) as AccessUser[]
       setUsers(loaded)
+      setAccessAudit((data.access_audit || []) as AccessAudit[])
       setPermissions(data.available_permissions || [])
       setActorRole(data.actor_role || "user")
       setCanManageRoles(Boolean(data.can_manage_roles))
@@ -186,6 +198,30 @@ export function AdminAccessControl() {
             </section>
           )
         })}
+        {actorRole !== "moderator" && (
+          <section className="mt-6 space-y-3 border-t border-border/70 pt-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold">Recent access changes</h3>
+                <p className="mt-1 text-xs text-muted-foreground">Role and permission updates recorded by the server.</p>
+              </div>
+              <Badge variant="outline">{accessAudit.length} records</Badge>
+            </div>
+            {accessAudit.length === 0 ? (
+              <p className="rounded-lg border border-dashed p-4 text-xs text-muted-foreground">No access changes have been recorded yet.</p>
+            ) : accessAudit.map((event) => (
+              <div key={event.id} className="flex min-w-0 flex-col gap-1 rounded-lg border border-border/70 px-3 py-2 sm:flex-row sm:items-center">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium">{event.actor_name} updated {event.target_name}</p>
+                  <p className="text-[11px] text-muted-foreground">{roleLabel((event.previous_role || "user") as StaffRole)} → {roleLabel((event.next_role || "user") as StaffRole)}</p>
+                </div>
+                <time dateTime={event.created_at} className="shrink-0 text-[10px] text-muted-foreground">
+                  {new Date(event.created_at).toLocaleString()}
+                </time>
+              </div>
+            ))}
+          </section>
+        )}
       </CardContent>
     </Card>
   )
