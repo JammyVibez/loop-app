@@ -78,6 +78,30 @@ try {
                 .sort((a, b) => b.right - a.right)
                 .slice(0, 12)
             : [],
+          overflowCandidates: document.documentElement.scrollWidth > window.innerWidth + 1
+            ? Array.from(document.querySelectorAll("body *")).map((element) => {
+                const rect = element.getBoundingClientRect()
+                const style = window.getComputedStyle(element)
+                const marginLeft = Number.parseFloat(style.marginLeft) || 0
+                const marginRight = Number.parseFloat(style.marginRight) || 0
+                return {
+                  tag: element.tagName.toLowerCase(),
+                  id: element.id || "",
+                  className: typeof element.className === "string" ? element.className.slice(0, 180) : "",
+                  left: Math.round(rect.left * 10) / 10,
+                  right: Math.round(rect.right * 10) / 10,
+                  marginLeft,
+                  marginRight,
+                  marginBoxRight: Math.round((rect.right + marginRight) * 10) / 10,
+                  width: Math.round(rect.width * 10) / 10,
+                  position: style.position,
+                  transform: style.transform,
+                  overflowX: style.overflowX,
+                  clientWidth: element.clientWidth,
+                  scrollWidth: element.scrollWidth,
+                }
+              }).sort((a, b) => b.marginBoxRight - a.marginBoxRight).slice(0, 18)
+            : [],
           rootOverflow: {
             scrollingElement: document.scrollingElement?.tagName ?? null,
             html: { clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth, overflowX: getComputedStyle(document.documentElement).overflowX, position: getComputedStyle(document.documentElement).position },
@@ -90,7 +114,7 @@ try {
         }))
 
         if (layout.documentWidth > viewport.width + 1 || layout.bodyWidth > viewport.width + 1) {
-          throw new Error("Horizontal overflow: viewport=" + viewport.width + ", document=" + layout.documentWidth + ", body=" + layout.bodyWidth + "; elements=" + JSON.stringify(layout.overflowingElements) + "; root=" + JSON.stringify(layout.rootOverflow))
+          throw new Error("Horizontal overflow: viewport=" + viewport.width + ", document=" + layout.documentWidth + ", body=" + layout.bodyWidth + "; elements=" + JSON.stringify(layout.overflowingElements) + "; root=" + JSON.stringify(layout.rootOverflow) + "; candidates=" + JSON.stringify(layout.overflowCandidates))
         }
         if (!layout.title.trim()) throw new Error("Page title is empty")
         if (!layout.viewportMeta.includes("width=device-width")) throw new Error("Responsive viewport metadata is missing")
