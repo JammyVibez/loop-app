@@ -94,6 +94,54 @@ impl FromRequestParts<AppState> for AuthenticatedUser {
     }
 }
 
+/// Authenticated Better Auth identity without requiring the matching LOOP
+/// profile to exist yet. Account creation can provision the profile after the
+/// social-login callback, so legal acceptance must attach to the auth user.
+#[derive(Clone, Debug)]
+pub struct AuthenticatedSessionUser {
+    pub id: String,
+}
+
+impl FromRequestParts<AppState> for AuthenticatedSessionUser {
+    type Rejection = Response;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
+        let token = bearer_token(&parts.headers).ok_or_else(unauthorized)?;
+
+        let row = sqlx::query(
+            r#"
+            SELECT auth_user.id::text AS id
+            FROM "session" AS auth_session
+            JOIN "user" AS auth_user
+              ON auth_user.id = auth_session."userId"
+            WHERE auth_session.token = $1
+              AND auth_session."expiresAt" > NOW()
+            LIMIT 1
+            "#,
+        )
+        .bind(token)
+        .fetch_optional(&state.database)
+        .await
+        .map_err(|error| {
+            tracing::error!(%error, "could not resolve authenticated session identity");
+            StatusCode::SERVICE_UNAVAILABLE.into_response()
+        })?;
+
+        let Some(row) = row else {
+            return Err(unauthorized());
+        };
+
+        let id = row
+            .try_get::<String, _>("id")
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())?;
+
+        Ok(Self { id })
+    }
+}
+
 /// Optional session identity for read-only endpoints that expose public resources.
 /// A malformed or expired credential remains an authentication error; only a
 /// request with no Authorization header is treated as anonymous.
