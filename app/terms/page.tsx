@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { getLegalPublicationInfo } from "@/lib/legal-operator"
 
 const sections = [
   {
@@ -6,7 +7,7 @@ const sections = [
     num: "1",
     title: "Acceptance of These Terms",
     body: [
-      "Welcome to loopapp.me (\"loopapp.me\", \"we\", \"us\", or \"our\"). These Terms of Service (\"Terms\") form a binding legal agreement between you (\"you\" or \"your\") and the person or legal entity operating loopapp.me (the Operator), governing your access to the platform, including its website, mobile applications, and related services, features, tools, and content (collectively, the \"Service\").",
+      "Welcome to loopapp.me (\"loopapp.me\", \"we\", \"us\", or \"our\"). These Terms of Service (\"Terms\") form an agreement between you (\"you\" or \"your\") and the person or legal entity operating loopapp.me (the Operator), governing your access to the platform, including its website, mobile applications, and related services, features, tools, and content (collectively, the \"Service\").",
       "Creating an account does not, by itself, record your agreement to these Terms. Before you can use account features, you must review these Terms and the Privacy Policy and complete the separate agreement step presented by LOOP. Your agreement is recorded with the versions of the documents shown to you and the time you accepted them. If you do not agree to these Terms, do not accept them or use account features.",
       "If you are using the Service on behalf of an organization (including as an Organization account under Section 10), you represent and warrant that you have the authority to bind that organization to these Terms.",
     ],
@@ -50,7 +51,7 @@ const sections = [
     body: [
       "You keep ownership of the content you create or upload (\"User Content\"). You grant LOOP a non-exclusive, worldwide, royalty-free licence to host, store, reproduce, technically adapt (for example, resize or transcode media), display and deliver that content only as needed to operate the Service and the features you choose to use. We may allow our infrastructure and service providers to process the content for those purposes, and may make it available to the people you choose to share or collaborate with. This licence does not transfer ownership to LOOP and does not give LOOP a general right to sell your content or use it in unrelated advertising. It lasts for as long as the content is available through the Service and for any limited period needed for backups, legal obligations, security investigations or dispute resolution.",
       "You are responsible for making sure you have the rights and permissions needed to upload and share your User Content. Do not post another person's private information, images, recordings or work unless you have a lawful basis and any permission required. Your content must follow these Terms, the Community Guidelines and applicable law.",
-      "If you believe content on the Service infringes your copyright or other rights, report it through the Help & Support Center at /help and select the closest available category. The Service operator must publish a verified legal contact and any legally required notice procedure before launch; those operator details have not been supplied in this repository.",
+      "If you believe content on the Service infringes your copyright or other rights, report it through the Help & Support Center at /help and select the closest available category. Use the legal contact published at the top of this document for formal notices. The Operator must maintain a legally compliant notice process for the countries where the Service is offered.",
     ],
   },
   {
@@ -218,19 +219,21 @@ const sections = [
     num: "19",
     title: "Contact Us",
     body: [
-      "For help with your account or these Terms, visit the public Help & Support Center at /help. A support ticket is linked to an authenticated account. For data-protection requests, sign in and choose “Privacy & data request”. The Service operator's full legal name, registered address and official legal contact must be published here before launch; those details have not been supplied in this repository.",
+      "For account help, visit the Help & Support Center at /help. For formal legal notices, contact the Operator using the legal contact details published at the top of this document. For data-protection requests, use the privacy contact published in the Privacy Policy.",
     ],
   },
 ]
 
 export default function TermsOfServicePage() {
+  const legalInfo = getLegalPublicationInfo()
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-4xl px-4 py-10">
         <div className="mb-10">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Terms of Service</h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            Version 1.1 · Last updated: 3 November 2026
+            Version 1.2 · Last updated: 3 November 2026
           </p>
           <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
             These Terms explain how LOOP works, what you may share, how collaboration and moderation operate,
@@ -249,11 +252,23 @@ export default function TermsOfServicePage() {
               <li>Report problems. Where required, LOOP explains significant moderation actions and provides an available review route.</li>
             </ul>
           </div>
-          <p className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs leading-5 text-muted-foreground">
-            <strong>Pre-launch publication requirement:</strong> the Operator must add its full registered legal name,
-            service address, country of establishment, and monitored legal/privacy contact before publication. LOOP does
-            not infer or invent those details from the domain name.
-          </p>
+          <section aria-labelledby="operator-details-heading" className="mt-4 rounded-xl border border-border bg-card p-4 text-sm leading-6">
+            <h2 id="operator-details-heading" className="font-semibold">Operator details</h2>
+            {legalInfo.operatorName ? <p className="mt-2 font-medium">{legalInfo.operatorName}</p> : null}
+            {legalInfo.operatorAddress ? <p className="whitespace-pre-wrap text-muted-foreground">{legalInfo.operatorAddress}</p> : null}
+            {legalInfo.operatorCountry ? <p className="text-muted-foreground">{legalInfo.operatorCountry}</p> : null}
+            {legalInfo.operatorRegistration ? <p className="text-muted-foreground">Registration: {legalInfo.operatorRegistration}</p> : null}
+            {legalInfo.legalContactEmail ? <p>Legal contact: <a className="underline underline-offset-4" href={"mailto:" + legalInfo.legalContactEmail}>{legalInfo.legalContactEmail}</a></p> : null}
+            {legalInfo.privacyContactEmail ? <p>Privacy contact: <a className="underline underline-offset-4" href={"mailto:" + legalInfo.privacyContactEmail}>{legalInfo.privacyContactEmail}</a></p> : null}
+            {!legalInfo.publicationReady ? (
+              <div role="alert" className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-muted-foreground">
+                <strong className="text-foreground">Publication is blocked.</strong> The service owner must complete these verified details before users can accept the documents:
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  {legalInfo.missingFields.map((field) => <li key={field.key}>{field.label}</li>)}
+                </ul>
+              </div>
+            ) : <p className="mt-3 text-xs text-muted-foreground">Details supplied by the service deployment configuration.</p>}
+          </section>
         </div>
 
         <nav className="mb-10 rounded-2xl border border-border bg-card p-5">

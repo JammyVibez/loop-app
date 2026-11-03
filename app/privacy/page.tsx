@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { getLegalPublicationInfo } from "@/lib/legal-operator"
 
 const sections = [
   {
@@ -6,7 +7,7 @@ const sections = [
     num: "1",
     title: "Overview",
     body: [
-      "This Privacy Policy explains how the person or organisation operating loopapp.me (the Service) collects, uses, discloses and protects personal information when you visit or use LOOP. It applies to visitors, account holders, contributors and people who communicate with the Service.",
+      "This Privacy Policy explains how the Operator identified in the Controller and Contact Details section collects, uses, discloses, and protects personal information when you visit or use LOOP. It applies to visitors, account holders, contributors and people who communicate with the Service.",
       "We use personal information to provide the features you request, keep accounts and communities safe, meet legal obligations and improve the Service. We do not sell personal information. Reading this Policy is not the same as giving consent to every type of data processing; where the law requires consent for an optional purpose, we ask for it separately.",
     ],
   },
@@ -59,7 +60,7 @@ const sections = [
     title: "When We Share Your Information",
     body: ["We do not sell your personal information. We share your information only in the following circumstances:"],
     list: [
-      "With service providers — companies that provide hosting, databases, authentication, media processing and storage, payment processing, email delivery, push notifications, customer support and analytics. Depending on the deployment, these may include the providers configured for LOOP such as Google sign-in, Stripe, Cloudinary, Vercel and email/push providers, or self-hosted infrastructure. Providers may process information only for their contracted role and under appropriate safeguards.",
+      "With service providers — providers actually used in production are identified in the Controller and Processing Details section below, together with their roles and processing locations. Optional integrations and development-only tools are not described as active production providers.",
       "With other users — the information you make public (your username, display name, avatar, posts, and interactions) is visible to other users as part of the Service's intended functionality.",
       "For safety and legal reasons — when we reasonably believe disclosure is required by law, regulation, legal process, or governmental request, or is necessary to protect the rights, property, or safety of loopapp.me, our users, or the public.",
       "In a business transfer — if we are involved in a merger, acquisition, reorganization, or sale of assets, your information may be transferred as part of that transaction, subject to this Privacy Policy.",
@@ -91,7 +92,7 @@ const sections = [
     title: "Data Retention",
     body: [
       "We retain your personal information for as long as your account is active or as needed to provide the Service, comply with legal obligations, resolve disputes, and enforce our agreements.",
-      "When you delete your account, we remove or de-identify information according to the deletion workflow and applicable legal requirements. Some records may be retained where necessary for security, dispute resolution, payment/accounting obligations or legal claims. Backups are removed according to the applicable backup-retention cycle; a fixed purge period must be published by the Service operator once the production schedule is confirmed.",
+      "When you delete your account, we remove or de-identify information according to the deletion workflow and applicable legal requirements. Some records may be retained where necessary for security, dispute resolution, payment/accounting obligations or legal claims. The production data and backup retention periods are stated in the Controller and Processing Details section below.",
       "Transactional and financial records may be retained longer where required by law or our payment partners' policies.",
     ],
   },
@@ -119,7 +120,7 @@ const sections = [
       "Opt out of marketing — follow the unsubscribe instructions in any marketing email we send.",
     ],
     body2:
-      "To exercise these rights, sign in and open the Help & Support Center at /help. Choose “Privacy & data request” and describe the right you want to exercise. We may ask for information needed to verify your identity. The operator must publish an alternate contact method for people who cannot sign in before the Policy is treated as final."
+      "To exercise these rights, sign in and open the Help & Support Center at /help. Choose “Privacy & data request” and describe the right you want to exercise. We may ask for information needed to verify your identity. People who cannot sign in may contact the monitored privacy email published in the Controller and Processing Details section below."
   },
   {
     id: "children",
@@ -134,7 +135,7 @@ const sections = [
     num: "12",
     title: "International Data Transfers",
     body: [
-      "Your information may be processed in countries where LOOP or its service providers operate. When personal information is transferred outside the European Economic Area or another protected region, the operator must identify the destination and put in place a valid transfer mechanism and any supplementary safeguards required by applicable law. The exact provider locations and transfer arrangements depend on the production deployment and must be listed by the operator before launch."
+      "The production processing locations and international transfer position are stated in the Controller and Processing Details section below. Where personal information is transferred internationally, the Operator must identify the destination and the applicable transfer mechanism and supplementary safeguards."
     ],
   },
   {
@@ -150,19 +151,21 @@ const sections = [
     num: "14",
     title: "Contact Us",
     body: [
-      "For privacy and data-protection requests, use the Help & Support Center at /help and choose “Privacy & data request”. You may also lodge a complaint with the data-protection supervisory authority in your country. In Ireland, this is the Data Protection Commission. The Service operator's full legal name, registered address and official privacy contact have not been supplied in this repository and must be published before launch."
+      "For privacy and data-protection requests, use the Help & Support Center at /help and choose “Privacy & data request”. You may also lodge a complaint with the data-protection supervisory authority in your country. In Ireland, this is the Data Protection Commission. The Operator's identity and monitored privacy contact are published in the Controller and Processing Details section above."
     ],
   },
 ]
 
 export default function PrivacyPolicyPage() {
+  const legalInfo = getLegalPublicationInfo()
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-4xl px-4 py-10">
         <div className="mb-10">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Privacy Policy</h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            Version 1.1 · Last updated: 3 November 2026
+            Version 1.2 · Last updated: 3 November 2026
           </p>
           <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
             This Policy explains what personal information LOOP uses, why it is needed, who may receive it,
@@ -180,11 +183,28 @@ export default function PrivacyPolicyPage() {
               <li>Optional processing that relies on consent must be explained and requested separately where required.</li>
             </ul>
           </div>
-          <p className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs leading-5 text-muted-foreground">
-            <strong>Pre-launch publication requirement:</strong> the data controller must add its full legal name,
-            service address, monitored privacy contact, actual production providers, processing locations, and applicable
-            international-transfer safeguards before publication. Those deployment details are not assumed here.
-          </p>
+          <section aria-labelledby="controller-details-heading" className="mt-4 rounded-xl border border-border bg-card p-4 text-sm leading-6">
+            <h2 id="controller-details-heading" className="font-semibold">Controller and processing details</h2>
+            {legalInfo.operatorName ? <p className="mt-2 font-medium">{legalInfo.operatorName}</p> : null}
+            {legalInfo.operatorAddress ? <p className="whitespace-pre-wrap text-muted-foreground">{legalInfo.operatorAddress}</p> : null}
+            {legalInfo.operatorCountry ? <p className="text-muted-foreground">{legalInfo.operatorCountry}</p> : null}
+            {legalInfo.privacyContactEmail ? <p>Privacy contact: <a className="underline underline-offset-4" href={"mailto:" + legalInfo.privacyContactEmail}>{legalInfo.privacyContactEmail}</a></p> : null}
+            <dl className="mt-4 grid gap-3">
+              <div><dt className="font-medium">Production service providers and roles</dt><dd className="whitespace-pre-wrap text-muted-foreground">{legalInfo.processors || "Not configured"}</dd></div>
+              <div><dt className="font-medium">Processing and storage locations</dt><dd className="whitespace-pre-wrap text-muted-foreground">{legalInfo.processingLocations || "Not configured"}</dd></div>
+              <div><dt className="font-medium">International transfers and safeguards</dt><dd className="whitespace-pre-wrap text-muted-foreground">{legalInfo.transferDetails || "Not configured"}</dd></div>
+              <div><dt className="font-medium">Data retention schedule</dt><dd className="whitespace-pre-wrap text-muted-foreground">{legalInfo.dataRetention || "Not configured"}</dd></div>
+              <div><dt className="font-medium">Backup retention and deletion</dt><dd className="whitespace-pre-wrap text-muted-foreground">{legalInfo.backupRetention || "Not configured"}</dd></div>
+            </dl>
+            {!legalInfo.publicationReady ? (
+              <div role="alert" className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-muted-foreground">
+                <strong className="text-foreground">Publication is blocked.</strong> The service owner must complete these verified details before users can accept this Policy:
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  {legalInfo.missingFields.map((field) => <li key={field.key}>{field.label}</li>)}
+                </ul>
+              </div>
+            ) : <p className="mt-3 text-xs text-muted-foreground">Disclosures supplied by the production deployment configuration.</p>}
+          </section>
         </div>
 
         <nav className="mb-10 rounded-2xl border border-border bg-card p-5">

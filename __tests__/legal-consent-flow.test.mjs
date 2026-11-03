@@ -27,8 +27,12 @@ describe("LOOP legal consent and publication flow", () => {
   it("rechecks the currently published versions for each authenticated account", () => {
     expect(redirect).toContain('"legal/acceptance"')
     expect(redirect).toContain("router.replace")
-    expect(legalRoute).toContain('pub const TERMS_VERSION: &str = "1.1"')
-    expect(legalRoute).toContain('pub const PRIVACY_VERSION: &str = "1.1"')
+    expect(legalRoute).toContain('pub const TERMS_VERSION: &str = "1.2"')
+    expect(legalRoute).toContain('pub const PRIVACY_VERSION: &str = "1.2"')
+    expect(legalRoute).toContain("publication_ready")
+    expect(legalRoute).toContain("publication_not_ready()")
+    expect(redirect).toContain("result.publication_ready")
+    expect(consent).toContain("!status.publication_ready")
   })
 
   it("stores the two acknowledgements transactionally and idempotently", () => {

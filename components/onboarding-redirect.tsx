@@ -55,12 +55,18 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
       router.replace(`/legal/consent?returnTo=${encodeURIComponent(returnTo)}`)
     }
 
-    rustApiRequest<{ complete: boolean }>("legal/acceptance", {
-      headers: authHeaders,
-    })
-      .then((result) => {
+    Promise.all([
+      rustApiRequest<{ complete: boolean; publication_ready: boolean }>("legal/acceptance", {
+        headers: authHeaders,
+      }),
+      fetch("/api/legal/publication-readiness", { cache: "no-store" }).then(async (response) => {
+        if (!response.ok) throw new Error("Legal publication readiness is unavailable.")
+        return response.json() as Promise<{ publication_ready: boolean }>
+      }),
+    ])
+      .then(([result, frontendReadiness]) => {
         if (!active) return
-        if (result.complete) {
+        if (result.complete && result.publication_ready && frontendReadiness.publication_ready) {
           setLegalStatus("accepted")
         } else {
           openConsent()

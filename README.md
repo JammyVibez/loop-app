@@ -123,3 +123,8 @@ Detailed guides are in [`docs/`](./docs/):
 - [Deployment Guide](docs/FINAL_DEPLOYMENT_GUIDE.md)
 - [UUID → Snowflake Migration Plan](docs/MIGRATION_PLAN_UUID_TO_SNOWFLAKE.md)
 - [Setup & Testing](docs/SETUP_AND_TESTING_GUIDE.md)
+
+
+## Legal publication readiness
+
+Before enabling account agreement in production, the service operator must complete the verified legal identity, contacts, active production providers, data locations, transfer safeguards, and retention schedule in both the Next.js and Rust API environments. See [Legal Publication Readiness](docs/LEGAL_PUBLICATION.md). The Rust API refuses to record document acceptance while required publication details are missing.

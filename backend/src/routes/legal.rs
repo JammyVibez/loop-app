@@ -10,8 +10,8 @@ use sqlx::Row;
 use crate::{auth::AuthenticatedSessionUser, state::AppState};
 
 // Bump the matching value when the corresponding published document changes.
-pub const TERMS_VERSION: &str = "1.1";
-pub const PRIVACY_VERSION: &str = "1.1";
+pub const TERMS_VERSION: &str = "1.2";
+pub const PRIVACY_VERSION: &str = "1.2";
 
 #[derive(Serialize)]
 struct LegalErrorBody {
@@ -45,12 +45,77 @@ pub struct LegalAcceptanceStatus {
     terms_accepted: bool,
     privacy_acknowledged: bool,
     complete: bool,
+    publication_ready: bool,
+    missing_publication_fields: Vec<&'static str>,
 }
 
 #[derive(Deserialize)]
 pub struct AcceptLegalDocumentsInput {
     terms_accepted: bool,
     privacy_acknowledged: bool,
+}
+
+const REQUIRED_PUBLICATION_FIELDS: &[&str] = &[
+    "LEGAL_OPERATOR_NAME",
+    "LEGAL_OPERATOR_ADDRESS",
+    "LEGAL_OPERATOR_COUNTRY",
+    "LEGAL_CONTACT_EMAIL",
+    "PRIVACY_CONTACT_EMAIL",
+    "PRIVACY_PROCESSORS",
+    "PRIVACY_PROCESSING_LOCATIONS",
+    "PRIVACY_TRANSFER_DETAILS",
+    "PRIVACY_DATA_RETENTION",
+    "PRIVACY_BACKUP_RETENTION",
+];
+
+fn is_published_value(key: &str, value: &str) -> bool {
+    let value = value.trim();
+    let normalized = value.to_ascii_lowercase();
+    if value.is_empty()
+        || ["todo", "tbd", "change_me", "changeme", "not configured", "example.com"]
+            .iter()
+            .any(|marker| normalized == *marker)
+    {
+        return false;
+    }
+
+    if key.ends_with("_EMAIL") {
+        let Some((local, domain)) = value.split_once('@') else {
+            return false;
+        };
+        return !local.trim().is_empty()
+            && !domain.trim().is_empty()
+            && domain.contains('.')
+            && !value.chars().any(char::is_whitespace);
+    }
+
+    true
+}
+
+fn missing_publication_fields_with(
+    mut read: impl FnMut(&str) -> Option<String>,
+) -> Vec<&'static str> {
+    REQUIRED_PUBLICATION_FIELDS
+        .iter()
+        .copied()
+        .filter(|key| {
+            read(key)
+                .map(|value| !is_published_value(key, &value))
+                .unwrap_or(true)
+        })
+        .collect()
+}
+
+fn missing_publication_fields() -> Vec<&'static str> {
+    missing_publication_fields_with(|key| std::env::var(key).ok())
+}
+
+fn publication_not_ready() -> LegalError {
+    LegalError {
+        status: StatusCode::SERVICE_UNAVAILABLE,
+        code: "legal_publication_incomplete",
+        message: "The service operator has not completed the required legal and privacy publication details. Agreement has not been recorded.",
+    }
 }
 
 fn missing_acceptance() -> LegalError {
@@ -107,12 +172,17 @@ pub async fn get_acceptance(
             .is_ok_and(|key| key == "privacy")
     });
 
+    let missing_publication_fields = missing_publication_fields();
+    let publication_ready = missing_publication_fields.is_empty();
+
     Ok(Json(LegalAcceptanceStatus {
         terms_version: TERMS_VERSION,
         privacy_version: PRIVACY_VERSION,
         terms_accepted,
         privacy_acknowledged,
         complete: terms_accepted && privacy_acknowledged,
+        publication_ready,
+        missing_publication_fields,
     }))
 }
 
@@ -121,6 +191,10 @@ pub async fn accept_documents(
     user: AuthenticatedSessionUser,
     Json(input): Json<AcceptLegalDocumentsInput>,
 ) -> Result<(StatusCode, Json<LegalAcceptanceStatus>), LegalError> {
+    if !missing_publication_fields().is_empty() {
+        return Err(publication_not_ready());
+    }
+
     if !acceptance_complete(&input) {
         return Err(missing_acceptance());
     }
@@ -163,6 +237,8 @@ pub async fn accept_documents(
             terms_accepted: true,
             privacy_acknowledged: true,
             complete: true,
+            publication_ready: true,
+            missing_publication_fields: Vec::new(),
         }),
     ))
 }
@@ -189,6 +265,35 @@ mod tests {
             terms_accepted: true,
             privacy_acknowledged: true,
         }));
+    }
+
+    #[test]
+    fn legal_publication_requires_every_operator_and_privacy_field() {
+        let missing = missing_publication_fields_with(|key| {
+            if key == "LEGAL_OPERATOR_NAME" {
+                Some("LOOP Operator Limited".to_string())
+            } else {
+                None
+            }
+        });
+        assert_eq!(missing.len(), REQUIRED_PUBLICATION_FIELDS.len() - 1);
+        assert!(!missing.contains(&"LEGAL_OPERATOR_NAME"));
+        assert!(missing.contains(&"PRIVACY_PROCESSORS"));
+    }
+
+    #[test]
+    fn legal_publication_rejects_blank_placeholder_and_invalid_email_values() {
+        let missing = missing_publication_fields_with(|key| match key {
+            "LEGAL_OPERATOR_NAME" => Some("TODO".to_string()),
+            "LEGAL_OPERATOR_ADDRESS" => Some(" ".to_string()),
+            "LEGAL_CONTACT_EMAIL" => Some("not-an-email".to_string()),
+            "PRIVACY_CONTACT_EMAIL" => Some("privacy@loopapp.test".to_string()),
+            _ => Some("Configured value".to_string()),
+        });
+        assert_eq!(
+            missing,
+            vec!["LEGAL_OPERATOR_NAME", "LEGAL_OPERATOR_ADDRESS", "LEGAL_CONTACT_EMAIL"]
+        );
     }
 
     #[test]

@@ -15,6 +15,8 @@ type LegalAcceptanceStatus = {
   terms_accepted: boolean
   privacy_acknowledged: boolean
   complete: boolean
+  publication_ready: boolean
+  missing_publication_fields: string[]
 }
 
 function safeReturnPath(value: string | null) {
@@ -64,13 +66,26 @@ function LegalConsentContent() {
     setStatus(null)
     setError("")
 
-    rustApiRequest<LegalAcceptanceStatus>("legal/acceptance", {
-      headers: authHeaders,
-    })
-      .then((result) => {
+    Promise.all([
+      rustApiRequest<LegalAcceptanceStatus>("legal/acceptance", { headers: authHeaders }),
+      fetch("/api/legal/publication-readiness", { cache: "no-store" }).then(async (response) => {
+        if (!response.ok) throw new Error("We could not verify LOOP's legal publication details.")
+        return response.json() as Promise<{ publication_ready: boolean; missing_publication_fields: string[] }>
+      }),
+    ])
+      .then(([result, frontendReadiness]) => {
         if (!active) return
-        setStatus(result)
-        if (result.complete) router.replace(destination)
+        const missing = Array.from(new Set([
+          ...result.missing_publication_fields,
+          ...frontendReadiness.missing_publication_fields,
+        ]))
+        const combined = {
+          ...result,
+          publication_ready: result.publication_ready && frontendReadiness.publication_ready && missing.length === 0,
+          missing_publication_fields: missing,
+        }
+        setStatus(combined)
+        if (combined.complete && combined.publication_ready) router.replace(destination)
       })
       .catch((reason: unknown) => {
         if (!active) return
@@ -86,7 +101,7 @@ function LegalConsentContent() {
   }, [user?.id, authToken, loading, router, destination, retryCount])
 
   const confirmAgreement = async () => {
-    if (!accepted || saving) return
+    if (!accepted || saving || !status?.publication_ready) return
     setSaving(true)
     setError("")
 
@@ -158,6 +173,21 @@ function LegalConsentContent() {
                 CURRENT VERSIONS · TERMS {status.terms_version} · PRIVACY {status.privacy_version}
               </p>
             )}
+            {status && !status.publication_ready && (
+              <div role="alert" className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm leading-6">
+                <p className="font-semibold text-foreground">Agreement is not available yet.</p>
+                <p className="mt-1 text-muted-foreground">
+                  The service owner must publish verified operator, provider, transfer, and retention details before LOOP can record your agreement.
+                </p>
+                {status.missing_publication_fields.length > 0 && (
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                    {status.missing_publication_fields.map((field) => (
+                      <li key={field}>{field.replaceAll("_", " ").toLowerCase()}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="space-y-4 px-6 py-6 sm:px-9 sm:py-8">
@@ -204,7 +234,7 @@ function LegalConsentContent() {
               type="button"
               size="lg"
               className="group h-12 w-full rounded-xl"
-              disabled={!accepted || saving || !status}
+              disabled={!accepted || saving || !status || !status.publication_ready}
               onClick={confirmAgreement}
             >
               {saving ? <Spinner className="mr-2 h-4 w-4" /> : <Check className="mr-2 h-4 w-4 transition-transform group-hover:scale-110" />}
