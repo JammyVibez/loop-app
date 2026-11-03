@@ -86,6 +86,7 @@ pub struct CollectionPendingInvitation {
     display_name: String,
     role: String,
     invited_at: DateTime<Utc>,
+    expires_at: DateTime<Utc>,
 }
 
 #[derive(Serialize)]
@@ -99,6 +100,7 @@ pub struct CollectionInvitation {
     owner_avatar_url: Option<String>,
     role: String,
     invited_at: DateTime<Utc>,
+    expires_at: DateTime<Utc>,
 }
 
 #[derive(Serialize)]
@@ -108,6 +110,7 @@ pub struct CollectionMemberInvitationResult {
     username: String,
     role: String,
     status: String,
+    expires_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Deserialize)]
@@ -599,11 +602,12 @@ pub async fn get(
         let rows = sqlx::query(
             r#"
             SELECT member.user_id, profile.username, profile.display_name,
-                   member.role, member.invited_at
+                   member.role, member.invited_at, member.expires_at
             FROM collection_members AS member
             JOIN profiles AS profile ON profile.id = member.user_id
             WHERE member.collection_id = $1
               AND member.status = 'pending'
+              AND member.expires_at > NOW()
             ORDER BY member.invited_at ASC, member.user_id ASC
             "#,
         )
@@ -627,6 +631,7 @@ pub async fn get(
                     display_name: row.try_get("display_name").map_err(internal_db_error)?,
                     role: row.try_get("role").map_err(internal_db_error)?,
                     invited_at: row.try_get("invited_at").map_err(internal_db_error)?,
+                    expires_at: row.try_get("expires_at").map_err(internal_db_error)?,
                 })
             })
             .collect::<Result<Vec<_>, ApiError>>()?
@@ -764,9 +769,9 @@ pub async fn add_member(
     let row = sqlx::query(
         r#"
         INSERT INTO collection_members (
-            collection_id, user_id, role, invited_by, status, invited_at, accepted_at
+            collection_id, user_id, role, invited_by, status, invited_at, expires_at, accepted_at
         )
-        VALUES ($1, $2, $3, $4, 'pending', NOW(), NULL)
+        VALUES ($1, $2, $3, $4, 'pending', NOW(), NOW() + INTERVAL '30 days', NULL)
         ON CONFLICT (collection_id, user_id)
         DO UPDATE SET
             role = EXCLUDED.role,
@@ -779,11 +784,15 @@ pub async fn add_member(
                 WHEN collection_members.status = 'active' THEN collection_members.invited_at
                 ELSE NOW()
             END,
+            expires_at = CASE
+                WHEN collection_members.status = 'active' THEN collection_members.expires_at
+                ELSE NOW() + INTERVAL '30 days'
+            END,
             accepted_at = CASE
                 WHEN collection_members.status = 'active' THEN collection_members.accepted_at
                 ELSE NULL
             END
-        RETURNING user_id, role, status
+        RETURNING user_id, role, status, expires_at
         "#,
     )
     .bind(collection_id)
@@ -864,6 +873,7 @@ pub async fn add_member(
         username: invitee_username,
         role: row.try_get("role").map_err(internal_db_error)?,
         status,
+        expires_at: row.try_get("expires_at").map_err(internal_db_error)?,
     };
 
     transaction.commit().await.map_err(|error| {
@@ -893,12 +903,14 @@ pub async fn list_invitations(
             owner.display_name AS owner_display_name,
             owner.avatar_url AS owner_avatar_url,
             member.role,
-            member.invited_at
+            member.invited_at,
+            member.expires_at
         FROM collection_members AS member
         JOIN collections AS collection ON collection.id = member.collection_id
         JOIN profiles AS owner ON owner.id = collection.owner_id
         WHERE member.user_id = $1
           AND member.status = 'pending'
+          AND member.expires_at > NOW()
           AND collection.is_collaborative IS TRUE
         ORDER BY member.invited_at DESC
         LIMIT 50
@@ -931,6 +943,7 @@ pub async fn list_invitations(
                 owner_avatar_url: row.try_get("owner_avatar_url").map_err(internal_db_error)?,
                 role: row.try_get("role").map_err(internal_db_error)?,
                 invited_at: row.try_get("invited_at").map_err(internal_db_error)?,
+                expires_at: row.try_get("expires_at").map_err(internal_db_error)?,
             })
         })
         .collect::<Result<Vec<_>, ApiError>>()?;
@@ -989,7 +1002,7 @@ pub async fn respond_to_invitation(
 
     let invitation = sqlx::query(
         r#"
-        SELECT status
+        SELECT status, expires_at
         FROM collection_members
         WHERE collection_id = $1 AND user_id = $2
         FOR UPDATE
@@ -1014,6 +1027,24 @@ pub async fn respond_to_invitation(
             StatusCode::CONFLICT,
             "collection_invitation_already_handled",
             "This invitation has already been handled.",
+        ));
+    }
+
+    let expires_at: DateTime<Utc> = invitation.try_get("expires_at").map_err(internal_db_error)?;
+    if expires_at <= Utc::now() {
+        sqlx::query(
+            "UPDATE collection_members SET status = 'expired' WHERE collection_id = $1 AND user_id = $2",
+        )
+        .bind(collection_id)
+        .bind(user.id)
+        .execute(&mut *transaction)
+        .await
+        .map_err(internal_db_error)?;
+        transaction.commit().await.map_err(internal_db_error)?;
+        return Err(api_error(
+            StatusCode::GONE,
+            "collection_invitation_expired",
+            "This invitation has expired. Ask the owner to send a new one.",
         ));
     }
 
