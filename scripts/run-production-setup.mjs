@@ -30,6 +30,8 @@ const files = [
   // Recurring LOOP Pro subscriptions and auditable billing grants.
   "scripts/premium-subscriptions-migration.sql",
   "scripts/launch-schema-alignment.sql",
+  // Creator earnings columns, private ledger and atomic source-idempotent grants.
+  "scripts/creator-earnings-lifecycle.sql",
   "scripts/loops-and-media.sql",
   "scripts/moderation-schema.sql",
   // Race-safe reports and transactional moderation actions.
@@ -196,7 +198,7 @@ function applyFile(file, { strict = false } = {}) {
   if (full.stderr) process.stderr.write(full.stderr)
 
   const sql = readFileSync(path, "utf8")
-  // Split on semicolons at end of statements while keeping DO $$ ... $$ blocks intact.
+  // Split on statement-ending semicolons while keeping any PostgreSQL dollar-quoted block intact.
   const statements = []
   let buf = ""
   let dollarQuoteTag = null
@@ -260,7 +262,7 @@ function applyFile(file, { strict = false } = {}) {
 for (const file of files) {
   // Verification owns private identity evidence and the admin review function;
   // never report setup success when any part of this security migration fails.
-  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/discovery-preferences.sql", "scripts/wallet-and-events-schema.sql", "scripts/user-blocks-schema.sql", "scripts/trending-hashtags-function.sql", "scripts/moderation-integrity.sql", "scripts/account-status-appeals-schema.sql", "scripts/circle-membership-lifecycle.sql", "scripts/co-loop-atomic-lifecycle.sql", "scripts/co-loop-invitation-expiry.sql", "scripts/circle-owner-transfer.sql", "scripts/circle-event-rsvp-lifecycle.sql", "backend/migrations/0001_collections.sql", "backend/migrations/0009_collection_invitation_expiry.sql", "backend/migrations/0010_user_legal_acceptances.sql", "scripts/premium-subscriptions-migration.sql", "scripts/coin-packs-refunds-schema.sql", "scripts/premium-coin-purchase.sql", "scripts/achievements-system.sql", "scripts/achievements-integrity.sql"].includes(file) })
+  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/discovery-preferences.sql", "scripts/wallet-and-events-schema.sql", "scripts/user-blocks-schema.sql", "scripts/trending-hashtags-function.sql", "scripts/moderation-integrity.sql", "scripts/account-status-appeals-schema.sql", "scripts/circle-membership-lifecycle.sql", "scripts/co-loop-atomic-lifecycle.sql", "scripts/co-loop-invitation-expiry.sql", "scripts/circle-owner-transfer.sql", "scripts/circle-event-rsvp-lifecycle.sql", "backend/migrations/0001_collections.sql", "backend/migrations/0009_collection_invitation_expiry.sql", "backend/migrations/0010_user_legal_acceptances.sql", "scripts/premium-subscriptions-migration.sql", "scripts/creator-earnings-lifecycle.sql", "scripts/coin-packs-refunds-schema.sql", "scripts/premium-coin-purchase.sql", "scripts/achievements-system.sql", "scripts/achievements-integrity.sql"].includes(file) })
 }
 
 if (process.argv.includes("--with-seed")) {
