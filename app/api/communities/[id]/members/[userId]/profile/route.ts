@@ -169,7 +169,7 @@ export async function GET(
       ? String(viewerMembership.role || "")
       : ""
     const canModerate = ["owner", "admin", "moderator"].includes(viewerRole) && !isSelf
-    const { privacy_settings: _privacySettings, ...profileIdentity } = publicIdentity
+    const profileIdentity = publicIdentity
 
     return NextResponse.json({
       profile: profileIdentity,
