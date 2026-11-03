@@ -475,7 +475,8 @@ pub async fn update_contribution(
           AND contribution.status = 'published'
           AND contribution.author_id = $3
         FOR UPDATE OF contribution, chain
-        "#,    )
+        "#,
+    )
     .bind(chain_id)
     .bind(contribution_id)
     .bind(user.id)
@@ -522,7 +523,6 @@ pub async fn update_contribution(
             "This contribution is unavailable or you can no longer edit it.",
         ));
     }
-
 
     let author_id: Uuid = current
         .try_get("author_id")
@@ -810,7 +810,8 @@ pub async fn restore_contribution_revision(
           AND contribution.status = 'published'
           AND contribution.author_id = $3
         FOR UPDATE OF contribution, chain
-        "#,    )
+        "#,
+    )
     .bind(chain_id)
     .bind(contribution_id)
     .bind(user.id)
@@ -857,7 +858,6 @@ pub async fn restore_contribution_revision(
             "This contribution is unavailable or you can no longer edit it.",
         ));
     }
-
 
     let author_id: Uuid = current
         .try_get("author_id")
