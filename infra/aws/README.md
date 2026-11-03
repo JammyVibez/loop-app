@@ -1,4 +1,6 @@
-# LOOP AWS data infrastructure
+# LOOP infrastructure choices
+
+The default direction is self-hosted, open-source infrastructure. The Terraform in this directory remains an optional AWS path only; it is disabled by default and must not be enabled without explicit budget approval.
 
 This Terraform module is deliberately **disabled by default**. It does not create an AWS account, provision anything, configure billing or deploy the Rust API.
 
@@ -7,11 +9,20 @@ This Terraform module is deliberately **disabled by default**. It does not creat
 Use the local stack for day-to-day development:
 
 - PostgreSQL 17 in Docker.
-- MinIO as a local S3-compatible object store.
+- SeaweedFS as the local S3-compatible object store (Apache-2.0).
 - Rust API in Docker.
 - SQLx migrations run against that local database.
 
-This is the zero-cost development path. It does not depend on AWS credits or a paid account.
+This is a no-cloud-bill development path. The software is open source, but it still consumes the developer's own machine, disk, power and network.
+
+## Recommended self-hosted production direction
+
+- PostgreSQL for relational data.
+- SeaweedFS for S3-compatible object storage.
+- Docker Compose for a small, single-host deployment; move to a replicated SeaweedFS setup when operational requirements justify it.
+- Coolify as an optional open-source deployment control plane for Next.js, Rust and Docker services on infrastructure you supply.
+
+This avoids AWS service charges and vendor lock-in for these components, but it is not literally cost-free: a production host, domains, network egress, backups, monitoring and operations still need to be paid for or supplied by the operator. Coolify is orchestration software, not a hosting provider.
 
 ## Optional AWS data plane
 
