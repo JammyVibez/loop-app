@@ -88,6 +88,20 @@ describe("community member mini-profile privacy", () => {
     expect(body.powers).toEqual([])
   })
 
+  it("returns only the deliberate public identity DTO for readable profiles", async () => {
+    state.user.mockResolvedValue({ id: "owner" })
+    const response = await GET(request(), params)
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.profile).toMatchObject({
+      id: "target",
+      username: "target",
+      display_name: "Target",
+    })
+    expect(body.profile).not.toHaveProperty("privacy_settings")
+    expect(body.profile).not.toHaveProperty("email")
+  })
+
   it("does not grant moderation controls to a left moderator", async () => {
     state.user.mockResolvedValue({ id: "left-moderator" })
     state.rows.circle_members = { role: "member", status: "active", contribution_score: 4 }
