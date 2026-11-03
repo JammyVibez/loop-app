@@ -72,9 +72,16 @@ fn is_published_value(key: &str, value: &str) -> bool {
     let value = value.trim();
     let normalized = value.to_ascii_lowercase();
     if value.is_empty()
-        || ["todo", "tbd", "change_me", "changeme", "not configured", "example.com"]
-            .iter()
-            .any(|marker| normalized == *marker)
+        || [
+            "todo",
+            "tbd",
+            "change_me",
+            "changeme",
+            "not configured",
+            "example.com",
+        ]
+        .iter()
+        .any(|marker| normalized == *marker)
     {
         return false;
     }
@@ -292,7 +299,11 @@ mod tests {
         });
         assert_eq!(
             missing,
-            vec!["LEGAL_OPERATOR_NAME", "LEGAL_OPERATOR_ADDRESS", "LEGAL_CONTACT_EMAIL"]
+            vec![
+                "LEGAL_OPERATOR_NAME",
+                "LEGAL_OPERATOR_ADDRESS",
+                "LEGAL_CONTACT_EMAIL"
+            ]
         );
     }
 
