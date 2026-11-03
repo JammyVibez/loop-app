@@ -583,7 +583,7 @@ pub async fn create(
     if input
         .cover_image_url
         .as_deref()
-        .is_some_and(|value| !value.trim().is_empty() && !value.trim().starts_with("https://"))
+        .is_some_and(|value| !value.trim().is_empty() && !is_valid_https_url(value.trim()))
     {
         return Err(api_error(
             StatusCode::UNPROCESSABLE_ENTITY,
