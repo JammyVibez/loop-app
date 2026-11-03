@@ -82,6 +82,16 @@ BEGIN
       to_jsonb(author)->'privacy_settings'->>'profile_visibility',
       'public'
     ) NOT IN ('private', 'followers')
+    AND (
+      loop.circle_id IS NULL
+      OR EXISTS (
+        SELECT 1
+        FROM public.circles AS circle
+        WHERE circle.id = loop.circle_id
+          AND COALESCE(circle.is_private, FALSE) = FALSE
+          AND COALESCE(circle.is_premium_only, FALSE) = FALSE
+      )
+    )
     AND usage.created_at >= NOW() - INTERVAL '1 day' * GREATEST(1, LEAST(days_back, 30)) * 2
   GROUP BY usage.hashtag
   HAVING COUNT(*) FILTER (
@@ -111,6 +121,16 @@ WHERE loop.visibility = 'public'
     to_jsonb(author)->'privacy_settings'->>'profile_visibility',
     'public'
   ) NOT IN ('private', 'followers')
+  AND (
+    loop.circle_id IS NULL
+    OR EXISTS (
+      SELECT 1
+      FROM public.circles AS circle
+      WHERE circle.id = loop.circle_id
+        AND COALESCE(circle.is_private, FALSE) = FALSE
+        AND COALESCE(circle.is_premium_only, FALSE) = FALSE
+    )
+  )
   AND usage.created_at >= NOW() - INTERVAL '30 days'
 GROUP BY usage.hashtag
 HAVING COUNT(*) FILTER (WHERE usage.created_at >= NOW() - INTERVAL '7 days') > 0;
