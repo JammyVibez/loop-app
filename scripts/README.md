@@ -77,8 +77,8 @@ Do not use it as a substitute for reading the runner when changing migration ord
 The security-sensitive migrations are strict: setup must fail rather than silently
 skip verification, discovery preferences, account blocks, public-trending privacy,
 moderation integrity, account appeals, Circle membership/ownership/event lifecycles,
-Co-Loop lifecycle/expiry, core Collections/legal acceptance, Premium billing/purchases,
-and achievement integrity. In particular, `trending-hashtags-function.sql` is strict
+Co-Loop lifecycle/expiry, core Collections/legal acceptance, Premium billing,
+wallet/refund schema and purchases, and achievement integrity. In particular, `trending-hashtags-function.sql` is strict
 because a missing or failed privacy filter must never leave public trend aggregation
 on a permissive legacy definition. Collection expiry follows the Collection tables;
 legal acceptance follows Better Auth's user/session tables. Circle membership lifecycle
