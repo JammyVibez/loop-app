@@ -31,7 +31,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <div className={`flex-1 min-w-0 ${isMessagesPage || isStandalonePage ? "pb-0" : "pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0"}`}>
+      <div className={`loop-app-content flex-1 min-w-0 ${isMessagesPage || isStandalonePage ? "pb-0" : "pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0"}`}>
         {!isMessagesPage && !isStandalonePage && <AppUpdateBanner />}
         {children}
       </div>

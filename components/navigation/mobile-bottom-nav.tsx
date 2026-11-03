@@ -119,7 +119,7 @@ export function MobileBottomNav() {
       <MobileSidebarSheet open={menuOpen} onOpenChange={setMenuOpen} />
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
+        className="loop-mobile-nav fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
         aria-label="Mobile navigation"
       >
         <div className="grid grid-cols-5 items-end px-1 pb-1.5 pt-1">
@@ -134,7 +134,7 @@ export function MobileBottomNav() {
                   key={item.href}
                   href={item.href}
                   aria-current={active ? "page" : undefined}
-                  className="group relative flex flex-col items-center justify-end gap-0.5 pb-0.5 text-[10px] font-semibold"
+                  className="group relative flex min-h-14 flex-col items-center justify-end gap-0.5 pb-0.5 text-[10px] font-semibold touch-manipulation"
                 >
                   <span
                     className={cn(
@@ -158,7 +158,7 @@ export function MobileBottomNav() {
                 }}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "group relative flex flex-col items-center justify-center gap-0.5 rounded-xl py-2 text-[10px] font-medium transition-colors",
+                  "group relative flex min-h-11 min-w-11 flex-col items-center justify-center gap-0.5 rounded-xl py-2 text-[10px] font-medium transition-colors touch-manipulation",
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                 )}
               >

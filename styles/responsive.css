@@ -193,3 +193,55 @@ html.loop-reduced-motion .loop-consent-enter,
 html.reduce-motion .loop-consent-enter {
   animation: none !important;
 }
+
+
+/* Shared responsive and motion finishing layer, imported by app/layout.tsx. */
+:root { --loop-touch-target: 44px; }
+html { scroll-padding-top: max(5rem, env(safe-area-inset-top)); -webkit-text-size-adjust: 100%; }
+body { min-width: 320px; overflow-x: clip; }
+.loop-app-content, .loop-responsive-grid, .loop-responsive-grid > * { min-width: 0; max-width: 100%; }
+.loop-app-content { min-height: 100dvh; overflow-wrap: anywhere; }
+.loop-app-content :where(img, video, canvas, iframe) { max-width: 100%; }
+.loop-app-content :where(pre, table) { max-width: 100%; overflow-x: auto; }
+.loop-mobile-nav {
+  padding-left: max(0.25rem, env(safe-area-inset-left));
+  padding-right: max(0.25rem, env(safe-area-inset-right));
+  padding-bottom: max(0px, env(safe-area-inset-bottom));
+}
+.loop-mobile-nav a { min-width: var(--loop-touch-target); min-height: var(--loop-touch-target); touch-action: manipulation; }
+.loop-card-motion {
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1), border-color 220ms ease,
+    box-shadow 220ms ease, background-color 220ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .loop-card-motion:not([data-static="true"]):hover {
+    transform: translateY(-2px);
+    border-color: hsl(var(--primary) / 0.28);
+    box-shadow: 0 16px 34px -28px hsl(var(--foreground) / 0.42);
+  }
+}
+.loop-consent-enter { animation: loop-content-enter 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes loop-content-enter {
+  from { opacity: 0; transform: translateY(12px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.loop-interactive-focus:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
+@media (max-width: 640px) {
+  .loop-app-content { width: 100%; max-width: 100%; }
+  .loop-app-content :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { max-width: 100%; font-size: 16px; }
+  .loop-app-content :where(button, a, [role="button"]) { touch-action: manipulation; }
+  .loop-app-content :where(pre, table) {
+    display: block; width: 100%; overflow-x: auto; overscroll-behavior-inline: contain;
+  }
+  .loop-mobile-nav a { flex-shrink: 1; }
+}
+@media (max-width: 360px) { .loop-mobile-nav a { font-size: 9px; } }
+@media (prefers-reduced-motion: reduce) {
+  .loop-card-motion, .loop-consent-enter { animation: none !important; transition: none !important; }
+  .loop-card-motion:not([data-static="true"]):hover { transform: none !important; box-shadow: inherit; }
+}
+@media (forced-colors: active) {
+  .loop-interactive-focus:focus-visible, .loop-mobile-nav a:focus-visible {
+    outline: 2px solid CanvasText; outline-offset: 3px;
+  }
+}
