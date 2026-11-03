@@ -49,13 +49,18 @@ export async function checkCoLoopInvitationRevocation(
 ): Promise<{ revoked: boolean; error: string | null }> {
   const { data, error } = await supabase
     .from("co_loop_invitations")
-    .select("status")
+    .select("status, expires_at")
     .eq("session_id", sessionId)
     .eq("invitee_id", userId)
     .maybeSingle()
 
   if (error) return { revoked: false, error: error.message || "Could not verify invitation status" }
-  return { revoked: isRevokedCoLoopInvitationStatus(data?.status), error: null }
+  const expiry = typeof data?.expires_at === "string" ? Date.parse(data.expires_at) : Number.NaN
+  const pendingExpired = data?.status === "pending" && (!Number.isFinite(expiry) || expiry <= Date.now())
+  return {
+    revoked: isRevokedCoLoopInvitationStatus(data?.status) || pendingExpired,
+    error: null,
+  }
 }
 
 
