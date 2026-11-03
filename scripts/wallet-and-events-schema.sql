@@ -240,6 +240,121 @@ BEGIN
 END
 $wallet_grants$;
 
+-- Coin withdrawals reserve balance and create their payout request atomically.
+CREATE OR REPLACE FUNCTION public.request_coin_withdrawal(
+  p_user_id UUID,
+  p_request_id TEXT,
+  p_coins_amount INTEGER,
+  p_payout_method TEXT,
+  p_payout_details TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp
+AS $coin_withdrawal$
+DECLARE
+  v_profile public.profiles%ROWTYPE;
+  v_existing public.withdrawal_requests%ROWTYPE;
+  v_request public.withdrawal_requests%ROWTYPE;
+BEGIN
+  IF p_user_id IS NULL
+     OR p_request_id IS NULL
+     OR char_length(p_request_id) <> 40
+     OR left(p_request_id, 4) <> 'wdr_'
+     OR translate(substr(p_request_id, 5), '0123456789abcdefABCDEF-', '') <> ''
+     OR substr(p_request_id, 13, 1) <> '-'
+     OR substr(p_request_id, 18, 1) <> '-'
+     OR substr(p_request_id, 23, 1) <> '-'
+     OR substr(p_request_id, 28, 1) <> '-'
+     OR p_coins_amount IS NULL OR p_coins_amount < 500
+     OR p_payout_method IS NULL OR p_payout_method NOT IN ('bank', 'paypal', 'crypto')
+     OR p_payout_details IS NULL OR char_length(btrim(p_payout_details)) = 0
+     OR char_length(p_payout_details) > 1000 THEN
+    RAISE EXCEPTION 'Invalid coin withdrawal request'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT * INTO v_profile
+    FROM public.profiles
+   WHERE id = p_user_id
+   FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Withdrawal profile not found'
+      USING ERRCODE = 'P0002';
+  END IF;
+
+  SELECT * INTO v_existing
+    FROM public.withdrawal_requests
+   WHERE id = p_request_id
+   FOR UPDATE;
+
+  IF FOUND THEN
+    IF v_existing.user_id IS DISTINCT FROM p_user_id::TEXT
+       OR v_existing.coins_amount IS DISTINCT FROM p_coins_amount
+       OR v_existing.payout_method IS DISTINCT FROM p_payout_method
+       OR v_existing.payout_details IS DISTINCT FROM p_payout_details THEN
+      RAISE EXCEPTION 'Withdrawal idempotency key has already been used'
+        USING ERRCODE = '23505';
+    END IF;
+
+    RETURN JSONB_BUILD_OBJECT(
+      'request', to_jsonb(v_existing),
+      'loop_coins', COALESCE(v_profile.loop_coins, 0),
+      'already_processed', TRUE
+    );
+  END IF;
+
+  IF v_profile.is_verified IS NOT TRUE THEN
+    RAISE EXCEPTION 'Verified creator status is required for coin withdrawals'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF COALESCE(v_profile.loop_coins, 0) < p_coins_amount THEN
+    RAISE EXCEPTION 'Insufficient Loop Coin balance'
+      USING ERRCODE = '22023';
+  END IF;
+
+  UPDATE public.profiles
+     SET loop_coins = COALESCE(loop_coins, 0) - p_coins_amount
+   WHERE id = p_user_id
+   RETURNING * INTO v_profile;
+
+  INSERT INTO public.withdrawal_requests (
+    id, user_id, username, coins_amount, estimated_usd,
+    payout_method, payout_details, status, created_at
+  )
+  VALUES (
+    p_request_id, p_user_id::TEXT, COALESCE(v_profile.username, 'user'),
+    p_coins_amount, ROUND(p_coins_amount::NUMERIC / 100, 2),
+    p_payout_method, btrim(p_payout_details), 'pending_review', NOW()
+  )
+  RETURNING * INTO v_request;
+
+  RETURN JSONB_BUILD_OBJECT(
+    'request', to_jsonb(v_request),
+    'loop_coins', COALESCE(v_profile.loop_coins, 0),
+    'already_processed', FALSE
+  );
+END;
+$coin_withdrawal$;
+
+REVOKE ALL ON FUNCTION public.request_coin_withdrawal(UUID, TEXT, INTEGER, TEXT, TEXT) FROM PUBLIC;
+
+DO $coin_withdrawal_acl$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE ALL ON FUNCTION public.request_coin_withdrawal(UUID, TEXT, INTEGER, TEXT, TEXT) FROM anon;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON FUNCTION public.request_coin_withdrawal(UUID, TEXT, INTEGER, TEXT, TEXT) FROM authenticated;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+    GRANT EXECUTE ON FUNCTION public.request_coin_withdrawal(UUID, TEXT, INTEGER, TEXT, TEXT) TO service_role;
+  END IF;
+END
+$coin_withdrawal_acl$;
 -- Enable Supabase Realtime for Tables
 DO $$
 BEGIN
