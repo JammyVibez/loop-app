@@ -78,6 +78,19 @@ try {
                 .sort((a, b) => b.right - a.right)
                 .slice(0, 12)
             : [],
+          offscreenElements: Array.from(document.querySelectorAll("body *"))
+            .map((element) => {
+              const rect = element.getBoundingClientRect()
+              return {
+                tag: element.tagName.toLowerCase(),
+                id: element.id || "",
+                className: typeof element.className === "string" ? element.className.slice(0, 140) : "",
+                left: Math.round(rect.left * 10) / 10,
+                right: Math.round(rect.right * 10) / 10,
+              }
+            })
+            .filter((element) => element.right > window.innerWidth + 1 || element.left < -1)
+            .slice(0, 12),
           overflowCandidates: document.documentElement.scrollWidth > window.innerWidth + 1
             ? Array.from(document.querySelectorAll("body *")).map((element) => {
                 const rect = element.getBoundingClientRect()
@@ -113,8 +126,13 @@ try {
           },
         }))
 
-        if (layout.documentWidth > viewport.width + 1 || layout.bodyWidth > viewport.width + 1) {
-          throw new Error("Horizontal overflow: viewport=" + viewport.width + ", document=" + layout.documentWidth + ", body=" + layout.bodyWidth + "; elements=" + JSON.stringify(layout.overflowingElements) + "; root=" + JSON.stringify(layout.rootOverflow) + "; candidates=" + JSON.stringify(layout.overflowCandidates))
+        const rootClipsHorizontalOverflow = ["clip", "hidden"].includes(layout.rootOverflow.html.overflowX)
+          || ["clip", "hidden"].includes(layout.rootOverflow.body.overflowX)
+        const offscreenElements = layout.offscreenElements
+        if (layout.bodyWidth > viewport.width + 1
+          || (layout.documentWidth > viewport.width + 1 && !rootClipsHorizontalOverflow)
+          || offscreenElements.length > 0) {
+          throw new Error("Horizontal overflow: viewport=" + viewport.width + ", document=" + layout.documentWidth + ", body=" + layout.bodyWidth + "; offscreen=" + JSON.stringify(offscreenElements) + "; root=" + JSON.stringify(layout.rootOverflow) + "; candidates=" + JSON.stringify(layout.overflowCandidates))
         }
         if (!layout.title.trim()) throw new Error("Page title is empty")
         if (!layout.viewportMeta.includes("width=device-width")) throw new Error("Responsive viewport metadata is missing")
