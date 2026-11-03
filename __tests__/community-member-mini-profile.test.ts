@@ -103,6 +103,8 @@ describe("community member mini-profile privacy", () => {
   })
 
   it("does not grant moderation controls to a left moderator", async () => {
+    // Exercise the role boundary independently of the private-Circle gate.
+    state.rows.circles.is_private = false
     state.user.mockResolvedValue({ id: "left-moderator" })
     state.rows.circle_members = { role: "member", status: "active", contribution_score: 4 }
     // The viewer membership is returned for the second Circle-member lookup.
