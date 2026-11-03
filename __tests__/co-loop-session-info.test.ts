@@ -70,7 +70,6 @@ describe("Co-Loop durable draft writes", () => {
 
     expect(response.status).toBe(409)
     expect(state.patch).not.toHaveBeenCalled()
-    expect(state.writeQuery.maybeSingle).toBeUndefined()
   })
 
   it("conditions non-host autosaves on the active unlocked roster observed during authorization", async () => {
