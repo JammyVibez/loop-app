@@ -1123,7 +1123,7 @@ function WalletContent() {
                 max={balance}
                 step={100}
                 value={withdrawCoins}
-                onChange={(e) => setWithdrawCoins(Number(e.target.value))}
+                onChange={(e) => { setWithdrawCoins(Number(e.target.value)); setWithdrawalRequestKey(null) }}
                 className="mt-1.5 rounded-xl font-bold text-foreground"
               />
               <p className="text-[11px] text-muted-foreground mt-1 flex justify-between">
