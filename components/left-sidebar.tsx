@@ -357,7 +357,7 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
 export function LeftSidebar() {
   const { user } = useAuth()
   const pathname = usePathname()
-  if (pathname === "/legal/consent" || pathname.startsWith("/legal/consent/")) return null
+  if ([ "/legal/consent", "/terms", "/privacy" ].some((route) => pathname === route || pathname.startsWith(`${route}/`))) return null
   if (!user) return null
 
   return (
