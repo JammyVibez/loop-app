@@ -17,6 +17,8 @@ import { GET as getBookmarks } from "@/app/api/circles/[id]/bookmarks/route"
 import { GET as getCheckin, POST as createCheckin } from "@/app/api/circles/[id]/checkin/route"
 import { GET as getTags, POST as createTag, DELETE as deleteTag } from "@/app/api/circles/[id]/tags/route"
 import { POST as triggerBot } from "@/app/api/circles/[id]/bots/trigger/route"
+import { GET as getChallenges, POST as createChallenge } from "@/app/api/circles/[id]/challenges/route"
+import { GET as getBadges, POST as createBadge } from "@/app/api/circles/[id]/badges/route"
 
 const circleParams = { params: Promise.resolve({ id: "circle-1" }) }
 const tagParams = { params: Promise.resolve({ id: "circle-1", tagId: "tag-1" }) }
@@ -67,6 +69,18 @@ describe("Circle auxiliary route boundaries", () => {
   it("fails closed for bot triggers when server credentials are missing", async () => {
     const bot = await triggerBot(request("/bots/trigger", "POST", { trigger_type: "chat" }), circleParams)
     expect(bot.status).toBe(503)
+    expect(state.createServerClient).not.toHaveBeenCalled()
+  })
+
+  it("requires the service role for Circle badge and challenge reads and writes", async () => {
+    const [badges, badge, challenges, challenge] = await Promise.all([
+      getBadges(request("/badges"), circleParams),
+      createBadge(request("/badges", "POST", { name: "Helpful", requirement_type: "contributions" }), circleParams),
+      getChallenges(request("/challenges"), circleParams),
+      createChallenge(request("/challenges", "POST", { title: "Community prompt" }), circleParams),
+    ])
+
+    expect([badges.status, badge.status, challenges.status, challenge.status]).toEqual([503, 503, 503, 503])
     expect(state.createServerClient).not.toHaveBeenCalled()
   })
 })
