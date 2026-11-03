@@ -11,64 +11,71 @@ environment.** Before adding a new `.sql` file here, read this first.
 
 1. `schema-compat-alignment.sql`
 2. `complete-database-setup.sql`
-3. `backend/migrations/0001_collections.sql` — ensure the shared profile/session,
-   Circle, and Collection foundations exist for the Rust API.
-4. `backend/migrations/0010_user_legal_acceptances.sql` — versioned Terms of Service and Privacy Policy acceptance ledger, linked to Better Auth users.
-5. `backend/migrations/0004_chains.sql` — canonical Chain, member and
-   contribution tables.
-6. `backend/migrations/0005_chain_collections.sql` — attach Chains to Collections.
-7. `backend/migrations/0006_chain_lifecycle.sql` — remix lineage and immutable
-   contribution revision history.
-8. `premium-subscriptions-migration.sql` — Pro subscription ledger, Stripe
-   identifiers/periods, and auditable grant metadata.
-8. `launch-schema-alignment.sql`
-9. `loops-and-media.sql`
-10. `moderation-schema.sql`
-11. `circles-schema-alignment.sql`
-12. `enhanced-database-schema-part2.sql`
-13. `enhanced-database-schema-part3.sql`
-14. `wallet-and-events-schema.sql`
-15. `developer-features.sql`
-16. `co-loop-sessions-schema.sql`
-17. `message-reactions-schema-fix.sql`
-18. `dm-read-receipts-compat.sql`
-19. `messages-edit-forward-schema.sql`
-20. `circles-enhancements-schema.sql`
-21. `fix-circle-event-participants.sql` — repairs the event participant foreign
-    key, removes orphan RSVP rows, and ensures one RSVP per event/member.
-22. `circle-event-rsvp-lifecycle.sql` — installs the row-locked RSVP RPC that
-    prevents capacity races and synchronizes attendee counts.
-23. `dev-quests-schema.sql`
-24. `developer-hub-v2.sql`
-25. `dev-collaborators-schema.sql`
-26. `dev-repo-schema.sql`
-27. `rls-policies.sql`
-28. `realtime-functions.sql`
-29. `coin-packs-refunds-schema.sql`
-30. `fix-profiles-cosmetics-column.sql`
-31. `private-profiles-schema.sql`
-32. `native-push-schema.sql`
-33. `clutch-duel-ads-tags-schema.sql`
-34. `awards-pro-circle-moments-schema.sql`
-35. `events-moderation-schema.sql`
-36. `custom-checkmarks-schema.sql`
-37. `update-coin-packs.sql`
-38. `open-co-loop-invites-schema.sql`
-39. `curated-emojis-schema.sql`
-40. `add-is-spoiler-column.sql`
-41. `explore-reels-indexes.sql`
-42. `community-chat-post-enhancements.sql`
-43. `community-fixes-2026-09.sql`
-44. `community-admin-settings-2026-09.sql`
-45. `fix-duel-votes-type.sql`
-46. `fix-poll-option-id-type.sql`
-47. `fix-poll-votes-poll-id-type.sql`
-48. `community-chat-schema.sql`
-49. `community-post-enhancements.sql`
+3. `backend/migrations/0001_collections.sql` — shared profiles, Better Auth identity/session, Circles and Collections.
+4. `backend/migrations/0009_collection_invitation_expiry.sql` — durable pending invitation expiry and status constraints.
+5. `backend/migrations/0010_user_legal_acceptances.sql` — versioned Terms and Privacy acceptance, linked to Better Auth users.
+6. `backend/migrations/0004_chains.sql` — canonical Chain, member and contribution tables.
+7. `backend/migrations/0005_chain_collections.sql` — attach Chains to Collections.
+8. `backend/migrations/0006_chain_lifecycle.sql` — remix lineage and immutable contribution revision history.
+9. `premium-subscriptions-migration.sql` — Pro subscription ledger, Stripe identifiers/periods and auditable grant metadata.
+10. `launch-schema-alignment.sql`
+11. `loops-and-media.sql`
+12. `moderation-schema.sql`
+13. `moderation-integrity.sql`
+14. `circles-schema-alignment.sql`
+15. `enhanced-database-schema-part2.sql`
+16. `enhanced-database-schema-part3.sql`
+17. `wallet-and-events-schema.sql`
+18. `achievements-system.sql`
+19. `achievements-integrity.sql`
+20. `premium-coin-purchase.sql`
+21. `developer-features.sql`
+22. `co-loop-sessions-schema.sql`
+23. `co-loop-invitation-expiry.sql`
+24. `co-loop-draft-schema.sql`
+25. `co-loop-room-controls.sql`
+26. `co-loop-chat-schema.sql`
+27. `message-reactions-schema-fix.sql`
+28. `dm-read-receipts-compat.sql`
+29. `messages-edit-forward-schema.sql`
+30. `circles-enhancements-schema.sql`
+31. `fix-circle-event-participants.sql`
+32. `circle-event-rsvp-lifecycle.sql`
+33. `dev-quests-schema.sql`
+34. `developer-hub-v2.sql`
+35. `dev-collaborators-schema.sql`
+36. `dev-repo-schema.sql`
+37. `rls-policies.sql`
+38. `realtime-functions.sql`
+39. `coin-packs-refunds-schema.sql`
+40. `fix-profiles-cosmetics-column.sql`
+41. `private-profiles-schema.sql`
+42. `user-blocks-schema.sql`
+43. `trending-hashtags-function.sql`
+44. `native-push-schema.sql`
+45. `clutch-duel-ads-tags-schema.sql`
+46. `awards-pro-circle-moments-schema.sql`
+47. `events-moderation-schema.sql`
+48. `custom-checkmarks-schema.sql`
+49. `update-coin-packs.sql`
+50. `open-co-loop-invites-schema.sql`
+51. `curated-emojis-schema.sql`
+52. `add-is-spoiler-column.sql`
+53. `explore-reels-indexes.sql`
+54. `community-chat-post-enhancements.sql`
+55. `community-fixes-2026-09.sql`
+56. `community-admin-settings-2026-09.sql`
+57. `fix-duel-votes-type.sql`
+58. `fix-poll-option-id-type.sql`
+59. `fix-poll-votes-poll-id-type.sql`
+60. `community-chat-schema.sql`
+61. `community-post-enhancements.sql`
 
-The Premium migration runs after the profile table is created. Circle event
-repair runs after the event/participant tables are created; the lifecycle
-function follows it so RSVP writes cannot overbook capacity-limited events.
+The expiry and legal-acceptance migrations are strict: setup must fail if either
+cannot be installed. Collection expiry follows the Collection tables; legal
+acceptance follows Better Auth's user/session tables. Circle membership
+lifecycle runs after account suspension/deletion fields so joins, approvals,
+leave, kick and ban share the same Circle row lock and canonical member count.
 
 ## Everything else in this folder
 
