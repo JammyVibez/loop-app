@@ -79,17 +79,18 @@ try {
                 .slice(0, 12)
             : [],
           rootOverflow: {
-            html: { clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth },
-            body: { clientWidth: document.body?.clientWidth ?? 0, scrollWidth: document.body?.scrollWidth ?? 0 },
-            htmlBefore: (() => { const pseudo = window.getComputedStyle(document.documentElement, "::before"); return { content: pseudo.content, width: pseudo.width, left: pseudo.left, right: pseudo.right, transform: pseudo.transform }; })(),
-            htmlAfter: (() => { const pseudo = window.getComputedStyle(document.documentElement, "::after"); return { content: pseudo.content, width: pseudo.width, left: pseudo.left, right: pseudo.right, transform: pseudo.transform }; })(),
-            bodyBefore: (() => { const pseudo = window.getComputedStyle(document.body, "::before"); return { content: pseudo.content, width: pseudo.width, left: pseudo.left, right: pseudo.right, transform: pseudo.transform }; })(),
-            bodyAfter: (() => { const pseudo = window.getComputedStyle(document.body, "::after"); return { content: pseudo.content, width: pseudo.width, left: pseudo.left, right: pseudo.right, transform: pseudo.transform }; })(),
+            scrollingElement: document.scrollingElement?.tagName ?? null,
+            html: { clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth, overflowX: getComputedStyle(document.documentElement).overflowX, position: getComputedStyle(document.documentElement).position },
+            body: { clientWidth: document.body?.clientWidth ?? 0, scrollWidth: document.body?.scrollWidth ?? 0, overflowX: document.body ? getComputedStyle(document.body).overflowX : "", position: document.body ? getComputedStyle(document.body).position : "" },
+            htmlBefore: (() => { const pseudo = window.getComputedStyle(document.documentElement, "::before"); return { content: pseudo.content, display: pseudo.display, position: pseudo.position, width: pseudo.width, left: pseudo.left, right: pseudo.right, marginLeft: pseudo.marginLeft, marginRight: pseudo.marginRight, transform: pseudo.transform }; })(),
+            htmlAfter: (() => { const pseudo = window.getComputedStyle(document.documentElement, "::after"); return { content: pseudo.content, display: pseudo.display, position: pseudo.position, width: pseudo.width, left: pseudo.left, right: pseudo.right, marginLeft: pseudo.marginLeft, marginRight: pseudo.marginRight, transform: pseudo.transform }; })(),
+            bodyBefore: (() => { const pseudo = window.getComputedStyle(document.body, "::before"); return { content: pseudo.content, display: pseudo.display, position: pseudo.position, width: pseudo.width, left: pseudo.left, right: pseudo.right, marginLeft: pseudo.marginLeft, marginRight: pseudo.marginRight, transform: pseudo.transform }; })(),
+            bodyAfter: (() => { const pseudo = window.getComputedStyle(document.body, "::after"); return { content: pseudo.content, display: pseudo.display, position: pseudo.position, width: pseudo.width, left: pseudo.left, right: pseudo.right, marginLeft: pseudo.marginLeft, marginRight: pseudo.marginRight, transform: pseudo.transform }; })(),
           },
         }))
 
         if (layout.documentWidth > viewport.width + 1 || layout.bodyWidth > viewport.width + 1) {
-          throw new Error("Horizontal overflow: viewport=" + viewport.width + ", document=" + layout.documentWidth + ", body=" + layout.bodyWidth + "; elements=" + JSON.stringify(layout.overflowingElements))
+          throw new Error("Horizontal overflow: viewport=" + viewport.width + ", document=" + layout.documentWidth + ", body=" + layout.bodyWidth + "; elements=" + JSON.stringify(layout.overflowingElements) + "; root=" + JSON.stringify(layout.rootOverflow))
         }
         if (!layout.title.trim()) throw new Error("Page title is empty")
         if (!layout.viewportMeta.includes("width=device-width")) throw new Error("Responsive viewport metadata is missing")
