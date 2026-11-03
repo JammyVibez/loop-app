@@ -277,7 +277,12 @@ export async function GET(request: NextRequest) {
           ? [...await getFollowingIds(supabase, user?.id || null)]
           : []
         if (sort === "following" && followedIds.length === 0) {
-          return NextResponse.json({ success: true, data: [], loops: [] })
+          return NextResponse.json({
+            success: true,
+            data: [],
+            loops: [],
+            pagination: { limit, offset, has_more: false, next_offset: offset },
+          })
         }
 
         if (sort === "personalized") {
@@ -433,8 +438,9 @@ export async function GET(request: NextRequest) {
           // Keep the feed varied without starving a small community: select up
           // to two recommendations per creator first, then fill remaining slots
           // from the ranked tail if fewer than the requested items were found.
-          const selected = diversifyByAuthor(sortedCandidates, Math.min(500, offset + limit), 2)
-            .slice(offset, offset + limit)
+          const candidatePage = diversifyByAuthor(sortedCandidates, Math.min(501, offset + limit + 1), 2)
+          const hasMore = candidatePage.length > offset + limit
+          const selected = candidatePage.slice(offset, offset + limit)
 
           const ranked = selected.map((loop) => ({
             ...loop,
@@ -468,6 +474,7 @@ export async function GET(request: NextRequest) {
             data: results,
             loops: results,
             recommendation_basis: "Based on topics you choose and tags from public Loops you have liked or saved. Muted topics, private content and inaccessible creator profiles are excluded.",
+            pagination: { limit, offset, has_more: hasMore, next_offset: offset + results.length },
           })
         }
 
@@ -514,6 +521,7 @@ export async function GET(request: NextRequest) {
             return bDepth - aDepth || engagementScore(b) - engagementScore(a)
           })
         }
+        const hasMore = rows.length > offset + limit
         rows = rows.slice(offset, offset + limit)
 
         const interactionMap = new Map<string, string[]>()
@@ -537,7 +545,12 @@ export async function GET(request: NextRequest) {
         await applyRealCommentCounts(supabase, enriched)
         await applyRealBranchCounts(supabase, enriched)
         const normalized = normalizeLoops(enriched, interactionMap)
-        return NextResponse.json({ success: true, data: normalized, loops: normalized })
+        return NextResponse.json({
+          success: true,
+          data: normalized,
+          loops: normalized,
+          pagination: { limit, offset, has_more: hasMore, next_offset: offset + normalized.length },
+        })
       }
 
       default:
