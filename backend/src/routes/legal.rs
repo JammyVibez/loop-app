@@ -118,7 +118,7 @@ pub async fn get_acceptance(
 
 pub async fn accept_documents(
     State(state): State<AppState>,
-    user: AuthenticatedUser,
+    user: AuthenticatedSessionUser,
     Json(input): Json<AcceptLegalDocumentsInput>,
 ) -> Result<(StatusCode, Json<LegalAcceptanceStatus>), LegalError> {
     if !acceptance_complete(&input) {
@@ -137,7 +137,7 @@ pub async fn accept_documents(
         VALUES
             ($1, 'terms', $2, 'web'),
             ($1, 'privacy', $3, 'web')
-        ON CONFLICT (user_id, document_key, document_version) DO NOTHING
+        ON CONFLICT (auth_user_id, document_key, document_version) DO NOTHING
         "#,
     )
     .bind(user.id)
