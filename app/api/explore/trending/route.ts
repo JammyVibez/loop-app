@@ -396,6 +396,7 @@ export async function GET(request: NextRequest) {
           type RankedCandidate = {
             id: string
             author_id?: string
+            circle_id?: string | null
             created_at: string
             matchedTags: string[]
             [key: string]: any
