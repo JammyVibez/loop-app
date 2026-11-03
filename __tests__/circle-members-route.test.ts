@@ -69,6 +69,7 @@ describe("Circle member service boundary", () => {
   })
 
   it("uses the row-locked RPC for role and custom permission updates", async () => {
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "test-service-role")
     const circleId = "22222222-2222-4222-8222-222222222222"
     const targetUserId = "33333333-3333-4333-8333-333333333333"
     const member = {
@@ -149,6 +150,7 @@ describe("Circle member service boundary", () => {
   })
 
   it("uses the row-locked membership RPC for bans and synchronizes the count atomically", async () => {
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "test-service-role")
     const circleId = "22222222-2222-4222-8222-222222222222"
     const targetUserId = "33333333-3333-4333-8333-333333333333"
     const channel = { send: state.broadcast }
@@ -177,6 +179,7 @@ describe("Circle member service boundary", () => {
   })
 
   it("maps an atomic moderation denial without issuing direct membership writes", async () => {
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "test-service-role")
     const circleId = "22222222-2222-4222-8222-222222222222"
     const targetUserId = "33333333-3333-4333-8333-333333333333"
     state.rpc.mockResolvedValue({ data: null, error: { code: "42501", message: "role changed" } })
