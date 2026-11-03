@@ -227,6 +227,17 @@ fn valid_chain_status(value: &str) -> Option<String> {
     )
 }
 
+/// Chain completion and archival are terminal; paused Chains may resume.
+fn can_transition_chain_status(current: &str, next: &str) -> bool {
+    match current {
+        "active" => matches!(next, "active" | "paused" | "completed" | "archived"),
+        "paused" => matches!(next, "paused" | "active" | "completed" | "archived"),
+        "completed" => matches!(next, "completed" | "archived"),
+        "archived" => next == "archived",
+        _ => false,
+    }
+}
+
 fn valid_contribution_type(value: Option<&str>) -> Option<String> {
     normalize_choice(value, CONTRIBUTION_TYPES, "text")
 }
@@ -1216,7 +1227,7 @@ pub async fn update(
         .begin()
         .await
         .map_err(|error| db_error(error, "begin Chain update"))?;
-    let current = sqlx::query("SELECT creator_id, circle_id FROM chains WHERE id = $1 FOR UPDATE")
+    let current = sqlx::query("SELECT creator_id, circle_id, status FROM chains WHERE id = $1 FOR UPDATE")
         .bind(chain_id)
         .fetch_optional(&mut *transaction)
         .await
@@ -1235,6 +1246,19 @@ pub async fn update(
     let circle_id: Option<Uuid> = current
         .try_get("circle_id")
         .map_err(|error| db_error(error, "read Chain Circle"))?;
+    let current_status: String = current
+        .try_get("status")
+        .map_err(|error| db_error(error, "read Chain status"))?;
+    if status
+        .as_deref()
+        .is_some_and(|next| !can_transition_chain_status(&current_status, next))
+    {
+        return Err(api_error(
+            StatusCode::CONFLICT,
+            "invalid_chain_status_transition",
+            "A completed or archived Chain cannot be reopened.",
+        ));
+    }
     let is_owner = creator_id == user.id
         || sqlx::query_scalar::<_, bool>(
             "SELECT EXISTS (SELECT 1 FROM chain_members WHERE chain_id = $1 AND user_id = $2 AND role = 'owner')",
@@ -2232,6 +2256,32 @@ mod tests {
         assert_eq!(valid_chain_member_role("owner"), Some("owner"));
         assert!(valid_chain_member_role("admin").is_none());
         assert!(valid_chain_member_role("").is_none());
+    }
+
+    #[test]
+    fn chain_status_transitions_allow_pause_resume_and_completion_but_not_reopening() {
+        let allowed = [
+            ("active", "paused"),
+            ("paused", "active"),
+            ("active", "completed"),
+            ("paused", "completed"),
+            ("completed", "archived"),
+            ("archived", "archived"),
+        ];
+        for (current, next) in allowed {
+            assert!(super::can_transition_chain_status(current, next));
+        }
+
+        let denied = [
+            ("completed", "active"),
+            ("completed", "paused"),
+            ("archived", "active"),
+            ("archived", "paused"),
+            ("archived", "completed"),
+        ];
+        for (current, next) in denied {
+            assert!(!super::can_transition_chain_status(current, next));
+        }
     }
 
     #[test]
