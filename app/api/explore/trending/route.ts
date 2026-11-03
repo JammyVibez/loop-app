@@ -8,7 +8,7 @@ import { getUserFromRequest } from "@/lib/server-auth"
 import { diversifyByAuthor } from "@/lib/discovery-ranking"
 import { isCirclePubliclyDiscoverable } from "@/lib/circle-membership-state"
 import { normalizeDiscoveryPreferences } from "@/lib/discovery-preferences"
-import { getBlockedProfileIds } from "@/lib/privacy"
+import { getBlockedProfileIds, filterPrivateContent, getFollowingIds } from "@/lib/privacy"
 import { filterCircleScopedContent } from "@/lib/circle-content-privacy"
 
 function engagementScore(loop: any) {
@@ -44,15 +44,19 @@ export async function GET(request: NextRequest) {
         if (hashtagError) {
           const { data: loops } = await supabase
             .from("loops")
-            .select("hashtags")
+            .select("hashtags, author_id, circle_id")
             .eq("visibility", "public")
             .is("parent_loop_id", null)
             .not("hashtags", "is", null)
             .order("created_at", { ascending: false })
             .limit(120)
 
+          const following = await getFollowingIds(supabase, user?.id || null)
+          let visibleLoops = await filterPrivateContent(supabase, loops || [], user?.id || null, following)
+          visibleLoops = await filterCircleScopedContent(supabase, visibleLoops, user?.id || null)
+
           const counts = new Map<string, number>()
-          for (const loop of loops || []) {
+          for (const loop of visibleLoops) {
             for (const tag of loop.hashtags || []) {
               const key = String(tag).toLowerCase().replace(/^#/, "")
               if (!key) continue
