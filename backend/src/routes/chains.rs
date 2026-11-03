@@ -1227,18 +1227,19 @@ pub async fn update(
         .begin()
         .await
         .map_err(|error| db_error(error, "begin Chain update"))?;
-    let current = sqlx::query("SELECT creator_id, circle_id, status FROM chains WHERE id = $1 FOR UPDATE")
-        .bind(chain_id)
-        .fetch_optional(&mut *transaction)
-        .await
-        .map_err(|error| db_error(error, "load Chain for update"))?
-        .ok_or_else(|| {
-            api_error(
-                StatusCode::NOT_FOUND,
-                "chain_not_found",
-                "This Chain is unavailable.",
-            )
-        })?;
+    let current =
+        sqlx::query("SELECT creator_id, circle_id, status FROM chains WHERE id = $1 FOR UPDATE")
+            .bind(chain_id)
+            .fetch_optional(&mut *transaction)
+            .await
+            .map_err(|error| db_error(error, "load Chain for update"))?
+            .ok_or_else(|| {
+                api_error(
+                    StatusCode::NOT_FOUND,
+                    "chain_not_found",
+                    "This Chain is unavailable.",
+                )
+            })?;
 
     let creator_id: Uuid = current
         .try_get("creator_id")
