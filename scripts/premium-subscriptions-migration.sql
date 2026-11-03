@@ -64,7 +64,7 @@ ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 
 REVOKE ALL ON TABLE public.subscriptions FROM PUBLIC;
 
-DO $
+DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
     REVOKE ALL ON TABLE public.subscriptions FROM anon;
@@ -76,4 +76,4 @@ BEGIN
     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.subscriptions TO service_role;
   END IF;
 END
-$;
+$$;
