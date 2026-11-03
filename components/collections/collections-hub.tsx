@@ -33,6 +33,7 @@ interface CollectionInvitation {
   owner_avatar_url: string | null
   role: "editor" | "viewer"
   invited_at: string
+  expires_at: string
 }
 
 export interface CollectionSummary {
@@ -242,6 +243,9 @@ export function CollectionsHub() {
                       {invitation.description && (
                         <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{invitation.description}</p>
                       )}
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Expires {new Date(invitation.expires_at).toLocaleDateString()}
+                      </p>
                     </div>
                   </div>
                   <div className="flex justify-end gap-2">
