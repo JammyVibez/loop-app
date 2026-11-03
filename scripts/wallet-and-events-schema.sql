@@ -294,7 +294,7 @@ BEGIN
     IF v_existing.user_id IS DISTINCT FROM p_user_id::TEXT
        OR v_existing.coins_amount IS DISTINCT FROM p_coins_amount
        OR v_existing.payout_method IS DISTINCT FROM p_payout_method
-       OR v_existing.payout_details IS DISTINCT FROM p_payout_details THEN
+       OR v_existing.payout_details IS DISTINCT FROM btrim(p_payout_details) THEN
       RAISE EXCEPTION 'Withdrawal idempotency key has already been used'
         USING ERRCODE = '23505';
     END IF;
