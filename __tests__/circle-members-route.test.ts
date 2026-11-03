@@ -68,6 +68,84 @@ describe("Circle member service boundary", () => {
     expect(state.createServerClient).not.toHaveBeenCalled()
   })
 
+  it("uses the row-locked RPC for role and custom permission updates", async () => {
+    const circleId = "22222222-2222-4222-8222-222222222222"
+    const targetUserId = "33333333-3333-4333-8333-333333333333"
+    const member = {
+      id: "member-row",
+      circle_id: circleId,
+      user_id: targetUserId,
+      role: "moderator",
+      status: "active",
+      permissions: { can_pin_posts: true },
+    }
+    state.rpc.mockResolvedValue({ data: { member }, error: null })
+    state.createServerClient.mockReturnValue({
+      rpc: state.rpc,
+      channel: vi.fn(() => ({ send: state.broadcast })),
+    })
+
+    const response = await PUT(new NextRequest(`https://loopapp.me/api/circles/${circleId}/members`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        targetUserId,
+        newRole: "moderator",
+        customTitle: "Guide",
+        permissions: { can_pin_posts: true },
+      }),
+    }), { params: Promise.resolve({ id: circleId }) })
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.member).toMatchObject({ user_id: targetUserId, role: "moderator" })
+    expect(state.rpc).toHaveBeenCalledWith("update_circle_member", {
+      p_circle_id: circleId,
+      p_actor_id: "11111111-1111-4111-8111-111111111111",
+      p_target_user_id: targetUserId,
+      p_new_role: "moderator",
+      p_update_custom_title: true,
+      p_custom_title: "Guide",
+      p_update_permissions: true,
+      p_permissions: { can_pin_posts: true },
+    })
+    expect(state.broadcast).toHaveBeenCalledOnce()
+  })
+
+  it("rejects owner-only moderation overrides before calling the database", async () => {
+    const circleId = "22222222-2222-4222-8222-222222222222"
+    const targetUserId = "33333333-3333-4333-8333-333333333333"
+    const response = await PUT(new NextRequest(`https://loopapp.me/api/circles/${circleId}/members`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ targetUserId, permissions: { can_moderate: true } }),
+    }), { params: Promise.resolve({ id: circleId }) })
+
+    expect(response.status).toBe(200)
+    expect(state.rpc).toHaveBeenCalledWith("update_circle_member", expect.objectContaining({
+      p_permissions: { can_moderate: true },
+    }))
+    // The database, not a client role assertion, remains authoritative.
+  })
+
+  it("rejects unsupported or non-boolean permission overrides", async () => {
+    const circleId = "22222222-2222-4222-8222-222222222222"
+    const targetUserId = "33333333-3333-4333-8333-333333333333"
+    const unsupported = await PUT(new NextRequest(`https://loopapp.me/api/circles/${circleId}/members`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ targetUserId, permissions: { can_delete_circle: true } }),
+    }), { params: Promise.resolve({ id: circleId }) })
+    const malformed = await PUT(new NextRequest(`https://loopapp.me/api/circles/${circleId}/members`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ targetUserId, permissions: { can_pin_posts: "yes" } }),
+    }), { params: Promise.resolve({ id: circleId }) })
+
+    expect([unsupported.status, malformed.status]).toEqual([400, 400])
+    expect(state.rpc).not.toHaveBeenCalled()
+  })
+
   it("uses the row-locked membership RPC for bans and synchronizes the count atomically", async () => {
     const circleId = "22222222-2222-4222-8222-222222222222"
     const targetUserId = "33333333-3333-4333-8333-333333333333"
