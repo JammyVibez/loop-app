@@ -19,7 +19,7 @@ services:
       retries: 20
 
   seaweedfs:
-    image: chrislusf/seaweedfs:latest
+    image: chrislusf/seaweedfs:4.52
     command: ["mini", "-dir=/data"]
     restart: unless-stopped
     environment:
