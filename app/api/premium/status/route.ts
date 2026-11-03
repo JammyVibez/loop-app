@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
+import { isProUser } from "@/lib/pro-features"
 
 export const dynamic = "force-dynamic"
 
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      is_premium: Boolean(profile?.is_premium),
+      is_premium: isProUser(profile || {}),
       premium_expires_at: profile?.premium_expires_at || null,
       premium_source: profile?.premium_source || null,
       subscription: subscription
