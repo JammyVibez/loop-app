@@ -22,6 +22,7 @@ Do not use it as a substitute for reading the runner when changing migration ord
 8. `backend/migrations/0006_chain_lifecycle.sql` — remix lineage and immutable contribution revision history.
 9. `premium-subscriptions-migration.sql` — Pro subscription ledger, Stripe identifiers/periods and auditable grant metadata.
 10. `launch-schema-alignment.sql`
+    - `creator-earnings-lifecycle.sql` — private USD-equivalent earnings ledger and source-idempotent atomic credits.
 11. `loops-and-media.sql`
 12. `moderation-schema.sql`
 13. `moderation-integrity.sql`
@@ -78,7 +79,7 @@ The security-sensitive migrations are strict: setup must fail rather than silent
 skip verification, discovery preferences, account blocks, public-trending privacy,
 moderation integrity, account appeals, Circle membership/ownership/event lifecycles,
 Co-Loop lifecycle/expiry, core Collections/legal acceptance, Premium billing,
-wallet/refund schema and purchases, and achievement integrity. In particular, `trending-hashtags-function.sql` is strict
+creator earnings, wallet/refund schema and purchases, and achievement integrity. In particular, `trending-hashtags-function.sql` is strict
 because a missing or failed privacy filter must never leave public trend aggregation
 on a permissive legacy definition. Collection expiry follows the Collection tables;
 legal acceptance follows Better Auth's user/session tables. Circle membership lifecycle
