@@ -268,31 +268,56 @@ export async function POST(request: NextRequest) {
         }
         break
       }
-      case "payment_intent.succeeded":
-        const paymentIntent = event.data.object as any
+      case "payment_intent.succeeded": {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent
         await supabase
           .from("payment_logs")
           .update({ status: "succeeded" })
           .eq("payment_intent_id", paymentIntent.id)
 
         if (paymentIntent.metadata?.user_id && paymentIntent.metadata?.item_type === "premium") {
-          const expiryDate = new Date()
-          expiryDate.setMonth(expiryDate.getMonth() + 1)
-          await supabase
-            .from("profiles")
-            .update({
-              is_premium: true,
-              premium_source: "stripe_one_time",
-              premium_expires_at: expiryDate.toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", paymentIntent.metadata.user_id)
+          const userId = paymentIntent.metadata.user_id
+          const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+          const amountReceived = paymentIntent.amount_received || paymentIntent.amount
+          if (!uuidPattern.test(userId) || paymentIntent.currency.toLowerCase() !== "usd" || amountReceived <= 0) {
+            console.error("Refusing invalid one-time Premium PaymentIntent metadata:", paymentIntent.id)
+            break
+          }
+
+          const requestedDays = Number(paymentIntent.metadata.plan_days)
+          const days = Number.isInteger(requestedDays) && requestedDays >= 1 && requestedDays <= 3660
+            ? requestedDays
+            : 30
+          const grant = await grantStripePremiumCheckout(supabase, {
+            userId,
+            transactionId: `stripe_pi_${paymentIntent.id}`,
+            days,
+            amountUsd: amountReceived / 100,
+            paymentIntentId: paymentIntent.id,
+            plan: paymentIntent.metadata.plan || "legacy_payment_intent",
+          })
+
+          if (!grant.already_processed) {
+            try {
+              await notifyUser(supabase, {
+                userId,
+                type: "system",
+                title: "Welcome to Loop Pro! 👑",
+                message: `Your Pro membership is active until ${new Date(grant.premium_expires_at).toLocaleDateString()}.`,
+                data: {
+                  plan: paymentIntent.metadata.plan || "legacy_payment_intent",
+                  premium_expires_at: grant.premium_expires_at,
+                },
+                actionUrl: "/lounge",
+              })
+            } catch (notificationError) {
+              console.error("Could not send Premium activation notification:", notificationError)
+            }
+          }
         }
 
         if (paymentIntent.metadata?.user_id && paymentIntent.metadata?.item_id) {
-          // This write used to omit item_type, which is NOT NULL with no
-          // default — so the insert failed and a card payment for an item never
-          // reached the buyer's inventory. The catalogue supplies it now.
+          // The catalogue supplies item type and snapshots for purchased inventory.
           const { data: purchased } = await supabase
             .from("shop_items")
             .select("id, name, item_type, category, rarity, item_data, preview_data")
@@ -317,11 +342,10 @@ export async function POST(request: NextRequest) {
             },
             { onConflict: "user_id,item_id" },
           )
-          if (grantError) {
-            console.error("Failed to grant purchased item from payment intent:", grantError)
-          }
+          if (grantError) throw grantError
         }
         break
+      }
       case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
