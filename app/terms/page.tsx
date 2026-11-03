@@ -7,7 +7,7 @@ const sections = [
     title: "Acceptance of These Terms",
     body: [
       "Welcome to loopapp.me (\"loopapp.me\", \"we\", \"us\", or \"our\"). These Terms of Service (\"Terms\") form a binding legal agreement between you (\"you\" or \"your\") and loopapp.me governing your access to and use of the loopapp.me platform, including our website, mobile applications, and all related services, features, tools, and content (collectively, the \"Service\").",
-      "By creating an account, accessing, browsing, or using the Service in any way, you confirm that you have read, understood, and agree to be bound by these Terms and our Privacy Policy. If you do not agree with any part of these Terms, you must not use the Service.",
+      "Creating an account does not, by itself, record your agreement to these Terms. Before you can use account features, you must review these Terms and the Privacy Policy and complete the separate agreement step presented by LOOP. Your agreement is recorded with the versions of the documents shown to you and the time you accepted them. If you do not agree to these Terms, do not accept them or use account features.",
       "If you are using the Service on behalf of an organization (including as an Organization account under Section 10), you represent and warrant that you have the authority to bind that organization to these Terms.",
     ],
   },
