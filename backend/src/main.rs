@@ -76,6 +76,10 @@ async fn main() -> anyhow::Result<()> {
         .route("/health/ready", get(routes::health::ready))
         .route("/v1/system/capabilities", get(routes::system::capabilities))
         .route("/v1/me", get(routes::me::get_me))
+        .route(
+            "/v1/legal/acceptance",
+            get(routes::legal::get_acceptance).post(routes::legal::accept_documents),
+        )
         .route("/v1/drops", get(routes::drops::list))
         .route(
             "/v1/chains",
