@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 import { authClient } from "@/lib/auth-client"
 import { readCachedUser as readCachedUserFromCache, writeCachedUser as writeCachedUserToCache } from "@/lib/auth-cache"
+import type { StaffRole } from "@/lib/staff-roles"
 
 const supabase = getSupabaseBrowserClient()
 
