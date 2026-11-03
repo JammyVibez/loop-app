@@ -5,6 +5,8 @@ const state = vi.hoisted(() => ({
   user: vi.fn(),
   createServerClient: vi.fn(),
   checkAccess: vi.fn(),
+  rpc: vi.fn(),
+  broadcast: vi.fn(),
 }))
 
 vi.mock("@/lib/server-auth", () => ({ getUserFromRequest: state.user }))
@@ -64,6 +66,49 @@ describe("Circle member service boundary", () => {
 
     expect(response.status).toBe(503)
     expect(state.createServerClient).not.toHaveBeenCalled()
+  })
+
+  it("uses the row-locked membership RPC for bans and synchronizes the count atomically", async () => {
+    const circleId = "22222222-2222-4222-8222-222222222222"
+    const targetUserId = "33333333-3333-4333-8333-333333333333"
+    const channel = { send: state.broadcast }
+    state.rpc.mockResolvedValue({
+      data: { circle_id: circleId, user_id: targetUserId, status: "banned", member_count: 8 },
+      error: null,
+    })
+    state.createServerClient.mockReturnValue({
+      rpc: state.rpc,
+      channel: vi.fn(() => channel),
+    })
+
+    const response = await DELETE(
+      new NextRequest(`https://loopapp.me/api/circles/${circleId}/members?userId=${targetUserId}&action=ban`, { method: "DELETE" }),
+      { params: Promise.resolve({ id: circleId }) },
+    )
+
+    expect(response.status).toBe(200)
+    expect(state.rpc).toHaveBeenCalledWith("manage_circle_member", {
+      p_circle_id: circleId,
+      p_actor_id: "11111111-1111-4111-8111-111111111111",
+      p_target_user_id: targetUserId,
+      p_action: "ban",
+    })
+    expect(state.broadcast).toHaveBeenCalledOnce()
+  })
+
+  it("maps an atomic moderation denial without issuing direct membership writes", async () => {
+    const circleId = "22222222-2222-4222-8222-222222222222"
+    const targetUserId = "33333333-3333-4333-8333-333333333333"
+    state.rpc.mockResolvedValue({ data: null, error: { code: "42501", message: "role changed" } })
+    state.createServerClient.mockReturnValue({ rpc: state.rpc })
+
+    const response = await DELETE(
+      new NextRequest(`https://loopapp.me/api/circles/${circleId}/members?userId=${targetUserId}`, { method: "DELETE" }),
+      { params: Promise.resolve({ id: circleId }) },
+    )
+
+    expect(response.status).toBe(403)
+    expect(state.rpc).toHaveBeenCalledOnce()
   })
 
   it("does not expose wallet or account-activity data in public member rosters", async () => {
