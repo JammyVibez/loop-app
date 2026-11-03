@@ -8,6 +8,8 @@ import { maskProfile, profileStatus } from "@/lib/user-status"
 import { applyRealCommentCounts, attachParentAuthors } from "@/lib/loop-stats"
 import { checkBlockStatus } from "@/lib/user-blocks"
 import { buildPublicProfileIdentity, buildRestrictedProfileView, isRestrictedProfileVisibility } from "@/lib/profile-privacy"
+import { filterPrivateContent, getFollowingIds } from "@/lib/privacy"
+import { filterCircleScopedContent } from "@/lib/circle-content-privacy"
 
 export async function GET(request: NextRequest) {
   try {
@@ -216,9 +218,29 @@ export async function GET(request: NextRequest) {
       (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     ).slice(0, 30)
 
-    const recentLoops = await enrichLoopsWithPollsAndDuels(supabase, combinedRecentLoops)
-    const recentBranches = await enrichLoopsWithPollsAndDuels(supabase, rawRecentBranches || [])
-    const mediaLoops = await enrichLoopsWithPollsAndDuels(supabase, rawMediaLoops || [])
+    // Profile surfaces follow the same creator/block and Circle access rules
+    // as Discover and Search. A public profile does not make a private Circle's
+    // posts or another blocked co-author's work public.
+    const followingIds = await getFollowingIds(supabase, authedUser?.id || null)
+    const filterProfileSurface = async (rows: any[]) => {
+      const visibleAuthors = await filterPrivateContent(
+        supabase,
+        rows,
+        authedUser?.id || null,
+        followingIds,
+      )
+      return filterCircleScopedContent(supabase, visibleAuthors, authedUser?.id || null)
+    }
+
+    const [visibleRecentLoops, visibleRecentBranches, visibleMediaLoops] = await Promise.all([
+      filterProfileSurface(combinedRecentLoops),
+      filterProfileSurface(rawRecentBranches || []),
+      filterProfileSurface(rawMediaLoops || []),
+    ])
+
+    const recentLoops = await enrichLoopsWithPollsAndDuels(supabase, visibleRecentLoops)
+    const recentBranches = await enrichLoopsWithPollsAndDuels(supabase, visibleRecentBranches)
+    const mediaLoops = await enrichLoopsWithPollsAndDuels(supabase, visibleMediaLoops)
     // Branched posts also carry a parent — fetch the real parent author so
     // branch banners can say "Branch from @username" here too.
     await Promise.all([
