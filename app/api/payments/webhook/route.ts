@@ -270,79 +270,22 @@ export async function POST(request: NextRequest) {
       }
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent
-        await supabase
+        // The legacy PaymentIntent creator accepted arbitrary prices and metadata.
+        // Keep payment logs reconcilable, but never grant Pro or inventory from
+        // client-authored metadata. Current checkout flows have their own trusted
+        // server-priced session and grant paths.
+        const { error: paymentLogError } = await supabase
           .from("payment_logs")
           .update({ status: "succeeded" })
           .eq("payment_intent_id", paymentIntent.id)
 
-        if (paymentIntent.metadata?.user_id && paymentIntent.metadata?.item_type === "premium") {
-          const userId = paymentIntent.metadata.user_id
-          const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-          const amountReceived = paymentIntent.amount_received || paymentIntent.amount
-          if (!uuidPattern.test(userId) || paymentIntent.currency.toLowerCase() !== "usd" || amountReceived <= 0) {
-            console.error("Refusing invalid one-time Premium PaymentIntent metadata:", paymentIntent.id)
-            break
-          }
-
-          const requestedDays = Number(paymentIntent.metadata.plan_days)
-          const days = Number.isInteger(requestedDays) && requestedDays >= 1 && requestedDays <= 3660
-            ? requestedDays
-            : 30
-          const grant = await grantStripePremiumCheckout(supabase, {
-            userId,
-            transactionId: `stripe_pi_${paymentIntent.id}`,
-            days,
-            amountUsd: amountReceived / 100,
-            paymentIntentId: paymentIntent.id,
-            plan: paymentIntent.metadata.plan || "legacy_payment_intent",
-          })
-
-          if (!grant.already_processed) {
-            try {
-              await notifyUser(supabase, {
-                userId,
-                type: "system",
-                title: "Welcome to Loop Pro! 👑",
-                message: `Your Pro membership is active until ${new Date(grant.premium_expires_at).toLocaleDateString()}.`,
-                data: {
-                  plan: paymentIntent.metadata.plan || "legacy_payment_intent",
-                  premium_expires_at: grant.premium_expires_at,
-                },
-                actionUrl: "/lounge",
-              })
-            } catch (notificationError) {
-              console.error("Could not send Premium activation notification:", notificationError)
-            }
-          }
+        if (paymentLogError) {
+          console.error("Could not update legacy PaymentIntent log:", paymentLogError)
+          throw paymentLogError
         }
 
-        if (paymentIntent.metadata?.user_id && paymentIntent.metadata?.item_id) {
-          // The catalogue supplies item type and snapshots for purchased inventory.
-          const { data: purchased } = await supabase
-            .from("shop_items")
-            .select("id, name, item_type, category, rarity, item_data, preview_data")
-            .eq("id", paymentIntent.metadata.item_id)
-            .maybeSingle()
-
-          const { error: grantError } = await supabase.from("user_inventory").upsert(
-            {
-              user_id: paymentIntent.metadata.user_id,
-              item_id: paymentIntent.metadata.item_id,
-              item_type: purchased?.item_type || purchased?.category || "accessory",
-              category: purchased?.category || null,
-              rarity: purchased?.rarity || "common",
-              item_name: purchased?.name || null,
-              item_data: purchased?.item_data || {},
-              preview_data: purchased?.preview_data || {},
-              acquired_from: "stripe",
-              acquired_at: new Date().toISOString(),
-              purchased_at: new Date().toISOString(),
-              payment_method: "stripe",
-              source: "stripe",
-            },
-            { onConflict: "user_id,item_id" },
-          )
-          if (grantError) throw grantError
+        if (paymentIntent.metadata?.item_type === "premium" || paymentIntent.metadata?.item_id) {
+          console.warn("Ignoring entitlement metadata from retired PaymentIntent flow:", paymentIntent.id)
         }
         break
       }
