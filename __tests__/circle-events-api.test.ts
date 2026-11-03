@@ -104,7 +104,7 @@ describe("Circle event RSVP database contract", () => {
         if (table === "circle_events") {
           return builder({
             id: eventId,
-            ends_at: "2026-11-03T12:00:00.000Z",
+            ends_at: "2099-01-01T00:00:00.000Z",
             requires_approval: options.requiresApproval === true,
           })
         }
