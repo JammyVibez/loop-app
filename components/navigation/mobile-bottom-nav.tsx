@@ -35,6 +35,7 @@ const HIDDEN_PREFIXES = [
   "/verify-email",
   "/terms",
   "/privacy",
+  "/legal",
 ]
 
 /**
