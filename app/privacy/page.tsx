@@ -6,8 +6,8 @@ const sections = [
     num: "1",
     title: "Overview",
     body: [
-      "This Privacy Policy explains how loopapp.me (\"we\", \"us\", or \"our\") collects, uses, shares, and protects your personal information when you use the loopapp.me platform (the \"Service\"). It applies to all users of the Service, whether you are a guest browsing public content or a registered account holder.",
-      "We collect the personal information described in this policy to provide and protect the Service. We do not sell your personal information. When you create an account, LOOP asks you to confirm that you have read this policy. That acknowledgement records that the policy was presented to you; it does not replace any separate consent that may be required for a particular optional processing activity.",
+      "This Privacy Policy explains how the person or organisation operating loopapp.me (the Service) collects, uses, discloses and protects personal information when you visit or use LOOP. It applies to visitors, account holders, contributors and people who communicate with the Service.",
+      "We use personal information to provide the features you request, keep accounts and communities safe, meet legal obligations and improve the Service. We do not sell personal information. Reading this Policy is not the same as giving consent to every type of data processing; where the law requires consent for an optional purpose, we ask for it separately.",
     ],
   },
   {
@@ -42,12 +42,24 @@ const sections = [
     ],
   },
   {
-    id: "share",
+    id: "legal-bases",
     num: "4",
+    title: "Why We May Use Your Information",
+    body: ["Data-protection law requires a lawful basis for each purpose. Depending on the feature and the specific processing, LOOP may rely on:"],
+    list: [
+      "Contract — to create and secure your account, provide the features you request, deliver messages and collaborations, manage purchases, and respond to account actions.",
+      "Legitimate interests — to protect users, prevent fraud and abuse, moderate content, secure infrastructure, troubleshoot issues and improve reliability, where those interests are not overridden by your rights.",
+      "Legal obligation — to keep records, respond to lawful requests, and meet tax, accounting, consumer-protection or other legal requirements.",
+      "Consent — for optional processing where consent is the appropriate legal basis, such as certain optional communications or non-essential cookies where required. You can withdraw consent at any time; withdrawal does not affect processing that was lawful before withdrawal."
+    ],
+  },
+  {
+    id: "share",
+    num: "5",
     title: "When We Share Your Information",
     body: ["We do not sell your personal information. We share your information only in the following circumstances:"],
     list: [
-      "With service providers — companies that help us operate the Service, such as cloud hosting and database providers, media/file-storage providers (e.g. Cloudinary), payment processors, push-notification providers, and analytics providers. These providers are contractually bound to use your information only to provide services to us.",
+      "With service providers — companies that provide hosting, databases, authentication, media processing and storage, payment processing, email delivery, push notifications, customer support and analytics. Depending on the deployment, these may include the providers configured for LOOP such as Google sign-in, Stripe, Cloudinary, Vercel and email/push providers, or self-hosted infrastructure. Providers may process information only for their contracted role and under appropriate safeguards."
       "With other users — the information you make public (your username, display name, avatar, posts, and interactions) is visible to other users as part of the Service's intended functionality.",
       "For safety and legal reasons — when we reasonably believe disclosure is required by law, regulation, legal process, or governmental request, or is necessary to protect the rights, property, or safety of loopapp.me, our users, or the public.",
       "In a business transfer — if we are involved in a merger, acquisition, reorganization, or sale of assets, your information may be transferred as part of that transaction, subject to this Privacy Policy.",
@@ -56,7 +68,7 @@ const sections = [
   },
   {
     id: "public",
-    num: "5",
+    num: "6",
     title: "Public Information and Social Features",
     body: [
       "Most of the content you create on loopapp.me is public by default, including your profile, loops, reels, comments, duels, and circle posts. Public content may be viewed, searched, branched, and shared by other users and, where the Service allows, by visitors who are not signed in.",
@@ -66,35 +78,35 @@ const sections = [
   },
   {
     id: "cookies",
-    num: "6",
+    num: "7",
     title: "Cookies and Similar Technologies",
     body: [
-      "We use cookies and similar technologies (including local storage) to keep you signed in, remember your preferences (such as theme), and understand how the Service is used. Authentication cookies are essential to the Service's operation.",
+      "LOOP uses essential cookies and similar technologies to keep you signed in, protect sessions, remember necessary preferences and keep the Service working. Some optional analytics or embedded features may use additional technologies. Where applicable law requires consent before non-essential cookies or device storage are used, they must remain disabled until you make that choice. You can also control cookies through your browser, although blocking essential cookies may prevent sign-in or other features from working."
       "We also use analytics tools that may set their own cookies. You can disable cookies in your browser settings, but some parts of the Service may not work correctly without them.",
     ],
   },
   {
     id: "retention",
-    num: "7",
+    num: "8",
     title: "Data Retention",
     body: [
       "We retain your personal information for as long as your account is active or as needed to provide the Service, comply with legal obligations, resolve disputes, and enforce our agreements.",
-      "When you delete your account, we delete or de-identify your profile and, where technically feasible, your public content. Copies may remain in encrypted backups for a reasonable retention period (typically up to 90 days) before being purged.",
+      "When you delete your account, we remove or de-identify information according to the deletion workflow and applicable legal requirements. Some records may be retained where necessary for security, dispute resolution, payment/accounting obligations or legal claims. Backups are removed according to the applicable backup-retention cycle; a fixed purge period must be published by the Service operator once the production schedule is confirmed."
       "Transactional and financial records may be retained longer where required by law or our payment partners' policies.",
     ],
   },
   {
     id: "security",
-    num: "8",
+    num: "9",
     title: "How We Protect Your Information",
     body: [
-      "We implement reasonable technical and organizational measures to protect your information, including encryption of data in transit (TLS), hashing of passwords, restricted access to production systems, and monitoring for suspicious activity.",
+      "We use technical and organisational measures intended to protect information, including encrypted connections (TLS), password hashing, access controls for privileged systems, session security and monitoring for suspicious activity. Access to personal information should be limited to people and providers who need it for an authorised purpose."
       "No method of transmission or storage is 100% secure. While we work to protect your information, we cannot guarantee its absolute security. You are responsible for keeping your password confidential and enabling all security features we offer.",
     ],
   },
   {
     id: "rights",
-    num: "9",
+    num: "10",
     title: "Your Rights and Choices",
     body: ["Depending on your location, you may have the following rights regarding your personal information:"],
     list: [
@@ -107,27 +119,27 @@ const sections = [
       "Opt out of marketing — follow the unsubscribe instructions in any marketing email we send.",
     ],
     body2:
-      "To exercise any of these rights, contact us at privacy@loop.com or via the Support Chat. We will respond within the timeframe required by applicable law. We may need to verify your identity before acting on your request.",
+      "To exercise these rights, sign in and open the Help & Support Center at /help. Choose “Privacy & data request” and describe the right you want to exercise. We may ask for information needed to verify your identity. The operator must publish an alternate contact method for people who cannot sign in before the Policy is treated as final."
   },
   {
     id: "children",
-    num: "10",
+    num: "11",
     title: "Children's Privacy",
     body: [
-      "The Service is not directed to children under the age of 13, and we do not knowingly collect personal information from children under 13. If you believe a child under 13 has provided us personal information, please contact us at privacy@loop.com and we will take steps to delete it.",
+      "The Service has a minimum account age of 13, or a higher minimum where local law requires one. This service-age rule is separate from the GDPR age of digital consent. In Ireland, the age of digital consent is 16 where an online service relies on a child's consent as its legal basis for processing personal data; for a child below 16, that consent must be given or authorised by the holder of parental responsibility. This does not make 16 a universal minimum age for every online service. LOOP must not rely on a child's own consent for a processing purpose where valid parent or guardian authorisation is legally required. Children also have data-protection rights, and age-appropriate privacy and safety protections must be applied."
     ],
   },
   {
     id: "international",
-    num: "11",
+    num: "12",
     title: "International Data Transfers",
     body: [
-      "Your information may be processed in countries other than your own, including where our servers and service providers are located. When we transfer personal information across borders, we take steps to ensure it receives an equivalent level of protection, including through standard contractual clauses or other recognized transfer mechanisms where required.",
+      "Your information may be processed in countries where LOOP or its service providers operate. When personal information is transferred outside the European Economic Area or another protected region, the operator must identify the destination and put in place a valid transfer mechanism and any supplementary safeguards required by applicable law. The exact provider locations and transfer arrangements depend on the production deployment and must be listed by the operator before launch."
     ],
   },
   {
     id: "changes",
-    num: "12",
+    num: "13",
     title: "Changes to This Policy",
     body: [
       "We may update this Privacy Policy from time to time. When we make material changes, we will update the \"Last updated\" date below and notify you through the Service or by email where appropriate. Your continued use of the Service after changes take effect constitutes your acceptance of the updated policy.",
@@ -135,10 +147,10 @@ const sections = [
   },
   {
     id: "contact",
-    num: "13",
+    num: "14",
     title: "Contact Us",
     body: [
-      "If you have questions about this Privacy Policy or our data practices, contact us at privacy@loop.com, through the Support Chat, or by mail at the address on our Terms of Service page.",
+      "For privacy and data-protection requests, use the Help & Support Center at /help and choose “Privacy & data request”. You may also lodge a complaint with the data-protection supervisory authority in your country. In Ireland, this is the Data Protection Commission. The Service operator's full legal name, registered address and official privacy contact have not been supplied in this repository and must be published before launch."
     ],
   },
 ]
@@ -150,12 +162,27 @@ export default function PrivacyPolicyPage() {
         <div className="mb-10">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Privacy Policy</h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            Last updated: {new Date().toLocaleDateString()}
+            Version 1.0 · Last updated: 3 November 2026
           </p>
-          <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
-            This policy explains what information loopapp.me collects, why we collect it, how we use and share it,
-            and the choices you have. It works together with our{" "}
+          <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
+            This Policy explains what personal information LOOP uses, why it is needed, who may receive it,
+            how long it is kept and what choices and rights you have. Read it with the{" "}
             <Link href="/terms" className="font-medium text-primary underline underline-offset-4">Terms of Service</Link>.
+          </p>
+          <div className="mt-6 rounded-2xl border border-border bg-card p-5 sm:p-6">
+            <p className="text-sm font-semibold">Privacy, in plain language</p>
+            <ul className="mt-3 grid gap-2 text-sm leading-6 text-muted-foreground sm:grid-cols-2">
+              <li>We use account details to sign you in and keep your account secure.</li>
+              <li>Content you choose to make public can be seen and shared by other people.</li>
+              <li>Private messages and restricted Circle content should only be available to authorised participants.</li>
+              <li>We do not sell personal information.</li>
+              <li>You can ask for access, correction, deletion or a copy of your information, subject to legal limits.</li>
+              <li>Optional processing that relies on consent must be explained and requested separately where required.</li>
+            </ul>
+          </div>
+          <p className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs leading-5 text-muted-foreground">
+            Publication item: the data controller's full legal name, registered address, privacy contact and the
+            production provider/transfer list must be supplied by the Service operator before launch.
           </p>
         </div>
 
@@ -199,15 +226,15 @@ export default function PrivacyPolicyPage() {
         ))}
 
         <div className="mt-12 rounded-2xl border border-border bg-card p-6">
-          <p className="text-sm font-semibold">Privacy contact</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Questions about your data? Email{" "}
-            <span className="font-medium text-foreground">privacy@loop.com</span> or reach us through the{" "}
-            <Link href="/support/chat" className="font-medium text-primary underline underline-offset-4">
-              Support Chat
-            </Link>
-            .
+          <p className="text-sm font-semibold">Your data rights</p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            Visit the <Link href="/help" className="font-medium text-primary underline underline-offset-4">Help &amp; Support Center</Link>,
+            sign in and choose “Privacy &amp; data request”. You may also complain to your local data-protection
+            supervisory authority. In Ireland, that authority is the Data Protection Commission.
           </p>
+          <Link href="/terms" className="mt-4 inline-flex text-sm font-medium text-primary underline underline-offset-4">
+            Read the Terms of Service
+          </Link>
         </div>
       </div>
     </div>
