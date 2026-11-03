@@ -7,6 +7,7 @@ const state = vi.hoisted(() => ({
   circleLookup: vi.fn(),
   from: vi.fn(),
   notify: vi.fn(),
+  broadcast: vi.fn(),
 }))
 
 vi.mock("@/lib/server-auth", () => ({
@@ -19,10 +20,11 @@ vi.mock("@/lib/supabase", () => ({
   createServerClient: () => ({
     rpc: state.rpc,
     from: (...args: unknown[]) => state.from(...args),
+    channel: vi.fn(() => ({ send: state.broadcast })),
   }),
 }))
 
-import { POST } from "@/app/api/circles/[id]/join/route"
+import { DELETE, POST } from "@/app/api/circles/[id]/join/route"
 
 const userId = "11111111-1111-4111-8111-111111111111"
 const circleId = "22222222-2222-4222-8222-222222222222"
@@ -41,6 +43,7 @@ beforeEach(() => {
   state.circleLookup.mockReset()
   state.from.mockReset()
   state.notify.mockReset()
+  state.broadcast.mockReset()
   state.getUser.mockResolvedValue({ id: userId })
   state.rpc.mockResolvedValue({
     data: { status: "active", already_member: false, is_private: false, member_id: "member-id" },
@@ -92,6 +95,45 @@ describe("Circle join route", () => {
     const response = await POST(request(), context)
     expect(response.status).toBe(200)
     expect(state.from).toHaveBeenCalledTimes(1)
+  })
+
+  it("uses the atomic membership lifecycle when leaving a Circle", async () => {
+    state.rpc.mockResolvedValue({
+      data: { circle_id: circleId, user_id: userId, status: "left", member_count: 7 },
+      error: null,
+    })
+
+    const response = await DELETE(
+      new NextRequest(`https://loopapp.me/api/circles/${circleId}/join`, { method: "DELETE" }),
+      context,
+    )
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body).toMatchObject({ success: true, status: "left", member_count: 7 })
+    expect(state.rpc).toHaveBeenCalledWith("manage_circle_member", {
+      p_circle_id: circleId,
+      p_actor_id: userId,
+      p_target_user_id: userId,
+      p_action: "leave",
+    })
+    expect(state.broadcast).toHaveBeenCalledOnce()
+  })
+
+  it("does not let a user leave to clear an existing ban", async () => {
+    state.rpc.mockResolvedValue({
+      data: null,
+      error: { code: "42501", message: "A banned member cannot leave to clear the ban" },
+    })
+
+    const response = await DELETE(
+      new NextRequest(`https://loopapp.me/api/circles/${circleId}/join`, { method: "DELETE" }),
+      context,
+    )
+
+    expect(response.status).toBe(403)
+    expect(state.rpc).toHaveBeenCalledOnce()
+    expect(state.broadcast).not.toHaveBeenCalled()
   })
 
   it("returns accepted for a private Circle join request", async () => {
