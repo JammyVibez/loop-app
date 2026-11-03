@@ -67,9 +67,10 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
     silent = false,
     offset = 0,
     append = false,
+    preserveOffset = false,
   ) => {
     if (!silent && !append) setLoading(true)
-    if (append) setLoadingMore(true)
+    if (append && !silent) setLoadingMore(true)
     try {
       if (tab === "hashtags") {
         const response = await fetch("/api/explore/trending?type=hashtags&limit=24", { cache: "no-store" })
@@ -119,9 +120,11 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
         return [...merged.values()]
       })
       setHasMore(data.pagination?.has_more === true)
-      setNextOffset(Number.isFinite(data.pagination?.next_offset)
-        ? Number(data.pagination.next_offset)
-        : offset + incoming.length)
+      if (!preserveOffset) {
+        setNextOffset(Number.isFinite(data.pagination?.next_offset)
+          ? Number(data.pagination.next_offset)
+          : offset + incoming.length)
+      }
       setChains([])
       setHashtags([])
     } catch (error: any) {
@@ -135,7 +138,7 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
       }
     } finally {
       if (!silent && !append) setLoading(false)
-      if (append) setLoadingMore(false)
+      if (append && !silent) setLoadingMore(false)
     }
   }, [authToken, selectedTab, toast])
 
@@ -146,7 +149,7 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient()
-    const refresh = () => void fetchExplore(selectedTab, true)
+    const refresh = () => void fetchExplore(selectedTab, true, 0, true, true)
 
     const loopsChannel = supabase
       .channel("explore:loops")
