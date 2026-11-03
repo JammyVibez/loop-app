@@ -20,5 +20,5 @@ export function resolveStaffRole(profile: {
 
 export function canAccessAdminSection(role: StaffRole | null, section: string): boolean {
   if (role === "developer" || role === "admin") return true
-  return role === "moderator" && (section === "moderation" || section === "team")
+  return role === "moderator" && (section === "moderation" || section === "support" || section === "team")
 }

@@ -267,7 +267,7 @@ export function AdminDashboard() {
     () => staffRole === "moderator"
       ? NAV_GROUPS.map((group) => ({
           ...group,
-          items: group.items.filter((item) => item.value === "moderation" || item.value === "team"),
+          items: group.items.filter((item) => item.value === "moderation" || item.value === "support" || item.value === "team"),
         })).filter((group) => group.items.length > 0)
       : NAV_GROUPS,
     [staffRole],

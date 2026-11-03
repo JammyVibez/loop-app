@@ -20,6 +20,7 @@ describe("role-scoped dashboard navigation", () => {
   it("limits Moderators to moderation and access controls", () => {
     expect(canAccessAdminSection("moderator", "moderation")).toBe(true)
     expect(canAccessAdminSection("moderator", "team")).toBe(true)
+    expect(canAccessAdminSection("moderator", "support")).toBe(true)
     expect(canAccessAdminSection("moderator", "monetization")).toBe(false)
   })
   it("allows Developer and Admin to access every section", () => {

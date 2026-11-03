@@ -152,7 +152,7 @@ export function AdminAccessControl() {
         ) : users.map((entry) => {
           const draft = drafts[entry.id]
           const self = entry.id === user?.id
-          const protectedTarget = entry.staff_role === "developer" || (actorRole === "admin" && entry.staff_role === "admin")
+          const protectedTarget = entry.staff_role === "developer" || (actorRole === "admin" && entry.staff_role === "admin") || (actorRole === "moderator" && entry.staff_role !== "user")
           const roleDisabled = self || protectedTarget || (!canManageRoles && !canAssignModerators) || savingId === entry.id
           const restricted = actorRole === "moderator"
           return (
