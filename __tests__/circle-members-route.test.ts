@@ -16,7 +16,7 @@ vi.mock("@/lib/circle-lifecycle", () => ({ syncCircleMemberCount: vi.fn() }))
 
 import { DELETE, GET, PUT } from "@/app/api/circles/[id]/members/route"
 
-const params = { params: Promise.resolve({ id: "circle-1" }) }
+const params = { params: Promise.resolve({ id: "22222222-2222-4222-8222-222222222222" }) }
 
 beforeEach(() => {
   vi.clearAllMocks()
