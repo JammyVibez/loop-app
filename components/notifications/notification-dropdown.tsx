@@ -374,9 +374,11 @@ export function NotificationDropdown() {
                       return (
                         <div key={notification.id} className="px-3 py-2">
                           <CoLoopInviteCard
+                            inviteId={notification.data?.invitation_id}
                             sessionId={inviteSessionId}
                             inviterName={inviterDisplayName}
                             createdAt={notification.created_at}
+                            expiresAt={notification.data?.invitation_expires_at}
                           />
                         </div>
                       )
