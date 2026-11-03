@@ -199,22 +199,28 @@ function applyFile(file, { strict = false } = {}) {
   // Split on semicolons at end of statements while keeping DO $$ ... $$ blocks intact.
   const statements = []
   let buf = ""
-  let inDollar = false
+  let dollarQuoteTag = null
   for (const line of sql.split(/\n/)) {
-    const trimmed = line.trim()
-    if (!inDollar && /\$\$/.test(line)) {
-      const count = (line.match(/\$\$/g) || []).length
-      inDollar = count % 2 === 1 ? !inDollar : inDollar
-      // handle open+close on same line
-      if (count === 1) inDollar = true
-      if (count >= 2 && trimmed.endsWith("$$;") || (count >= 2 && /\$\$;?\s*$/.test(trimmed) && trimmed.indexOf("$$") !== trimmed.lastIndexOf("$$"))) {
-        inDollar = false
+    let cursor = 0
+    while (cursor < line.length) {
+      if (dollarQuoteTag) {
+        const closingIndex = line.indexOf(dollarQuoteTag, cursor)
+        if (closingIndex < 0) break
+        cursor = closingIndex + dollarQuoteTag.length
+        dollarQuoteTag = null
+        continue
       }
-    } else if (inDollar && /\$\$/.test(line)) {
-      inDollar = false
+
+      const tagMatch = /\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/g
+      tagMatch.lastIndex = cursor
+      const opening = tagMatch.exec(line)
+      if (!opening) break
+      dollarQuoteTag = opening[0]
+      cursor = tagMatch.lastIndex
     }
+
     buf += line + "\n"
-    if (!inDollar && /;\s*$/.test(line)) {
+    if (!dollarQuoteTag && /;\s*$/.test(line)) {
       const stmt = buf.trim()
       if (stmt && !stmt.split("\n").every((l) => !l.trim() || l.trim().startsWith("--"))) {
         statements.push(stmt)
@@ -254,7 +260,7 @@ function applyFile(file, { strict = false } = {}) {
 for (const file of files) {
   // Verification owns private identity evidence and the admin review function;
   // never report setup success when any part of this security migration fails.
-  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/discovery-preferences.sql", "scripts/user-blocks-schema.sql", "scripts/trending-hashtags-function.sql", "scripts/moderation-integrity.sql", "scripts/account-status-appeals-schema.sql", "scripts/circle-membership-lifecycle.sql", "scripts/co-loop-atomic-lifecycle.sql", "scripts/co-loop-invitation-expiry.sql", "scripts/circle-owner-transfer.sql", "scripts/circle-event-rsvp-lifecycle.sql", "backend/migrations/0001_collections.sql", "backend/migrations/0009_collection_invitation_expiry.sql", "backend/migrations/0010_user_legal_acceptances.sql", "scripts/premium-subscriptions-migration.sql", "scripts/coin-packs-refunds-schema.sql", "scripts/premium-coin-purchase.sql", "scripts/achievements-system.sql", "scripts/achievements-integrity.sql"].includes(file) })
+  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/discovery-preferences.sql", "scripts/wallet-and-events-schema.sql", "scripts/user-blocks-schema.sql", "scripts/trending-hashtags-function.sql", "scripts/moderation-integrity.sql", "scripts/account-status-appeals-schema.sql", "scripts/circle-membership-lifecycle.sql", "scripts/co-loop-atomic-lifecycle.sql", "scripts/co-loop-invitation-expiry.sql", "scripts/circle-owner-transfer.sql", "scripts/circle-event-rsvp-lifecycle.sql", "backend/migrations/0001_collections.sql", "backend/migrations/0009_collection_invitation_expiry.sql", "backend/migrations/0010_user_legal_acceptances.sql", "scripts/premium-subscriptions-migration.sql", "scripts/coin-packs-refunds-schema.sql", "scripts/premium-coin-purchase.sql", "scripts/achievements-system.sql", "scripts/achievements-integrity.sql"].includes(file) })
 }
 
 if (process.argv.includes("--with-seed")) {
