@@ -7,7 +7,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 
-use crate::{auth::AuthenticatedUser, state::AppState};
+use crate::{auth::AuthenticatedSessionUser, state::AppState};
 
 // Bump the matching value when the corresponding published document changes.
 pub const TERMS_VERSION: &str = "1.0";
@@ -75,13 +75,13 @@ fn acceptance_complete(input: &AcceptLegalDocumentsInput) -> bool {
 
 pub async fn get_acceptance(
     State(state): State<AppState>,
-    user: AuthenticatedUser,
+    user: AuthenticatedSessionUser,
 ) -> Result<Json<LegalAcceptanceStatus>, LegalError> {
     let rows = sqlx::query(
         r#"
         SELECT document_key
         FROM public.user_legal_acceptances
-        WHERE user_id = $1
+        WHERE auth_user_id = $1
           AND (
               (document_key = 'terms' AND document_version = $2)
               OR (document_key = 'privacy' AND document_version = $3)
@@ -133,7 +133,7 @@ pub async fn accept_documents(
     sqlx::query(
         r#"
         INSERT INTO public.user_legal_acceptances
-            (user_id, document_key, document_version, acceptance_source)
+            (auth_user_id, document_key, document_version, acceptance_source)
         VALUES
             ($1, 'terms', $2, 'web'),
             ($1, 'privacy', $3, 'web')
