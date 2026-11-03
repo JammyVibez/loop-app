@@ -42,7 +42,10 @@ const files = [
   "scripts/wallet-and-events-schema.sql",
   "scripts/achievements-system.sql",
   "scripts/achievements-integrity.sql",
-  // Atomic prepaid Pro purchases, idempotency and private wallet ledger access.
+  // Install the Stripe transaction references and refund ledger before the
+  // atomic Stripe/coin grant functions depend on those wallet columns.
+  "scripts/coin-packs-refunds-schema.sql",
+  // Atomic prepaid Pro and Stripe grants, idempotency and private wallet ledger access.
   "scripts/premium-coin-purchase.sql",
   // developer_projects and related tables backing the real Developers gallery
   // (see /api/developers/projects and components/developers/developers-content.tsx).
@@ -82,9 +85,6 @@ const files = [
   "scripts/dev-repo-schema.sql",
   "scripts/rls-policies.sql",
   "scripts/realtime-functions.sql",
-  // More coin packs + self-service refund system (refund_requests table,
-  // wallet_transactions.payment_intent_id / item_id, Stripe reversals).
-  "scripts/coin-packs-refunds-schema.sql",
   // profiles.cosmetics column — fixes "profile_1.cosmetic does not exist"
   // that broke feed / For You branch queries (branched loops hidden).
   "scripts/fix-profiles-cosmetics-column.sql",
@@ -254,7 +254,7 @@ function applyFile(file, { strict = false } = {}) {
 for (const file of files) {
   // Verification owns private identity evidence and the admin review function;
   // never report setup success when any part of this security migration fails.
-  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/discovery-preferences.sql", "scripts/user-blocks-schema.sql", "scripts/trending-hashtags-function.sql", "scripts/moderation-integrity.sql", "scripts/account-status-appeals-schema.sql", "scripts/circle-membership-lifecycle.sql", "scripts/co-loop-atomic-lifecycle.sql", "scripts/co-loop-invitation-expiry.sql", "scripts/circle-owner-transfer.sql", "scripts/circle-event-rsvp-lifecycle.sql", "backend/migrations/0001_collections.sql", "backend/migrations/0009_collection_invitation_expiry.sql", "backend/migrations/0010_user_legal_acceptances.sql", "scripts/premium-subscriptions-migration.sql", "scripts/premium-coin-purchase.sql", "scripts/achievements-system.sql", "scripts/achievements-integrity.sql"].includes(file) })
+  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/discovery-preferences.sql", "scripts/user-blocks-schema.sql", "scripts/trending-hashtags-function.sql", "scripts/moderation-integrity.sql", "scripts/account-status-appeals-schema.sql", "scripts/circle-membership-lifecycle.sql", "scripts/co-loop-atomic-lifecycle.sql", "scripts/co-loop-invitation-expiry.sql", "scripts/circle-owner-transfer.sql", "scripts/circle-event-rsvp-lifecycle.sql", "backend/migrations/0001_collections.sql", "backend/migrations/0009_collection_invitation_expiry.sql", "backend/migrations/0010_user_legal_acceptances.sql", "scripts/premium-subscriptions-migration.sql", "scripts/coin-packs-refunds-schema.sql", "scripts/premium-coin-purchase.sql", "scripts/achievements-system.sql", "scripts/achievements-integrity.sql"].includes(file) })
 }
 
 if (process.argv.includes("--with-seed")) {
