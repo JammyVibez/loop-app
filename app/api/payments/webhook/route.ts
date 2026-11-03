@@ -346,7 +346,12 @@ export async function POST(request: NextRequest) {
       case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
-        const subscription = event.data.object as Stripe.Subscription
+        // Stripe may deliver subscription events out of order. The event object
+        // is only a snapshot; retrieve the canonical current object before
+        // syncing entitlements so a delayed update cannot revive a cancelled
+        // subscription or overwrite a newer billing period.
+        const eventSubscription = event.data.object as Stripe.Subscription
+        const subscription = await stripe.subscriptions.retrieve(eventSubscription.id)
         await syncStripePremiumSubscription(supabase, subscription)
         break
       }
