@@ -95,7 +95,7 @@ function LoginContent() {
     setLoading(true)
     try {
       await loginWithGoogle(
-        `${window.location.origin}/legal/consent?returnTo=${encodeURIComponent(redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/")}` ,
+        `${window.location.origin}/legal/consent?returnTo=${encodeURIComponent(redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/")}`,
       )
     } catch (err: any) {
       setError(
