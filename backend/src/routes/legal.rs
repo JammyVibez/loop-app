@@ -19,7 +19,7 @@ struct LegalErrorBody {
     message: &'static str,
 }
 
-struct LegalError {
+pub struct LegalError {
     status: StatusCode,
     code: &'static str,
     message: &'static str,
