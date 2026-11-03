@@ -459,6 +459,19 @@ pub async fn get(
                       SELECT 1 FROM circles AS target_circle
                       WHERE target_circle.id = item.circle_id
                         AND (
+                            target_circle.is_premium_only IS NOT TRUE
+                            OR EXISTS (
+                                SELECT 1
+                                FROM profiles AS viewer_profile
+                                WHERE viewer_profile.id = $2
+                                  AND viewer_profile.is_premium IS TRUE
+                                  AND (
+                                      viewer_profile.premium_expires_at IS NULL
+                                      OR viewer_profile.premium_expires_at > NOW()
+                                  )
+                            )
+                        )
+                        AND (
                             target_circle.is_private = false
                             OR target_circle.owner_id = $2
                             OR EXISTS (
@@ -475,6 +488,27 @@ pub async fn get(
                   AND EXISTS (
                       SELECT 1 FROM chains AS target_chain
                       WHERE target_chain.id = item.chain_id
+                        AND (
+                            target_chain.circle_id IS NULL
+                            OR EXISTS (
+                                SELECT 1
+                                FROM circles AS scoped_circle
+                                WHERE scoped_circle.id = target_chain.circle_id
+                                  AND (
+                                      scoped_circle.is_premium_only IS NOT TRUE
+                                      OR EXISTS (
+                                          SELECT 1
+                                          FROM profiles AS viewer_profile
+                                          WHERE viewer_profile.id = $2
+                                            AND viewer_profile.is_premium IS TRUE
+                                            AND (
+                                                viewer_profile.premium_expires_at IS NULL
+                                                OR viewer_profile.premium_expires_at > NOW()
+                                            )
+                                      )
+                                  )
+                            )
+                        )
                         AND (
                             target_chain.visibility <> 'circle'
                             OR EXISTS (
@@ -1328,16 +1362,30 @@ pub async fn add_item(
                 r#"
                 SELECT EXISTS (
                     SELECT 1 FROM circles AS circle
-                    WHERE circle.id = $1 AND (
-                        circle.is_private = false
-                        OR circle.owner_id = $2
-                        OR EXISTS (
-                            SELECT 1 FROM circle_members AS member
-                            WHERE member.circle_id = circle.id
-                              AND member.user_id = $2
-                              AND member.status IN ('active', 'approved')
-                        )
-                    )
+                    WHERE circle.id = $1
+                      AND (
+                          circle.is_premium_only IS NOT TRUE
+                          OR EXISTS (
+                              SELECT 1
+                              FROM profiles AS viewer_profile
+                              WHERE viewer_profile.id = $2
+                                AND viewer_profile.is_premium IS TRUE
+                                AND (
+                                    viewer_profile.premium_expires_at IS NULL
+                                    OR viewer_profile.premium_expires_at > NOW()
+                                )
+                          )
+                      )
+                      AND (
+                          circle.is_private = false
+                          OR circle.owner_id = $2
+                          OR EXISTS (
+                              SELECT 1 FROM circle_members AS member
+                              WHERE member.circle_id = circle.id
+                                AND member.user_id = $2
+                                AND member.status IN ('active', 'approved')
+                          )
+                      )
                 )
                 "#,
             )
@@ -1367,6 +1415,27 @@ pub async fn add_item(
                 SELECT EXISTS (
                     SELECT 1 FROM chains AS target_chain
                     WHERE target_chain.id = $1
+                      AND (
+                          target_chain.circle_id IS NULL
+                          OR EXISTS (
+                              SELECT 1
+                              FROM circles AS scoped_circle
+                              WHERE scoped_circle.id = target_chain.circle_id
+                                AND (
+                                    scoped_circle.is_premium_only IS NOT TRUE
+                                    OR EXISTS (
+                                        SELECT 1
+                                        FROM profiles AS viewer_profile
+                                        WHERE viewer_profile.id = $2
+                                          AND viewer_profile.is_premium IS TRUE
+                                          AND (
+                                              viewer_profile.premium_expires_at IS NULL
+                                              OR viewer_profile.premium_expires_at > NOW()
+                                          )
+                                    )
+                                )
+                          )
+                      )
                       AND (
                           target_chain.visibility <> 'circle'
                           OR EXISTS (
