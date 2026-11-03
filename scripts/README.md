@@ -13,12 +13,13 @@ environment.** Before adding a new `.sql` file here, read this first.
 2. `complete-database-setup.sql`
 3. `backend/migrations/0001_collections.sql` — ensure the shared profile/session,
    Circle, and Collection foundations exist for the Rust API.
-4. `backend/migrations/0004_chains.sql` — canonical Chain, member and
+4. `backend/migrations/0010_user_legal_acceptances.sql` — versioned Terms of Service and Privacy Policy acceptance ledger, linked to Better Auth users.
+5. `backend/migrations/0004_chains.sql` — canonical Chain, member and
    contribution tables.
-5. `backend/migrations/0005_chain_collections.sql` — attach Chains to Collections.
-6. `backend/migrations/0006_chain_lifecycle.sql` — remix lineage and immutable
+6. `backend/migrations/0005_chain_collections.sql` — attach Chains to Collections.
+7. `backend/migrations/0006_chain_lifecycle.sql` — remix lineage and immutable
    contribution revision history.
-7. `premium-subscriptions-migration.sql` — Pro subscription ledger, Stripe
+8. `premium-subscriptions-migration.sql` — Pro subscription ledger, Stripe
    identifiers/periods, and auditable grant metadata.
 8. `launch-schema-alignment.sql`
 9. `loops-and-media.sql`
