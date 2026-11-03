@@ -158,7 +158,7 @@ RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp
-AS $
+AS $grant_fn$
 DECLARE
   v_profile public.profiles%ROWTYPE;
   v_existing public.wallet_transactions%ROWTYPE;
@@ -167,33 +167,9 @@ DECLARE
 BEGIN
   IF p_user_id IS NULL
      OR p_transaction_id IS NULL
-     OR p_transaction_id !~ '^stripe_cs_(test|live)_[A-Za-z0-9]+
-ALTER TABLE public.wallet_transactions ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow public read wallet_transactions" ON public.wallet_transactions;
-DROP POLICY IF EXISTS wallet_transactions_read_own ON public.wallet_transactions;
-CREATE POLICY wallet_transactions_read_own
-  ON public.wallet_transactions
-  FOR SELECT
-  TO authenticated
-  USING (auth.uid()::TEXT = user_id);
-
-REVOKE ALL ON TABLE public.wallet_transactions FROM PUBLIC;
-
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
-    REVOKE ALL ON TABLE public.wallet_transactions FROM anon;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
-    REVOKE ALL ON TABLE public.wallet_transactions FROM authenticated;
-    GRANT SELECT ON TABLE public.wallet_transactions TO authenticated;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
-    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.wallet_transactions TO service_role;
-  END IF;
-END
-$$;
-
+     OR char_length(p_transaction_id) <= 15
+     OR left(p_transaction_id, 15) NOT IN ('stripe_cs_test_', 'stripe_cs_live_')
+     OR translate(p_transaction_id, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_', '') <> ''
      OR p_days IS NULL OR p_days < 1 OR p_days > 3660
      OR p_amount_usd IS NULL OR p_amount_usd < 0
      OR (p_payment_intent_id IS NOT NULL AND char_length(p_payment_intent_id) > 255)
@@ -202,8 +178,7 @@ $$;
       USING ERRCODE = '22023';
   END IF;
 
-  SELECT *
-    INTO v_profile
+  SELECT * INTO v_profile
     FROM public.profiles
    WHERE id = p_user_id
    FOR UPDATE;
@@ -213,10 +188,8 @@ $$;
       USING ERRCODE = 'P0002';
   END IF;
 
-  -- The profile lock serializes all grants for this account, including a
-  -- concurrent delivery of the same Checkout Session.
-  SELECT *
-    INTO v_existing
+  -- Serialize duplicate webhook deliveries before checking the receipt ledger.
+  SELECT * INTO v_existing
     FROM public.wallet_transactions
    WHERE id = p_transaction_id
    FOR UPDATE;
@@ -253,28 +226,14 @@ $$;
    WHERE id = p_user_id;
 
   INSERT INTO public.wallet_transactions (
-    id,
-    user_id,
-    amount_usd,
-    coins_amount,
-    type,
-    description,
-    status,
-    payment_method,
-    payment_intent_id,
-    created_at
+    id, user_id, amount_usd, coins_amount, type, description, status,
+    payment_method, payment_intent_id, created_at
   )
   VALUES (
-    p_transaction_id,
-    p_user_id::TEXT,
-    p_amount_usd,
-    0,
+    p_transaction_id, p_user_id::TEXT, p_amount_usd, 0,
     'premium_purchase',
     format('Loop Pro %s (%s days)', COALESCE(NULLIF(p_plan, ''), 'Pro'), p_days),
-    'completed',
-    'stripe',
-    p_payment_intent_id,
-    v_now
+    'completed', 'stripe', p_payment_intent_id, v_now
   );
 
   RETURN JSONB_BUILD_OBJECT(
@@ -282,11 +241,11 @@ $$;
     'already_processed', FALSE
   );
 END;
-$;
+$grant_fn$;
 
 REVOKE ALL ON FUNCTION public.grant_stripe_premium_checkout(UUID, TEXT, INTEGER, NUMERIC, TEXT, TEXT) FROM PUBLIC;
 
-DO $
+DO $grant_acl$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
     REVOKE ALL ON FUNCTION public.grant_stripe_premium_checkout(UUID, TEXT, INTEGER, NUMERIC, TEXT, TEXT) FROM anon;
@@ -298,8 +257,7 @@ BEGIN
     GRANT EXECUTE ON FUNCTION public.grant_stripe_premium_checkout(UUID, TEXT, INTEGER, NUMERIC, TEXT, TEXT) TO service_role;
   END IF;
 END
-$;
-
+$grant_acl$;
 -- Wallet transactions are account financial records, not public social data.
 ALTER TABLE public.wallet_transactions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow public read wallet_transactions" ON public.wallet_transactions;
