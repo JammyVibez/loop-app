@@ -3,6 +3,7 @@ import Stripe from "stripe"
 import { createServerClient } from "@/lib/supabase"
 import { notifyUser } from "@/lib/notifications"
 import { syncStripePremiumSubscription } from "@/lib/stripe-premium-subscriptions"
+import { grantStripePremiumCheckout } from "@/lib/stripe-premium-grants"
 
 export async function POST(request: NextRequest) {
   try {
@@ -79,27 +80,14 @@ export async function POST(request: NextRequest) {
           // The SQL function locks the account and commits the entitlement
           // with the unique transaction row, so concurrent webhook retries
           // cannot extend Pro more than once for this Checkout Session.
-          const { data: grantData, error: grantError } = await supabase.rpc("grant_stripe_premium_checkout", {
-            p_user_id: userId,
-            p_transaction_id: transactionId,
-            p_days: days,
-            p_amount_usd: amountUsd,
-            p_payment_intent_id: paymentIntentId,
-            p_plan: typeof metadata.plan === "string" ? metadata.plan : null,
+          const grant = await grantStripePremiumCheckout(supabase, {
+            userId,
+            transactionId,
+            days,
+            amountUsd,
+            paymentIntentId,
+            plan: typeof metadata.plan === "string" ? metadata.plan : null,
           })
-
-          if (grantError) {
-            console.error("Atomic Stripe Premium grant failed:", grantError)
-            throw grantError
-          }
-
-          const grant = (Array.isArray(grantData) ? grantData[0] : grantData) as {
-            premium_expires_at?: string | null
-            already_processed?: boolean
-          } | null
-          if (!grant || typeof grant.premium_expires_at !== "string") {
-            throw new Error("Stripe Premium grant returned an invalid result")
-          }
 
           if (!grant.already_processed) {
             try {
