@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       .select("id, username, display_name, avatar_url, email, is_admin, is_moderator, is_team_member, staff_role, created_at")
       .order("created_at", { ascending: false })
       .limit(60)
-    const safeQuery = query.replace(/[,%()]/g, " ").trim()
+    const safeQuery = query.replace(/[^\\p{L}\\p{N} ._@-]/gu, "").trim()
     if (safeQuery) requestQuery = requestQuery.or(`username.ilike.%${safeQuery}%,display_name.ilike.%${safeQuery}%,email.ilike.%${safeQuery}%`)
     const { data: profiles, error } = await requestQuery
     if (error) {

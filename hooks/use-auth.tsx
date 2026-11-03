@@ -153,7 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ? "developer"
           : profileData.is_moderator === true
             ? "moderator"
-            : previous?.staff_role ?? null
+            : null
 
     return {
       id: sessionData.user.id,

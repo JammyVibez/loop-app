@@ -375,12 +375,12 @@ export function AdminDashboard() {
 
   const currentLabel = useMemo(
     () => ALL_SECTIONS.find((s) => s.value === visibleSection)?.label || "Dashboard",
-    [section],
+    [visibleSection],
   )
   const currentDescription = SECTION_DESCRIPTIONS[visibleSection]
   const currentIcon = useMemo(
     () => ALL_SECTIONS.find((s) => s.value === visibleSection)?.icon || BarChart3,
-    [section],
+    [visibleSection],
   )
 
   if (!isStaff) {

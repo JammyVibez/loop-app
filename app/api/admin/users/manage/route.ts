@@ -179,6 +179,37 @@ export async function POST(request: NextRequest) {
     const targets = userIds.length > 0 ? userIds : [singleUserId as string]
     const results: { user_id: string; success: boolean; error?: string; user?: unknown }[] = []
 
+    // Role changes use the same locked database transaction as the Access & Roles
+    // workspace. This keeps audit history and the last-Developer safeguard intact.
+    if (action === "make_admin" || action === "remove_admin") {
+      const roleResults: { user_id: string; success: boolean; error?: string; access?: unknown }[] = []
+      for (const targetId of targets) {
+        const { data: existingGrants, error: grantsError } = await supabase
+          .from("team_permissions")
+          .select("permission_key")
+          .eq("user_id", targetId)
+        if (grantsError) {
+          roleResults.push({ user_id: targetId, success: false, error: "Could not read existing permissions" })
+          continue
+        }
+
+        const { data: access, error: accessError } = await supabase.rpc("admin_update_access", {
+          p_actor_id: adminUser!.id,
+          p_target_id: targetId,
+          p_new_role: action === "make_admin" ? "admin" : "user",
+          p_permissions: (existingGrants || []).map((grant) => grant.permission_key),
+        })
+        if (accessError) {
+          roleResults.push({ user_id: targetId, success: false, error: accessError.message })
+        } else {
+          roleResults.push({ user_id: targetId, success: true, access })
+        }
+      }
+
+      const success = roleResults.every((result) => result.success)
+      return NextResponse.json({ success, results: roleResults }, { status: success ? 200 : 400 })
+    }
+
     for (const userId of targets) {
       try {
         const { data: target } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle()
