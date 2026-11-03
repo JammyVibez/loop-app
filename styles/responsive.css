@@ -70,6 +70,7 @@ html.light .border-cyan-500\/30,
 html {
   scroll-padding-top: 5.5rem;
   -webkit-text-size-adjust: 100%;
+  overflow-x: clip;
 }
 
 body {
@@ -261,7 +262,7 @@ body { min-width: 320px; overflow-x: clip; }
   min-width: 0;
   max-width: 100%;
 }
-.legal-document :where(p, li, dd, dt, a, code, strong) {
+.legal-document :where(h1, h2, h3, h4, p, li, dd, dt, a, code, strong) {
   overflow-wrap: anywhere;
 }
 .legal-document :where(ul, ol) {

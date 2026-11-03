@@ -218,6 +218,13 @@ export async function POST(request: NextRequest) {
           continue
         }
 
+        const actorRole = resolveStaffRole(adminProfile)
+        const targetRole = resolveStaffRole(target)
+        if (actorRole === "admin" && (targetRole === "developer" || targetRole === "admin")) {
+          results.push({ user_id: userId, success: false, error: "Admins cannot modify Developer or Admin accounts" })
+          continue
+        }
+
         const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
 
         switch (action) {

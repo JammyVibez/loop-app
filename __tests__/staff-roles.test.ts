@@ -21,6 +21,7 @@ describe("role-scoped dashboard navigation", () => {
     expect(canAccessAdminSection("moderator", "moderation")).toBe(true)
     expect(canAccessAdminSection("moderator", "team")).toBe(true)
     expect(canAccessAdminSection("moderator", "support")).toBe(true)
+    expect(canAccessAdminSection("moderator", "appeals")).toBe(true)
     expect(canAccessAdminSection("moderator", "monetization")).toBe(false)
   })
   it("allows Developer and Admin to access every section", () => {

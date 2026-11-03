@@ -43,6 +43,7 @@ ALTER TABLE public.team_permissions
   ADD COLUMN IF NOT EXISTS granted_at TIMESTAMPTZ NOT NULL DEFAULT now();
 CREATE INDEX IF NOT EXISTS idx_team_permissions_user_id
   ON public.team_permissions(user_id);
+ALTER TABLE public.team_permissions ENABLE ROW LEVEL SECURITY;
 
 CREATE TABLE IF NOT EXISTS public.admin_access_audit (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
