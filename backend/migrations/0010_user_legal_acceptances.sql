@@ -13,4 +13,5 @@ CREATE TABLE IF NOT EXISTS public.user_legal_acceptances (
 CREATE INDEX IF NOT EXISTS idx_user_legal_acceptances_latest
     ON public.user_legal_acceptances (user_id, accepted_at DESC);
 
-ALTER TABLE public.user_legal_acceptances ENABLE ROW LEVEL SECURITY;
+-- This ledger is accessed only by the authenticated Rust API; do not expose it to browser roles.
+REVOKE ALL ON TABLE public.user_legal_acceptances FROM PUBLIC;
