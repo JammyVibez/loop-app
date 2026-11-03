@@ -4,6 +4,7 @@ pub mod collections;
 pub mod drops;
 pub mod follow_requests;
 pub mod health;
+pub mod legal;
 pub mod me;
 pub mod notifications;
 pub mod social;
