@@ -339,7 +339,7 @@ fn can_access_chain(
     matches!(visibility, "public" | "unlisted") && (!has_circle || is_circle_member)
 }
 
-fn can_contribute_to_chain(
+pub(crate) fn can_contribute_to_chain(
     policy: &str,
     visibility: &str,
     has_circle: bool,
@@ -2244,6 +2244,29 @@ mod tests {
         assert!(!can_contribute_to_chain(
             "members", "public", false, false, None, false,
         ));
+    }
+
+    #[test]
+    fn removed_chain_members_follow_the_current_contribution_policy_for_edits() {
+        // Public/open Chains allow contributors to correct their own work.
+        assert!(can_contribute_to_chain(
+            "open", "public", false, false, None, false,
+        ));
+        // Restricting the Chain to members revokes edit access from an author
+        // whose Chain membership has been removed.
+        assert!(!can_contribute_to_chain(
+            "members", "public", false, false, None, false,
+        ));
+        // An explicit viewer assignment always stays read-only on public Chains.
+        assert!(!can_contribute_to_chain(
+            "open", "public", false, false, Some("viewer"), false,
+        ));
+        // Active contributors and owners retain access on member-only Chains.
+        for role in ["owner", "collaborator", "contributor"] {
+            assert!(can_contribute_to_chain(
+                "members", "private", false, false, Some(role), false,
+            ));
+        }
     }
 
     #[test]
