@@ -141,6 +141,7 @@ DECLARE
     existing_participant BOOLEAN;
     seat_already_reserved BOOLEAN;
     invitation_status TEXT;
+    invitation_expires_at TIMESTAMPTZ;
     reserved_count INTEGER;
     current_count INTEGER;
     capacity INTEGER;
@@ -178,11 +179,21 @@ BEGIN
         RAISE EXCEPTION 'profile_unavailable' USING ERRCODE = '42501';
     END IF;
 
-    SELECT invitation.status
-      INTO invitation_status
+    SELECT invitation.status, invitation.expires_at
+      INTO invitation_status, invitation_expires_at
       FROM public.co_loop_invitations AS invitation
      WHERE invitation.session_id = p_session_id
        AND invitation.invitee_id = p_user_id;
+
+    IF invitation_status = 'pending' AND invitation_expires_at <= NOW() THEN
+        UPDATE public.co_loop_invitations
+           SET status = 'expired',
+               responded_at = NOW()
+         WHERE session_id = p_session_id
+           AND invitee_id = p_user_id
+           AND status = 'pending';
+        invitation_status := 'expired';
+    END IF;
 
     existing_participant := room.owner_id = p_user_id
         OR EXISTS (
@@ -235,6 +246,7 @@ BEGIN
           FROM public.co_loop_invitations AS invitation
          WHERE invitation.session_id = p_session_id
            AND invitation.status IN ('pending', 'accepted')
+           AND (invitation.status <> 'pending' OR invitation.expires_at > NOW())
       ) AS roster;
 
     IF room.owner_id = p_user_id THEN
@@ -447,6 +459,7 @@ BEGIN
          WHERE invitation.session_id = p_session_id
            AND invitation.invitee_id = p_invitee_id
            AND invitation.status IN ('pending', 'accepted')
+           AND (invitation.status <> 'pending' OR invitation.expires_at > NOW())
     ) THEN
         RAISE EXCEPTION 'co_loop_invitation_already_active' USING ERRCODE = '55000';
     END IF;
@@ -476,6 +489,7 @@ BEGIN
           FROM public.co_loop_invitations AS invitation
          WHERE invitation.session_id = p_session_id
            AND invitation.status IN ('pending', 'accepted')
+           AND (invitation.status <> 'pending' OR invitation.expires_at > NOW())
       ) AS roster;
 
     IF reserved_count >= capacity THEN
@@ -483,14 +497,15 @@ BEGIN
     END IF;
 
     INSERT INTO public.co_loop_invitations (
-        session_id, inviter_id, invitee_id, status, created_at, responded_at
+        session_id, inviter_id, invitee_id, status, created_at, expires_at, responded_at
     )
-    VALUES (p_session_id, p_inviter_id, p_invitee_id, 'pending', NOW(), NULL)
+    VALUES (p_session_id, p_inviter_id, p_invitee_id, 'pending', NOW(), NOW() + INTERVAL '7 days', NULL)
     ON CONFLICT (session_id, invitee_id)
     DO UPDATE SET
         inviter_id = EXCLUDED.inviter_id,
         status = 'pending',
         created_at = NOW(),
+        expires_at = NOW() + INTERVAL '7 days',
         responded_at = NULL
     RETURNING id INTO invitation_id;
 
@@ -502,6 +517,7 @@ BEGIN
         'id', invitation_id,
         'session_id', p_session_id,
         'status', 'pending',
+        'expires_at', NOW() + INTERVAL '7 days',
         'capacity', capacity,
         'reserved_count', reserved_count + 1
     );
@@ -578,6 +594,21 @@ BEGIN
             );
         END IF;
         RAISE EXCEPTION 'accepted_invitation_cannot_be_declined' USING ERRCODE = '55000';
+    END IF;
+
+    IF invitation.status = 'pending' AND invitation.expires_at <= NOW() THEN
+        UPDATE public.co_loop_invitations
+           SET status = 'expired',
+               responded_at = NOW()
+         WHERE id = invitation.id
+         RETURNING * INTO invitation;
+
+        RETURN JSONB_BUILD_OBJECT(
+            'id', invitation.id,
+            'session_id', p_session_id,
+            'status', 'expired',
+            'already_responded', false
+        );
     END IF;
 
     IF invitation.status <> 'pending' THEN
@@ -704,6 +735,7 @@ BEGIN
              WHERE invitation.session_id = p_session_id
                AND invitation.invitee_id = p_target_user_id
                AND invitation.status IN ('pending', 'accepted')
+           AND (invitation.status <> 'pending' OR invitation.expires_at > NOW())
         )
     ) INTO found_member;
 
@@ -776,6 +808,7 @@ BEGIN
           FROM public.co_loop_invitations AS invitation
          WHERE invitation.session_id = p_session_id
            AND invitation.status IN ('pending', 'accepted')
+           AND (invitation.status <> 'pending' OR invitation.expires_at > NOW())
       ) AS roster;
 
     IF room.feed_post_id IS NOT NULL THEN
