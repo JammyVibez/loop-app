@@ -6,7 +6,7 @@ const state = vi.hoisted(() => ({
   from: vi.fn(),
   blocked: vi.fn(),
   filterCircles: vi.fn(),
-  queries: [] as Array<{ table: string; calls: Array<[string, unknown[]] }>,
+  queries: [] as Array<{ table: string; calls: Array<[string, unknown[]]> }>,
   fixtures: {} as Record<string, { data: unknown; error: unknown }>,
 }))
 
