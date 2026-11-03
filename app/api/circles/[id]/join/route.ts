@@ -155,45 +155,53 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       return NextResponse.json({ error: "Circle membership service is unavailable" }, { status: 503 })
     }
     const user = await getUserFromRequest(request)
-    if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { id: circleId } = await params
-    const { data: circle, error: circleError } = await supabase
-      .from("circles").select("id, owner_id").eq("id", circleId).maybeSingle()
-    if (circleError) return NextResponse.json({ error: "Could not load Circle" }, { status: 500 })
-    if (!circle) return NextResponse.json({ error: "Circle not found" }, { status: 404 })
+    const { data, error } = await supabase.rpc("manage_circle_member", {
+      p_circle_id: circleId,
+      p_actor_id: user.id,
+      p_target_user_id: user.id,
+      p_action: "leave",
+    })
 
-    const { data: membership, error: membershipError } = await supabase
-      .from("circle_members").select("id, role, status")
-      .eq("circle_id", circleId).eq("user_id", user.id).maybeSingle()
-    if (membershipError) return NextResponse.json({ error: "Could not load membership" }, { status: 500 })
-    if (!membership) return NextResponse.json({ error: "No membership or pending request was found" }, { status: 404 })
-    if (membership.status === "banned") return NextResponse.json({ error: "A ban cannot be removed by leaving the Circle" }, { status: 403 })
-    if (membership.role === "owner" || circle.owner_id === user.id) {
-      return NextResponse.json({ error: "Transfer Circle ownership before leaving" }, { status: 409 })
-    }
-    if (!["active", "approved", "pending"].includes(membership.status)) {
-      return NextResponse.json({ error: "This Circle membership cannot be withdrawn" }, { status: 409 })
-    }
-
-    const { data: deletedRows, error: deleteError } = await supabase
-      .from("circle_members").delete().eq("id", membership.id)
-      .eq("status", membership.status).select("id")
-    if (deleteError) return NextResponse.json({ error: "Failed to update Circle membership" }, { status: 500 })
-    if (!deletedRows?.length) return NextResponse.json({ error: "Membership changed. Refresh and try again." }, { status: 409 })
-
-    const wasMember = membership.status === "active" || membership.status === "approved"
-    if (wasMember) {
-      try {
-        const { syncCircleMemberCount } = await import("@/lib/circle-lifecycle")
-        await syncCircleMemberCount(supabase, circleId)
-      } catch (err) {
-        console.error("member count sync:", err)
+    if (error) {
+      console.error("Atomic Circle leave failed:", error)
+      if (error.code === "42501") return NextResponse.json({ error: error.message || "This account cannot leave the Circle" }, { status: 403 })
+      if (error.code === "P0002") return NextResponse.json({ error: "Circle membership not found" }, { status: 404 })
+      if (error.code === "55000") return NextResponse.json({ error: error.message || "This membership can no longer be withdrawn" }, { status: 409 })
+      if (error.code === "22023") return NextResponse.json({ error: error.message || "Transfer ownership before leaving" }, { status: 409 })
+      if (["42883", "42P01", "42703"].includes(error.code || "")) {
+        return NextResponse.json({ error: "Atomic Circle leave is unavailable until the database migration is applied." }, { status: 503 })
       }
+      return NextResponse.json({ error: "Could not update Circle membership" }, { status: 500 })
     }
+
+    const result = (Array.isArray(data) ? data[0] : data) as {
+      circle_id?: string
+      user_id?: string
+      status?: string
+      member_count?: number
+    } | null
+    if (result?.circle_id !== circleId || result.user_id !== user.id || !["left", "cancelled"].includes(result.status || "")) {
+      return NextResponse.json({ error: "Circle leave returned an invalid result" }, { status: 500 })
+    }
+
+    try {
+      await supabase.channel(`circle-admin:${circleId}`).send({
+        type: "broadcast",
+        event: "admin_refresh",
+        payload: { action: "leave", userId: user.id },
+      })
+    } catch {
+      /* realtime refresh is best-effort; the database result is canonical */
+    }
+
+    const wasMember = result.status === "left"
     return NextResponse.json({
       success: true,
-      status: wasMember ? "left" : "cancelled",
+      status: result.status,
+      member_count: result.member_count,
       message: wasMember ? "Successfully left Circle" : "Join request cancelled",
     })
   } catch (error) {
