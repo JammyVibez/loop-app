@@ -293,3 +293,183 @@ BEGIN
   END IF;
 END
 $$;
+
+-- All membership removals, bans and voluntary leaves share the same Circle-row
+-- lock as joins and approvals. This keeps member_count canonical under load and
+-- rechecks the actor's live role inside the database transaction.
+CREATE OR REPLACE FUNCTION public.manage_circle_member(
+  p_circle_id UUID,
+  p_actor_id UUID,
+  p_target_user_id UUID,
+  p_action TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  v_circle public.circles%ROWTYPE;
+  v_actor_profile RECORD;
+  v_actor_membership RECORD;
+  v_target_membership RECORD;
+  v_actor_role TEXT;
+  v_member_count INTEGER;
+  v_result_status TEXT;
+BEGIN
+  IF p_circle_id IS NULL OR p_actor_id IS NULL OR p_target_user_id IS NULL THEN
+    RAISE EXCEPTION 'Circle and account IDs are required' USING ERRCODE = '22023';
+  END IF;
+  IF p_action IS NULL OR p_action NOT IN ('leave', 'remove', 'ban') THEN
+    RAISE EXCEPTION 'Action must be leave, remove or ban' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT * INTO v_circle
+  FROM public.circles
+  WHERE id = p_circle_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Circle not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  SELECT is_banned, is_deleted
+  INTO v_actor_profile
+  FROM public.profiles
+  WHERE id = p_actor_id
+  FOR UPDATE;
+
+  IF NOT FOUND OR v_actor_profile.is_banned IS TRUE OR v_actor_profile.is_deleted IS TRUE THEN
+    RAISE EXCEPTION 'An active account is required' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_action = 'leave' THEN
+    IF p_actor_id IS DISTINCT FROM p_target_user_id THEN
+      RAISE EXCEPTION 'You can only leave a Circle as yourself' USING ERRCODE = '42501';
+    END IF;
+    IF p_actor_id = v_circle.owner_id THEN
+      RAISE EXCEPTION 'Transfer Circle ownership before leaving' USING ERRCODE = '22023';
+    END IF;
+
+    SELECT role::TEXT AS role, status::TEXT AS status
+    INTO v_target_membership
+    FROM public.circle_members
+    WHERE circle_id = p_circle_id AND user_id = p_target_user_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Circle membership not found' USING ERRCODE = 'P0002';
+    END IF;
+    IF v_target_membership.role = 'owner' THEN
+      RAISE EXCEPTION 'Transfer Circle ownership before leaving' USING ERRCODE = '22023';
+    END IF;
+    IF v_target_membership.status = 'banned' THEN
+      RAISE EXCEPTION 'A banned member cannot leave to clear the ban' USING ERRCODE = '42501';
+    END IF;
+    IF v_target_membership.status NOT IN ('active', 'approved', 'pending') THEN
+      RAISE EXCEPTION 'This membership can no longer be withdrawn' USING ERRCODE = '55000';
+    END IF;
+
+    v_result_status := CASE
+      WHEN v_target_membership.status = 'pending' THEN 'cancelled'
+      ELSE 'left'
+    END;
+
+    DELETE FROM public.circle_members
+    WHERE circle_id = p_circle_id AND user_id = p_target_user_id;
+  ELSE
+    IF p_actor_id = p_target_user_id THEN
+      RAISE EXCEPTION 'Use the leave action for your own membership' USING ERRCODE = '22023';
+    END IF;
+
+    IF p_actor_id = v_circle.owner_id THEN
+      v_actor_role := 'owner';
+    ELSE
+      SELECT role::TEXT AS role, status::TEXT AS status
+      INTO v_actor_membership
+      FROM public.circle_members
+      WHERE circle_id = p_circle_id AND user_id = p_actor_id
+      FOR UPDATE;
+
+      IF NOT FOUND
+         OR v_actor_membership.status NOT IN ('active', 'approved')
+         OR v_actor_membership.role NOT IN ('admin', 'moderator') THEN
+        RAISE EXCEPTION 'Current Circle staff access is required' USING ERRCODE = '42501';
+      END IF;
+      v_actor_role := v_actor_membership.role;
+    END IF;
+
+    SELECT role::TEXT AS role, status::TEXT AS status
+    INTO v_target_membership
+    FROM public.circle_members
+    WHERE circle_id = p_circle_id AND user_id = p_target_user_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Circle member not found' USING ERRCODE = 'P0002';
+    END IF;
+    IF p_target_user_id = v_circle.owner_id OR v_target_membership.role = 'owner' THEN
+      RAISE EXCEPTION 'Circle ownership cannot be removed or banned' USING ERRCODE = '42501';
+    END IF;
+    IF v_target_membership.status = 'banned' THEN
+      RAISE EXCEPTION 'This member is already banned' USING ERRCODE = '55000';
+    END IF;
+    IF v_target_membership.status NOT IN ('active', 'approved', 'pending') THEN
+      RAISE EXCEPTION 'This membership cannot be moderated in its current state' USING ERRCODE = '55000';
+    END IF;
+
+    IF NOT (
+      (v_actor_role = 'owner' AND v_target_membership.role <> 'guest')
+      OR (v_actor_role = 'admin' AND v_target_membership.role IN ('member', 'moderator'))
+      OR (v_actor_role = 'moderator' AND v_target_membership.role = 'member')
+    ) THEN
+      RAISE EXCEPTION 'Cannot remove a member with an equal or higher role' USING ERRCODE = '42501';
+    END IF;
+
+    IF p_action = 'ban' THEN
+      UPDATE public.circle_members
+      SET status = 'banned'
+      WHERE circle_id = p_circle_id AND user_id = p_target_user_id;
+      v_result_status := 'banned';
+    ELSE
+      DELETE FROM public.circle_members
+      WHERE circle_id = p_circle_id AND user_id = p_target_user_id;
+      v_result_status := 'removed';
+    END IF;
+  END IF;
+
+  SELECT COUNT(*)::INTEGER
+  INTO v_member_count
+  FROM public.circle_members
+  WHERE circle_id = p_circle_id
+    AND status IN ('active', 'approved');
+
+  UPDATE public.circles
+  SET member_count = v_member_count,
+      updated_at = NOW()
+  WHERE id = p_circle_id;
+
+  RETURN jsonb_build_object(
+    'circle_id', p_circle_id,
+    'user_id', p_target_user_id,
+    'status', v_result_status,
+    'member_count', v_member_count
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.manage_circle_member(UUID, UUID, UUID, TEXT) FROM PUBLIC;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE ALL ON FUNCTION public.manage_circle_member(UUID, UUID, UUID, TEXT) FROM anon;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON FUNCTION public.manage_circle_member(UUID, UUID, UUID, TEXT) FROM authenticated;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+    GRANT EXECUTE ON FUNCTION public.manage_circle_member(UUID, UUID, UUID, TEXT) TO service_role;
+  END IF;
+END
+$$;
