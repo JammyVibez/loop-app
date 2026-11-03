@@ -142,7 +142,7 @@ const sections = [
     num: "13",
     title: "Changes to This Policy",
     body: [
-      "We may update this Privacy Policy from time to time. When we make material changes, we will update the \"Last updated\" date below and notify you through the Service or by email where appropriate. Your continued use of the Service after changes take effect constitutes your acceptance of the updated policy.",
+      "We may update this Privacy Policy from time to time. When we make material changes, we will update the \"Last updated\" date below and notify you through the Service or by email where appropriate. If a change requires renewed acknowledgement or consent, we will ask you to complete that step before the affected processing or account features continue where required by law. Continued browsing or silence is not treated as consent where the law requires an affirmative choice.",
     ],
   },
   {
@@ -162,7 +162,7 @@ export default function PrivacyPolicyPage() {
         <div className="mb-10">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Privacy Policy</h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            Version 1.0 · Last updated: 3 November 2026
+            Version 1.1 · Last updated: 3 November 2026
           </p>
           <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
             This Policy explains what personal information LOOP uses, why it is needed, who may receive it,
@@ -181,8 +181,9 @@ export default function PrivacyPolicyPage() {
             </ul>
           </div>
           <p className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs leading-5 text-muted-foreground">
-            Publication item: the data controller's full legal name, registered address, privacy contact and the
-            production provider/transfer list must be supplied by the Service operator before launch.
+            <strong>Pre-launch publication requirement:</strong> the data controller must add its full legal name,
+            service address, monitored privacy contact, actual production providers, processing locations, and applicable
+            international-transfer safeguards before publication. Those deployment details are not assumed here.
           </p>
         </div>
 

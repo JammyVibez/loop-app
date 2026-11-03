@@ -10,8 +10,8 @@ use sqlx::Row;
 use crate::{auth::AuthenticatedSessionUser, state::AppState};
 
 // Bump the matching value when the corresponding published document changes.
-pub const TERMS_VERSION: &str = "1.0";
-pub const PRIVACY_VERSION: &str = "1.0";
+pub const TERMS_VERSION: &str = "1.1";
+pub const PRIVACY_VERSION: &str = "1.1";
 
 #[derive(Serialize)]
 struct LegalErrorBody {

@@ -6,7 +6,7 @@ const sections = [
     num: "1",
     title: "Acceptance of These Terms",
     body: [
-      "Welcome to loopapp.me (\"loopapp.me\", \"we\", \"us\", or \"our\"). These Terms of Service (\"Terms\") form a binding legal agreement between you (\"you\" or \"your\") and loopapp.me governing your access to and use of the loopapp.me platform, including our website, mobile applications, and all related services, features, tools, and content (collectively, the \"Service\").",
+      "Welcome to loopapp.me (\"loopapp.me\", \"we\", \"us\", or \"our\"). These Terms of Service (\"Terms\") form a binding legal agreement between you (\"you\" or \"your\") and the person or legal entity operating loopapp.me (the Operator), governing your access to the platform, including its website, mobile applications, and related services, features, tools, and content (collectively, the \"Service\").",
       "Creating an account does not, by itself, record your agreement to these Terms. Before you can use account features, you must review these Terms and the Privacy Policy and complete the separate agreement step presented by LOOP. Your agreement is recorded with the versions of the documents shown to you and the time you accepted them. If you do not agree to these Terms, do not accept them or use account features.",
       "If you are using the Service on behalf of an organization (including as an Organization account under Section 10), you represent and warrant that you have the authority to bind that organization to these Terms.",
     ],
@@ -18,7 +18,7 @@ const sections = [
     body: [
       "You must be at least 13 years old to create an account, or older if the law where you live sets a higher minimum age for this type of service. The minimum age to use a service is not the same as the age at which a child can provide their own consent to every kind of personal-data processing. Where applicable law requires a parent or guardian to authorise consent-based processing, LOOP must obtain that authorisation before relying on the child's consent for that processing. Do not enter a false date of birth or use another person's identity.",
       "You are responsible for keeping your sign-in credentials secure and for activity carried out through your account. Tell us promptly about suspected unauthorised access through the Help & Support Center at /help. A support ticket requires you to sign in so that we can verify and respond to the account holder.",
-      "You may not create multiple accounts to circumvent restrictions, restrictions we impose, or to artificially inflate engagement, rewards, or referral bonuses. We may suspend or terminate accounts that we reasonably believe were created or used in violation of this Section.",
+      "You may not create multiple accounts to circumvent restrictions we impose or to artificially inflate engagement, rewards, or referral bonuses. We may suspend or terminate accounts that we reasonably believe were created or used in violation of this Section.",
     ],
   },
   {
@@ -230,7 +230,7 @@ export default function TermsOfServicePage() {
         <div className="mb-10">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Terms of Service</h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            Version 1.0 · Last updated: 3 November 2026
+            Version 1.1 · Last updated: 3 November 2026
           </p>
           <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
             These Terms explain how LOOP works, what you may share, how collaboration and moderation operate,
@@ -250,8 +250,9 @@ export default function TermsOfServicePage() {
             </ul>
           </div>
           <p className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs leading-5 text-muted-foreground">
-            Publication item: the operator's registered legal name, postal address, country of establishment and official
-            legal/privacy contact still need to be supplied. These are not inferred or invented here.
+            <strong>Pre-launch publication requirement:</strong> the Operator must add its full registered legal name,
+            service address, country of establishment, and monitored legal/privacy contact before publication. LOOP does
+            not infer or invent those details from the domain name.
           </p>
         </div>
 
