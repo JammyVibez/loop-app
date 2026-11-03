@@ -171,6 +171,12 @@ export async function POST(request: NextRequest) {
       status?: string
       already_responded?: boolean
     } | null
+    if (responseResult?.status === "expired") {
+      return NextResponse.json(
+        { error: "This Co-Loop invitation has expired. Ask the host to send a new invitation.", expired: true },
+        { status: 410 },
+      )
+    }
     if (!responseResult?.id || responseResult.status !== status) {
       return NextResponse.json({ error: "Invitation response returned an invalid result" }, { status: 500 })
     }
