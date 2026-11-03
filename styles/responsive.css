@@ -245,3 +245,25 @@ body { min-width: 320px; overflow-x: clip; }
     outline: 2px solid CanvasText; outline-offset: 3px;
   }
 }
+
+
+/* Legal pages must remain readable at the narrowest supported phone width. */
+.legal-document {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
+  overflow-wrap: anywhere;
+}
+.legal-document :where(*, *::before, *::after) {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+.legal-document :where(p, li, dd, dt, a, code, strong) {
+  overflow-wrap: anywhere;
+}
+.legal-document :where(ul, ol) {
+  padding-inline-start: 1.25rem;
+}

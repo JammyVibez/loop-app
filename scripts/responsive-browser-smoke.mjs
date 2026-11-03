@@ -39,6 +39,13 @@ try {
         if (response.status() >= 500) throw new Error("HTTP " + response.status())
 
         await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => undefined)
+        if (route === "/") {
+          await page.waitForFunction(
+            () => document.querySelector('[data-home-hydrated="true"]') !== null,
+            null,
+            { timeout: 12000 },
+          )
+        }
         await page.waitForTimeout(250)
 
         const layout = await page.evaluate(() => ({

@@ -160,8 +160,8 @@ export default function PrivacyPolicyPage() {
   const legalInfo = getLegalPublicationInfo()
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-4xl px-4 py-10">
+    <main className="legal-document min-h-screen w-full min-w-0 bg-background">
+      <div className="mx-auto w-full min-w-0 max-w-4xl px-3 py-8 sm:px-4 sm:py-10">
         <div className="mb-10">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Privacy Policy</h1>
           <p className="mt-3 text-sm text-muted-foreground">
@@ -258,6 +258,6 @@ export default function PrivacyPolicyPage() {
           </Link>
         </div>
       </div>
-    </div>
+    </main>
   )
 }
