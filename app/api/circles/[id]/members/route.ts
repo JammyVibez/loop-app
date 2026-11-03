@@ -73,9 +73,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const supabase = getCircleMembersClient()
-    if (!supabase) return NextResponse.json({ error: "Circle member service is unavailable" }, { status: 503 })
-
     const { id: circleId } = await params
     const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
     if (!uuidPattern.test(circleId)) {
@@ -128,6 +125,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         sanitizedPermissions[key] = value
       }
     }
+
+    const supabase = getCircleMembersClient()
+    if (!supabase) return NextResponse.json({ error: "Circle member service is unavailable" }, { status: 503 })
 
     const { data, error } = await supabase.rpc("update_circle_member", {
       p_circle_id: circleId,
