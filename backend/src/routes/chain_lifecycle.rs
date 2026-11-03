@@ -437,6 +437,7 @@ pub async fn update_contribution(
         FROM chain_contributions AS contribution
         JOIN chains AS chain ON chain.id = contribution.chain_id
         WHERE chain.id = $1 AND contribution.id = $2
+          AND chain.status = 'active'
           AND contribution.status = 'published'
           AND contribution.author_id = $3
           AND (
@@ -741,6 +742,7 @@ pub async fn restore_contribution_revision(
         JOIN chains AS chain ON chain.id = contribution.chain_id
         WHERE chain.id = $1
           AND contribution.id = $2
+          AND chain.status = 'active'
           AND contribution.status = 'published'
           AND contribution.author_id = $3
           AND (
