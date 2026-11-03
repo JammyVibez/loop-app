@@ -1,6 +1,6 @@
 # LOOP Major Redevelopment — Agent Handoff
 
-> Last reviewed: 2 November 2026. Active work remains on PR #1; this document is the durable continuation brief.
+> Last reviewed: 3 November 2026. Active work remains on PR #1; this document is the durable continuation brief.
 
 ## Active repository and non-negotiable workflow
 
@@ -73,6 +73,17 @@ Finish and verify: durable invitations and revocation, active-session authorizat
 - Verification: blue mark with public criteria, evidence review, appeal and anti-impersonation controls. Never tie it to Premium.
 - Final phase: full Admin Dashboard, after all user-facing systems and moderation/permission/audit foundations are ready.
 
+## External launch information and environment gates
+
+The codebase does not contain several operator-specific facts that must not be invented:
+- Legal operator/controller name, registered address and a verified legal/privacy contact.
+- An alternate privacy-request channel for people who cannot sign in.
+- Confirmed retention and backup purge periods.
+- The actual production hosting, processor, data-residency and international-transfer locations/safeguards.
+- Owner-approved Stripe test/live credentials, webhook endpoint registration, billing-portal configuration and a staging account for end-to-end purchase/cancel/refund exercises.
+
+These are release blockers, not work that a repository commit can truthfully complete. Keep the Terms/Privacy acceptance gate in place, but do not represent the policy pages or paid checkout as production-approved until those details and the legal review are complete. Irish/EU digital-service withdrawal and digital-content consent requirements must be reviewed for each actual checkout flow; the Terms' explanation alone is not the consent UI.
+
 ## Release gates for each workstream
 
 1. Main mobile and web journeys work end to end.
@@ -91,6 +102,11 @@ Finish and verify: durable invitations and revocation, active-session authorizat
 - Achievement/profile visibility and earned-achievement showcase tests were added; live PostgreSQL reward/migration checks remain release gates.
 - Circle Events now require the server-only client and use an atomic RSVP lifecycle; real PostgreSQL concurrency checks remain release gates.
 - This batch hardens Circle member APIs and private-Circle access: privileged routes require the server key, public member rosters return only deliberate identity fields, and private access fails closed when infrastructure or lookups fail.
+- Circle member role updates and removal/ban use row-locked database functions; request payloads are validated before privileged-client access. The Circle Events RSVP tests use a future event end time so CI does not become dependent on the time of day the suite runs.
+- Public trending hashtag aggregation is now a strict production migration because a failed privacy filter must stop setup rather than leave a permissive legacy function in place.
+- One-time Stripe Pro grants now call a typed server helper backed by a row-locked SQL transaction. The entitlement and its unique wallet receipt row commit together, so concurrent webhook retries cannot extend the same checkout twice. Wallet payment-intent/refund columns are installed before the grant functions and the billing/refund migration is strict.
+- The legal consent screen and global signed-in gate are implemented, but the policy documents are not legally launch-ready until the operator supplies the legal entity/contact details, a verified alternate privacy contact, the actual backup deletion schedule, and the production provider/transfer locations and safeguards. The Terms also describe a separate express digital-content consent where required; the real checkout UX must be reviewed against the actual products and countries before paid launch.
+- No live PostgreSQL migration, Stripe test-mode purchase/portal/webhook, object-storage upload, or physical mobile/tablet accessibility pass has been claimed from CI alone. These remain explicit release gates until exercised in the target staging environment.
 
 
 ## 69. Collaborative objects are now part of universal search — 2026-11-02
