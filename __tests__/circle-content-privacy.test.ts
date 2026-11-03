@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
 import { filterCircleScopedContent } from "@/lib/circle-content-privacy"
 
 function database(fixtures: Record<string, { data: unknown; error: unknown }>) {
