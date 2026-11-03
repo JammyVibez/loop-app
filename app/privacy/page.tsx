@@ -7,7 +7,7 @@ const sections = [
     title: "Overview",
     body: [
       "This Privacy Policy explains how loopapp.me (\"we\", \"us\", or \"our\") collects, uses, shares, and protects your personal information when you use the loopapp.me platform (the \"Service\"). It applies to all users of the Service, whether you are a guest browsing public content or a registered account holder.",
-      "We collect the minimum personal information needed to run the Service, we do not sell your personal information, and we only share it with the service providers required to operate loopapp.me. By using the Service, you agree to the practices described in this policy.",
+      "We collect the personal information described in this policy to provide and protect the Service. We do not sell your personal information. When you create an account, LOOP asks you to confirm that you have read this policy. That acknowledgement records that the policy was presented to you; it does not replace any separate consent that may be required for a particular optional processing activity.",
     ],
   },
   {
