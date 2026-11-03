@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   canWriteCoLoopSession,
+  checkCoLoopInvitationRevocation,
   decideCoLoopInvitationResponse,
   decideCoLoopJoin,
   isCoLoopParticipant,
@@ -57,6 +58,61 @@ describe("Co-Loop invitation revocation", () => {
 })
 
 
+describe("Co-Loop invitation expiry access", () => {
+  function invitationLookup(data: unknown, error: { message?: string } | null = null) {
+    const query = {
+      select: vi.fn(() => query),
+      eq: vi.fn(() => query),
+      maybeSingle: vi.fn(async () => ({ data, error })),
+    }
+    return { from: vi.fn(() => query), query }
+  }
+
+  it("denies access when a pending invitation is already expired", async () => {
+    const db = invitationLookup({
+      status: "pending",
+      expires_at: "2026-11-01T12:00:00.000Z",
+    })
+    const result = await checkCoLoopInvitationRevocation(db, "session-1", "invitee-1")
+
+    expect(result).toEqual({ revoked: true, error: null })
+    expect(db.from).toHaveBeenCalledWith("co_loop_invitations")
+    expect(db.query.select).toHaveBeenCalledWith("status, expires_at")
+  })
+
+  it("denies pending invitations with missing or invalid expiry values", async () => {
+    const missing = invitationLookup({ status: "pending", expires_at: null })
+    const invalid = invitationLookup({ status: "pending", expires_at: "not-a-date" })
+
+    await expect(checkCoLoopInvitationRevocation(missing, "session-1", "invitee-1"))
+      .resolves.toEqual({ revoked: true, error: null })
+    await expect(checkCoLoopInvitationRevocation(invalid, "session-1", "invitee-1"))
+      .resolves.toEqual({ revoked: true, error: null })
+  })
+
+  it("does not expire accepted invitations or future pending invitations", async () => {
+    const accepted = invitationLookup({
+      status: "accepted",
+      expires_at: "2026-01-01T00:00:00.000Z",
+    })
+    const future = invitationLookup({
+      status: "pending",
+      expires_at: "2099-01-01T00:00:00.000Z",
+    })
+
+    await expect(checkCoLoopInvitationRevocation(accepted, "session-1", "invitee-1"))
+      .resolves.toEqual({ revoked: false, error: null })
+    await expect(checkCoLoopInvitationRevocation(future, "session-1", "invitee-1"))
+      .resolves.toEqual({ revoked: false, error: null })
+  })
+
+  it("fails closed when the invitation ledger cannot be read", async () => {
+    const db = invitationLookup(null, { message: "database unavailable" })
+    await expect(checkCoLoopInvitationRevocation(db, "session-1", "invitee-1"))
+      .resolves.toEqual({ revoked: false, error: "database unavailable" })
+  })
+})
+
 describe("Co-Loop invitation response eligibility", () => {
   const activeRoom = {
     owner_id: "host-1",
@@ -90,6 +146,8 @@ describe("Co-Loop session write lifecycle", () => {
   it("allows durable writes only while a session is active", () => {
     expect(canWriteCoLoopSession({ status: "active" })).toBe(true)
     expect(canWriteCoLoopSession({ status: "completed" })).toBe(false)
+    expect(canWriteCoLoopSession({ status: "ended" })).toBe(false)
+    expect(canWriteCoLoopSession({ status: "published" })).toBe(false)
     expect(canWriteCoLoopSession({ status: "inactive" })).toBe(false)
     expect(canWriteCoLoopSession({ status: "archived" })).toBe(false)
     expect(canWriteCoLoopSession({ status: "active", deleted_at: "2026-11-02T12:00:00Z" })).toBe(false)
