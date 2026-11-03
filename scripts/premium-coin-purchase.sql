@@ -143,6 +143,163 @@ BEGIN
 END
 $$;
 
+-- Stripe checkout grants are committed atomically with their unique receipt row.
+-- Stripe may deliver the same event more than once or concurrently; locking the
+-- profile serializes retries before the idempotency lookup and expiry update.
+CREATE OR REPLACE FUNCTION public.grant_stripe_premium_checkout(
+  p_user_id UUID,
+  p_transaction_id TEXT,
+  p_days INTEGER,
+  p_amount_usd NUMERIC,
+  p_payment_intent_id TEXT DEFAULT NULL,
+  p_plan TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp
+AS $
+DECLARE
+  v_profile public.profiles%ROWTYPE;
+  v_existing public.wallet_transactions%ROWTYPE;
+  v_expiry TIMESTAMPTZ;
+  v_now TIMESTAMPTZ := NOW();
+BEGIN
+  IF p_user_id IS NULL
+     OR p_transaction_id IS NULL
+     OR p_transaction_id !~ '^stripe_cs_(test|live)_[A-Za-z0-9]+
+ALTER TABLE public.wallet_transactions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read wallet_transactions" ON public.wallet_transactions;
+DROP POLICY IF EXISTS wallet_transactions_read_own ON public.wallet_transactions;
+CREATE POLICY wallet_transactions_read_own
+  ON public.wallet_transactions
+  FOR SELECT
+  TO authenticated
+  USING (auth.uid()::TEXT = user_id);
+
+REVOKE ALL ON TABLE public.wallet_transactions FROM PUBLIC;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE ALL ON TABLE public.wallet_transactions FROM anon;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON TABLE public.wallet_transactions FROM authenticated;
+    GRANT SELECT ON TABLE public.wallet_transactions TO authenticated;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.wallet_transactions TO service_role;
+  END IF;
+END
+$$;
+
+     OR p_days IS NULL OR p_days < 1 OR p_days > 3660
+     OR p_amount_usd IS NULL OR p_amount_usd < 0
+     OR (p_payment_intent_id IS NOT NULL AND char_length(p_payment_intent_id) > 255)
+     OR (p_plan IS NOT NULL AND char_length(p_plan) > 80) THEN
+    RAISE EXCEPTION 'Invalid Stripe Premium checkout grant'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT *
+    INTO v_profile
+    FROM public.profiles
+   WHERE id = p_user_id
+   FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Premium account profile not found'
+      USING ERRCODE = 'P0002';
+  END IF;
+
+  -- The profile lock serializes all grants for this account, including a
+  -- concurrent delivery of the same Checkout Session.
+  SELECT *
+    INTO v_existing
+    FROM public.wallet_transactions
+   WHERE id = p_transaction_id
+   FOR UPDATE;
+
+  IF FOUND THEN
+    IF v_existing.user_id IS DISTINCT FROM p_user_id::TEXT
+       OR v_existing.type IS DISTINCT FROM 'premium_purchase'
+       OR v_existing.payment_method IS DISTINCT FROM 'stripe' THEN
+      RAISE EXCEPTION 'Stripe checkout reference has already been used'
+        USING ERRCODE = '23505';
+    END IF;
+
+    RETURN JSONB_BUILD_OBJECT(
+      'premium_expires_at', v_profile.premium_expires_at,
+      'already_processed', TRUE
+    );
+  END IF;
+
+  IF v_profile.is_premium IS TRUE
+     AND v_profile.premium_expires_at IS NULL
+     AND COALESCE(v_profile.premium_source, 'legacy') <> 'stripe' THEN
+    RAISE EXCEPTION 'This account already has a non-expiring Pro grant'
+      USING ERRCODE = '55000';
+  END IF;
+
+  v_expiry := GREATEST(COALESCE(v_profile.premium_expires_at, v_now), v_now)
+    + make_interval(days => p_days);
+
+  UPDATE public.profiles
+     SET is_premium = TRUE,
+         premium_source = 'stripe_one_time',
+         premium_expires_at = v_expiry,
+         updated_at = v_now
+   WHERE id = p_user_id;
+
+  INSERT INTO public.wallet_transactions (
+    id,
+    user_id,
+    amount_usd,
+    coins_amount,
+    type,
+    description,
+    status,
+    payment_method,
+    payment_intent_id,
+    created_at
+  )
+  VALUES (
+    p_transaction_id,
+    p_user_id::TEXT,
+    p_amount_usd,
+    0,
+    'premium_purchase',
+    format('Loop Pro (%s days)', p_days),
+    'completed',
+    'stripe',
+    p_payment_intent_id,
+    v_now
+  );
+
+  RETURN JSONB_BUILD_OBJECT(
+    'premium_expires_at', v_expiry,
+    'already_processed', FALSE
+  );
+END;
+$;
+
+REVOKE ALL ON FUNCTION public.grant_stripe_premium_checkout(UUID, TEXT, INTEGER, NUMERIC, TEXT, TEXT) FROM PUBLIC;
+
+DO $
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE ALL ON FUNCTION public.grant_stripe_premium_checkout(UUID, TEXT, INTEGER, NUMERIC, TEXT, TEXT) FROM anon;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON FUNCTION public.grant_stripe_premium_checkout(UUID, TEXT, INTEGER, NUMERIC, TEXT, TEXT) FROM authenticated;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+    GRANT EXECUTE ON FUNCTION public.grant_stripe_premium_checkout(UUID, TEXT, INTEGER, NUMERIC, TEXT, TEXT) TO service_role;
+  END IF;
+END
+$;
+
 -- Wallet transactions are account financial records, not public social data.
 ALTER TABLE public.wallet_transactions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow public read wallet_transactions" ON public.wallet_transactions;
