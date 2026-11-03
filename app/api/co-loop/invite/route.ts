@@ -77,6 +77,7 @@ export async function POST(request: NextRequest) {
       id?: string
       reserved_count?: number
       capacity?: number
+      expires_at?: string
     } | null
     if (!reservation?.id) {
       console.error("Atomic Co-Loop invitation returned no reservation ID")
@@ -115,6 +116,7 @@ export async function POST(request: NextRequest) {
         data: {
           session_id: sessionId,
           invitation_id: reservation.id,
+          invitation_expires_at: reservation.expires_at,
           inviter_id: inviter.id,
           inviter_name: inviterName,
           inviter_avatar: inviterProfile.avatar_url,
@@ -184,7 +186,8 @@ export async function POST(request: NextRequest) {
         `${inviterName} invited you to edit live on ${titleText}.`,
         "",
         `[Accept and join the session](${joinUrl})`,
-      ].join("\n")
+        reservation.expires_at ? `This invitation expires ${new Date(reservation.expires_at).toLocaleString()}.` : "",
+      ].filter(Boolean).join("\n")
 
       const { error: messageError } = await supabase.from("messages").insert({
         conversation_id: conversationId,
@@ -225,6 +228,7 @@ export async function POST(request: NextRequest) {
       invitation_id: reservation.id,
       capacity: reservation.capacity,
       reserved_count: reservation.reserved_count,
+      expires_at: reservation.expires_at,
       delivered_via: [notificationSent ? "notification" : null, messageSent ? "message" : null].filter(Boolean),
       message: "Invitation sent successfully.",
     })
