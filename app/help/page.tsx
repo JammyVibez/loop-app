@@ -337,6 +337,22 @@ export default function HelpPage() {
                   </h2>
                 </CardHeader>
                 <CardContent>
+                  {!user ? (
+                    <div className="rounded-xl border border-border bg-muted/30 p-5">
+                      <h3 className="font-medium">Sign in to contact support</h3>
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                        Tickets contain account-related details and replies, so you need to sign in before submitting one.
+                        You can still read the public Terms of Service and Privacy Policy without an account.
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-3">
+                        <Button asChild size="sm" className="rounded-full">
+                          <Link href="/login?redirect=%2Fhelp">Sign in</Link>
+                        </Button>
+                        <Link href="/terms" className="inline-flex items-center text-sm text-primary underline underline-offset-4">Terms</Link>
+                        <Link href="/privacy" className="inline-flex items-center text-sm text-primary underline underline-offset-4">Privacy</Link>
+                      </div>
+                    </div>
+                  ) : (
                   <form onSubmit={handleSupportSubmit} className="space-y-4">
                     <div>
                       <label className="text-sm font-medium mb-2 block">Subject</label>
@@ -359,7 +375,8 @@ export default function HelpPage() {
                         <option value="technical">Technical Issue</option>
                         <option value="billing">Billing & Payments</option>
                         <option value="account">Account Management</option>
-                        <option value="feature">Feature Request</option>
+                        <option value="suggestion">Feature Request</option>
+                        <option value="content">Content report</option>
                         <option value="privacy">Privacy &amp; data request</option>
                         <option value="other">Other</option>
                       </select>
@@ -391,6 +408,7 @@ export default function HelpPage() {
                       Submit Ticket
                     </Button>
                   </form>
+                  )}
                 </CardContent>
               </Card>
 
@@ -576,6 +594,10 @@ export default function HelpPage() {
           </TabsContent>
         </Tabs>
       </div>
+      <footer className="mt-12 flex flex-wrap justify-center gap-4 border-t border-border/70 pt-6 text-xs text-muted-foreground">
+        <Link href="/terms" className="hover:text-foreground">Terms of Service</Link>
+        <Link href="/privacy" className="hover:text-foreground">Privacy Policy</Link>
+      </footer>
     </div>
   )
 }
