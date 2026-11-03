@@ -270,7 +270,7 @@ $$;
     p_amount_usd,
     0,
     'premium_purchase',
-    format('Loop Pro (%s days)', p_days),
+    format('Loop Pro %s (%s days)', COALESCE(NULLIF(p_plan, ''), 'Pro'), p_days),
     'completed',
     'stripe',
     p_payment_intent_id,
