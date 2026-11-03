@@ -10,7 +10,7 @@ import { rustApiRequest } from "@/lib/rust-api"
 export function OnboardingRedirect({ children }: { children: React.ReactNode }) {
   const { user, loading, refreshUser } = useAuth()
   const authToken = user?.access_token || user?.token
-  const authHeaders = authToken ? { Authorization: `Bearer ${authToken}` } : {}
+  const authHeaders: Record<string, string> = authToken ? { Authorization: `Bearer ${authToken}` } : {}
   const router = useRouter()
   const pathname = usePathname()
   const [redirecting, setRedirecting] = useState(false)
