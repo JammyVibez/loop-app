@@ -16,6 +16,7 @@ import { ScreenshotDetector } from "@/components/media-protection"
 export function AppChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isMessagesPage = pathname === "/messages" || pathname.startsWith("/messages/")
+  const isLegalDocumentPage = pathname === "/terms" || pathname === "/privacy"
   const isStandalonePage = [
     "/login",
     "/signup",
@@ -31,7 +32,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <div className={`loop-app-content flex-1 min-w-0 ${isMessagesPage || isStandalonePage ? "pb-0" : "pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0"}`}>
+      <div className={`loop-app-content flex-1 min-w-0 ${isMessagesPage || isStandalonePage ? "pb-0" : "pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0"} ${isLegalDocumentPage ? "legal-page-shell" : ""}`}>
         {!isMessagesPage && !isStandalonePage && <AppUpdateBanner />}
         {children}
       </div>

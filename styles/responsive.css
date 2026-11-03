@@ -249,6 +249,17 @@ body { min-width: 320px; overflow-x: clip; }
 
 
 /* Legal pages must remain readable at the narrowest supported phone width. */
+.loop-app-content.legal-page-shell {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
+  contain: layout paint;
+}
+.loop-app-content.legal-page-shell > .legal-document {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
 .legal-document {
   box-sizing: border-box;
   width: 100%;

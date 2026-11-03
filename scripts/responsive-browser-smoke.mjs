@@ -66,15 +66,26 @@ try {
                     left: Math.round(rect.left * 10) / 10,
                     right: Math.round(rect.right * 10) / 10,
                     width: Math.round(rect.width * 10) / 10,
+                    clientWidth: element.clientWidth,
                     scrollWidth: element.scrollWidth,
                     overflowX: style.overflowX,
                     position: style.position,
+                    before: (() => { const pseudo = window.getComputedStyle(element, "::before"); return pseudo.content === "none" ? null : { content: pseudo.content, width: pseudo.width, left: pseudo.left, right: pseudo.right, transform: pseudo.transform }; })(),
+                    after: (() => { const pseudo = window.getComputedStyle(element, "::after"); return pseudo.content === "none" ? null : { content: pseudo.content, width: pseudo.width, left: pseudo.left, right: pseudo.right, transform: pseudo.transform }; })(),
                   }
                 })
-                .filter((element) => element.right > window.innerWidth + 1 || element.left < -1)
+                .filter((element) => element.right > window.innerWidth + 1 || element.left < -1 || element.scrollWidth > element.clientWidth + 1 || element.before || element.after)
                 .sort((a, b) => b.right - a.right)
                 .slice(0, 12)
             : [],
+          rootOverflow: {
+            html: { clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth },
+            body: { clientWidth: document.body?.clientWidth ?? 0, scrollWidth: document.body?.scrollWidth ?? 0 },
+            htmlBefore: (() => { const pseudo = window.getComputedStyle(document.documentElement, "::before"); return { content: pseudo.content, width: pseudo.width, left: pseudo.left, right: pseudo.right, transform: pseudo.transform }; })(),
+            htmlAfter: (() => { const pseudo = window.getComputedStyle(document.documentElement, "::after"); return { content: pseudo.content, width: pseudo.width, left: pseudo.left, right: pseudo.right, transform: pseudo.transform }; })(),
+            bodyBefore: (() => { const pseudo = window.getComputedStyle(document.body, "::before"); return { content: pseudo.content, width: pseudo.width, left: pseudo.left, right: pseudo.right, transform: pseudo.transform }; })(),
+            bodyAfter: (() => { const pseudo = window.getComputedStyle(document.body, "::after"); return { content: pseudo.content, width: pseudo.width, left: pseudo.left, right: pseudo.right, transform: pseudo.transform }; })(),
+          },
         }))
 
         if (layout.documentWidth > viewport.width + 1 || layout.bodyWidth > viewport.width + 1) {
