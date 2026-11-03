@@ -29,6 +29,9 @@ const EXCLUDED_PREFIXES = [
   "/verification",
   "/reset-password",
   "/landing",
+  "/legal",
+  "/terms",
+  "/privacy",
 ]
 
 function isExcludedPath(pathname: string) {
