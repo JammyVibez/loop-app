@@ -59,7 +59,7 @@ const sections = [
     title: "When We Share Your Information",
     body: ["We do not sell your personal information. We share your information only in the following circumstances:"],
     list: [
-      "With service providers — companies that provide hosting, databases, authentication, media processing and storage, payment processing, email delivery, push notifications, customer support and analytics. Depending on the deployment, these may include the providers configured for LOOP such as Google sign-in, Stripe, Cloudinary, Vercel and email/push providers, or self-hosted infrastructure. Providers may process information only for their contracted role and under appropriate safeguards."
+      "With service providers — companies that provide hosting, databases, authentication, media processing and storage, payment processing, email delivery, push notifications, customer support and analytics. Depending on the deployment, these may include the providers configured for LOOP such as Google sign-in, Stripe, Cloudinary, Vercel and email/push providers, or self-hosted infrastructure. Providers may process information only for their contracted role and under appropriate safeguards.",
       "With other users — the information you make public (your username, display name, avatar, posts, and interactions) is visible to other users as part of the Service's intended functionality.",
       "For safety and legal reasons — when we reasonably believe disclosure is required by law, regulation, legal process, or governmental request, or is necessary to protect the rights, property, or safety of loopapp.me, our users, or the public.",
       "In a business transfer — if we are involved in a merger, acquisition, reorganization, or sale of assets, your information may be transferred as part of that transaction, subject to this Privacy Policy.",
@@ -81,7 +81,7 @@ const sections = [
     num: "7",
     title: "Cookies and Similar Technologies",
     body: [
-      "LOOP uses essential cookies and similar technologies to keep you signed in, protect sessions, remember necessary preferences and keep the Service working. Some optional analytics or embedded features may use additional technologies. Where applicable law requires consent before non-essential cookies or device storage are used, they must remain disabled until you make that choice. You can also control cookies through your browser, although blocking essential cookies may prevent sign-in or other features from working."
+      "LOOP uses essential cookies and similar technologies to keep you signed in, protect sessions, remember necessary preferences and keep the Service working. Some optional analytics or embedded features may use additional technologies. Where applicable law requires consent before non-essential cookies or device storage are used, they must remain disabled until you make that choice. You can also control cookies through your browser, although blocking essential cookies may prevent sign-in or other features from working.",
       "We also use analytics tools that may set their own cookies. You can disable cookies in your browser settings, but some parts of the Service may not work correctly without them.",
     ],
   },
@@ -91,7 +91,7 @@ const sections = [
     title: "Data Retention",
     body: [
       "We retain your personal information for as long as your account is active or as needed to provide the Service, comply with legal obligations, resolve disputes, and enforce our agreements.",
-      "When you delete your account, we remove or de-identify information according to the deletion workflow and applicable legal requirements. Some records may be retained where necessary for security, dispute resolution, payment/accounting obligations or legal claims. Backups are removed according to the applicable backup-retention cycle; a fixed purge period must be published by the Service operator once the production schedule is confirmed."
+      "When you delete your account, we remove or de-identify information according to the deletion workflow and applicable legal requirements. Some records may be retained where necessary for security, dispute resolution, payment/accounting obligations or legal claims. Backups are removed according to the applicable backup-retention cycle; a fixed purge period must be published by the Service operator once the production schedule is confirmed.",
       "Transactional and financial records may be retained longer where required by law or our payment partners' policies.",
     ],
   },
@@ -100,7 +100,7 @@ const sections = [
     num: "9",
     title: "How We Protect Your Information",
     body: [
-      "We use technical and organisational measures intended to protect information, including encrypted connections (TLS), password hashing, access controls for privileged systems, session security and monitoring for suspicious activity. Access to personal information should be limited to people and providers who need it for an authorised purpose."
+      "We use technical and organisational measures intended to protect information, including encrypted connections (TLS), password hashing, access controls for privileged systems, session security and monitoring for suspicious activity. Access to personal information should be limited to people and providers who need it for an authorised purpose.",
       "No method of transmission or storage is 100% secure. While we work to protect your information, we cannot guarantee its absolute security. You are responsible for keeping your password confidential and enabling all security features we offer.",
     ],
   },
