@@ -100,13 +100,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const { data: circle, error: circleError } = await supabase
       .from("circles")
-      .select("owner_id, creator_id")
+      .select("owner_id")
       .eq("id", circleId)
       .maybeSingle()
     if (circleError) return NextResponse.json({ error: "Could not load Circle" }, { status: 500 })
     if (!circle) return NextResponse.json({ error: "Circle not found" }, { status: 404 })
 
-    const ownerId = circle.owner_id || circle.creator_id
+    const ownerId = circle.owner_id
     let actorRole = ownerId === user.id ? "owner" : null
     if (!actorRole) {
       const { data: actor, error: actorError } = await supabase
@@ -233,13 +233,13 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     const { data: circle, error: circleError } = await supabase
       .from("circles")
-      .select("owner_id, creator_id")
+      .select("owner_id")
       .eq("id", circleId)
       .maybeSingle()
     if (circleError) return NextResponse.json({ error: "Could not load Circle" }, { status: 500 })
     if (!circle) return NextResponse.json({ error: "Circle not found" }, { status: 404 })
 
-    const ownerId = circle.owner_id || circle.creator_id
+    const ownerId = circle.owner_id
     let actorRole = ownerId === user.id ? "owner" : null
     if (!actorRole) {
       const { data: actor, error: actorError } = await supabase
