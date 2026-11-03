@@ -5,10 +5,8 @@ import { getUserFromRequest } from "@/lib/server-auth"
 import {
   canAssignCircleRole,
   canManageMemberSettings,
-  canRemoveCircleMember,
   normalizeRole,
 } from "@/lib/circle-permissions"
-import { syncCircleMemberCount } from "@/lib/circle-lifecycle"
 
 function getCircleMembersClient() {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return null
@@ -220,6 +218,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   try {
     const user = await getUserFromRequest(request)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
     const supabase = getCircleMembersClient()
     if (!supabase) return NextResponse.json({ error: "Circle member service is unavailable" }, { status: 503 })
 
@@ -227,71 +226,47 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const { searchParams } = new URL(request.url)
     const targetUserId = searchParams.get("userId")
     const action = searchParams.get("action") || "remove"
-    if (!targetUserId) return NextResponse.json({ error: "Target user ID is required" }, { status: 400 })
-    if (action !== "remove" && action !== "ban") return NextResponse.json({ error: "Action must be remove or ban" }, { status: 400 })
-    if (targetUserId === user.id) return NextResponse.json({ error: "You cannot remove or ban yourself through member management" }, { status: 409 })
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
-    const { data: circle, error: circleError } = await supabase
-      .from("circles")
-      .select("owner_id")
-      .eq("id", circleId)
-      .maybeSingle()
-    if (circleError) return NextResponse.json({ error: "Could not load Circle" }, { status: 500 })
-    if (!circle) return NextResponse.json({ error: "Circle not found" }, { status: 404 })
-
-    const ownerId = circle.owner_id
-    let actorRole = ownerId === user.id ? "owner" : null
-    if (!actorRole) {
-      const { data: actor, error: actorError } = await supabase
-        .from("circle_members")
-        .select("role, status")
-        .eq("circle_id", circleId)
-        .eq("user_id", user.id)
-        .maybeSingle()
-      if (actorError) return NextResponse.json({ error: "Could not verify Circle permissions" }, { status: 500 })
-      if (actor && ["active", "approved"].includes(String(actor.status))) actorRole = actor.role
+    if (!uuidPattern.test(circleId) || !targetUserId || !uuidPattern.test(targetUserId)) {
+      return NextResponse.json({ error: "A valid Circle and target user ID are required" }, { status: 400 })
+    }
+    if (action !== "remove" && action !== "ban") {
+      return NextResponse.json({ error: "Action must be remove or ban" }, { status: 400 })
+    }
+    if (targetUserId === user.id) {
+      return NextResponse.json({ error: "Use the leave Circle action to remove yourself" }, { status: 409 })
     }
 
-    const { data: target, error: targetError } = await supabase
-      .from("circle_members")
-      .select("id, user_id, role, status")
-      .eq("circle_id", circleId)
-      .eq("user_id", targetUserId)
-      .maybeSingle()
-    if (targetError) return NextResponse.json({ error: "Could not load target member" }, { status: 500 })
-    if (!target) return NextResponse.json({ error: "Member not found" }, { status: 404 })
-    if (!canRemoveCircleMember(actorRole, target.role)) {
-      return NextResponse.json({ error: "Cannot remove a member with an equal or higher role" }, { status: 403 })
-    }
-    if (target.status === "banned") {
-      return NextResponse.json({ error: "This member is already banned" }, { status: 409 })
+    // The RPC locks the Circle row, rechecks current actor/target roles and
+    // changes membership + member_count together with join/approval traffic.
+    const { data, error } = await supabase.rpc("manage_circle_member", {
+      p_circle_id: circleId,
+      p_actor_id: user.id,
+      p_target_user_id: targetUserId,
+      p_action: action,
+    })
+
+    if (error) {
+      console.error("Atomic Circle member moderation failed:", error)
+      if (error.code === "42501") return NextResponse.json({ error: error.message || "Insufficient Circle permissions" }, { status: 403 })
+      if (error.code === "P0002") return NextResponse.json({ error: "Circle or member not found" }, { status: 404 })
+      if (error.code === "55000") return NextResponse.json({ error: error.message || "Membership has already changed" }, { status: 409 })
+      if (error.code === "22023") return NextResponse.json({ error: error.message || "Invalid membership action" }, { status: 409 })
+      if (["42883", "42P01", "42703"].includes(error.code || "")) {
+        return NextResponse.json({ error: "Atomic Circle moderation is unavailable until the database migration is applied." }, { status: 503 })
+      }
+      return NextResponse.json({ error: "Could not update Circle membership" }, { status: 500 })
     }
 
-    if (action === "ban") {
-      const { data: updated, error: banError } = await supabase
-        .from("circle_members")
-        .update({ status: "banned" })
-        .eq("id", target.id)
-        .eq("status", target.status)
-        .select("id")
-        .maybeSingle()
-      if (banError) return NextResponse.json({ error: "Failed to ban member" }, { status: 500 })
-      if (!updated) return NextResponse.json({ error: "Member changed. Refresh and try again." }, { status: 409 })
-    } else {
-      const { data: removed, error: removeError } = await supabase
-        .from("circle_members")
-        .delete()
-        .eq("id", target.id)
-        .eq("status", target.status)
-        .select("id")
-        .maybeSingle()
-      if (removeError) return NextResponse.json({ error: "Failed to remove member" }, { status: 500 })
-      if (!removed) return NextResponse.json({ error: "Member changed. Refresh and try again." }, { status: 409 })
-    }
-
-    const { error: countError } = await syncCircleMemberCount(supabase, circleId)
-    if (countError) {
-      console.error("Circle member count sync failed after moderation:", countError)
+    const result = (Array.isArray(data) ? data[0] : data) as {
+      circle_id?: string
+      user_id?: string
+      status?: string
+      member_count?: number
+    } | null
+    if (result?.circle_id !== circleId || result.user_id !== targetUserId || !["banned", "removed"].includes(result.status || "")) {
+      return NextResponse.json({ error: "Circle moderation returned an invalid result" }, { status: 500 })
     }
 
     try {
@@ -301,11 +276,13 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         payload: { action, userId: targetUserId },
       })
     } catch {
-      /* realtime refresh is best-effort */
+      /* realtime refresh is best-effort; the database result is canonical */
     }
 
     return NextResponse.json({
       success: true,
+      status: result.status,
+      member_count: result.member_count,
       message: action === "ban" ? "Member banned successfully" : "Member removed successfully",
     })
   } catch (error) {
