@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS public.co_loop_invitations (
     status TEXT NOT NULL DEFAULT 'pending'
         CHECK (status IN ('pending', 'accepted', 'declined', 'revoked', 'expired')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '7 days'),
     responded_at TIMESTAMPTZ,
     UNIQUE (session_id, invitee_id)
 );
