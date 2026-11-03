@@ -137,6 +137,8 @@ const files = [
   // Circle membership functions require the account suspension/deletion columns.
   // Row-locked public/private joins and approvals enforce Circle capacity.
   "scripts/circle-membership-lifecycle.sql",
+  // Canonical Circle ownership transfer and the owner member-role enum value.
+  "scripts/circle-owner-transfer.sql",
   // Community post enhancements: view_count column.
   "scripts/community-post-enhancements.sql",
 ]
@@ -247,7 +249,7 @@ function applyFile(file, { strict = false } = {}) {
 for (const file of files) {
   // Verification owns private identity evidence and the admin review function;
   // never report setup success when any part of this security migration fails.
-  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/discovery-preferences.sql", "scripts/user-blocks-schema.sql", "scripts/moderation-integrity.sql", "scripts/account-status-appeals-schema.sql", "scripts/circle-membership-lifecycle.sql", "scripts/co-loop-atomic-lifecycle.sql", "scripts/circle-event-rsvp-lifecycle.sql", "backend/migrations/0001_collections.sql", "scripts/premium-subscriptions-migration.sql", "scripts/premium-coin-purchase.sql", "scripts/achievements-system.sql", "scripts/achievements-integrity.sql"].includes(file) })
+  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/discovery-preferences.sql", "scripts/user-blocks-schema.sql", "scripts/moderation-integrity.sql", "scripts/account-status-appeals-schema.sql", "scripts/circle-membership-lifecycle.sql", "scripts/co-loop-atomic-lifecycle.sql", "scripts/circle-owner-transfer.sql", "scripts/circle-event-rsvp-lifecycle.sql", "backend/migrations/0001_collections.sql", "scripts/premium-subscriptions-migration.sql", "scripts/premium-coin-purchase.sql", "scripts/achievements-system.sql", "scripts/achievements-integrity.sql"].includes(file) })
 }
 
 if (process.argv.includes("--with-seed")) {
