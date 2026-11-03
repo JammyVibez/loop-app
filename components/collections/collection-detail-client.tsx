@@ -44,6 +44,7 @@ interface CollectionMemberInvitationResult {
   username: string
   role: "editor" | "viewer"
   status: "pending" | "active"
+  expires_at: string | null
 }
 
 interface CollectionPendingInvitation {
@@ -52,6 +53,7 @@ interface CollectionPendingInvitation {
   display_name: string
   role: "editor" | "viewer"
   invited_at: string
+  expires_at: string
 }
 
 interface CollectionDetail {
@@ -352,7 +354,7 @@ export function CollectionDetailClient({ collectionId }: { collectionId: string 
                         {invitation.display_name || invitation.username}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        @{invitation.username} · {invitation.role} · sent {new Date(invitation.invited_at).toLocaleDateString()}
+                        @{invitation.username} · {invitation.role} · sent {new Date(invitation.invited_at).toLocaleDateString()} · expires {new Date(invitation.expires_at).toLocaleDateString()}
                       </p>
                     </div>
                     <Badge variant="outline">Awaiting response</Badge>
