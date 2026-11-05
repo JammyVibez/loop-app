@@ -102,7 +102,8 @@ $$;
 -- Trigger: keep Pro memberships in sync with subscription state.
 CREATE OR REPLACE FUNCTION sync_pro_circle_membership() RETURNS trigger AS $$
 DECLARE
-  pro_circle_id UUID;
+  -- circles.id is UUID on a fresh setup and BIGINT on older databases.
+  pro_circle_id public.circles.id%TYPE;
   is_pro BOOLEAN;
 BEGIN
   IF TG_OP = 'UPDATE'

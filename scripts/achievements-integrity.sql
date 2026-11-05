@@ -109,7 +109,10 @@ DECLARE
   v_requirement RECORD;
   v_meets_requirement BOOLEAN;
   v_special_met BOOLEAN;
-  v_awarded_id UUID;
+  -- Follows user_achievements.id: UUID on the schema these files create, but
+  -- BIGINT on databases whose achievement tables predate it. A hard UUID here
+  -- makes every award fail with 'invalid input syntax for type uuid: "7"'.
+  v_awarded_id public.user_achievements.id%TYPE;
   v_new_level INTEGER;
   v_reward_coins INTEGER;
 BEGIN
@@ -325,7 +328,7 @@ SET search_path = pg_catalog, public, pg_temp
 AS $$
 DECLARE
   v_actor_id UUID;
-  v_loop_id UUID;
+  v_loop_id public.loop_interactions.loop_id%TYPE;
   v_author_id UUID;
   v_delta INTEGER;
   v_interaction_type TEXT;
@@ -374,7 +377,7 @@ SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp
 AS $$
 DECLARE
-  v_loop_id UUID;
+  v_loop_id public.comments.loop_id%TYPE;
   v_comment_author_id UUID;
   v_delta INTEGER;
   v_loop_author_id UUID;

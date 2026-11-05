@@ -34,6 +34,28 @@ BEGIN
     END IF;
 END $$;
 
+-- Databases whose loops.id is TEXT (snowflake ids) can neither hold a loop id
+-- in a UUID column nor create the foreign key above, so publishing a Co-Loop
+-- fails with 'invalid input syntax for type uuid: "531…"'. Convert the column
+-- once, in place, keeping whatever ids are already stored.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'co_loop_sessions'
+          AND column_name = 'published_loop_id' AND data_type = 'uuid'
+    ) AND EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'loops'
+          AND column_name = 'id' AND data_type = 'text'
+    ) THEN
+        ALTER TABLE public.co_loop_sessions
+            DROP CONSTRAINT IF EXISTS co_loop_sessions_published_loop_id_fkey;
+        ALTER TABLE public.co_loop_sessions
+            ALTER COLUMN published_loop_id TYPE TEXT USING published_loop_id::text;
+    END IF;
+END $$;
+
 CREATE INDEX IF NOT EXISTS idx_co_loop_sessions_session_id ON public.co_loop_sessions(session_id);
 CREATE INDEX IF NOT EXISTS idx_co_loop_sessions_owner_id ON public.co_loop_sessions(owner_id);
 
