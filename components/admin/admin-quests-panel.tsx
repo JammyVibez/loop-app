@@ -36,6 +36,7 @@ import {
   Pencil,
   Plus,
   Trash2,
+  UserPlus,
   Zap,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -248,6 +249,7 @@ export function AdminQuestsPanel() {
   const [saving, setSaving] = useState(false)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editing, setEditing] = useState<Partial<AdminQuest>>(EMPTY)
+  const [inviteUsernames, setInviteUsernames] = useState("")
   const [statsFor, setStatsFor] = useState<AdminQuest | null>(null)
   const [statsData, setStatsData] = useState<QuestStats | null>(null)
   const [responsesFor, setResponsesFor] = useState<AdminQuest | null>(null)
@@ -292,6 +294,7 @@ export function AdminQuestsPanel() {
 
   const openEditor = (q?: AdminQuest) => {
     setEditing(q ? { ...q, target_value: q.requirement_count ?? q.target_value ?? 1 } : { ...EMPTY })
+    setInviteUsernames("")
     setEditorOpen(true)
   }
 
@@ -353,6 +356,12 @@ export function AdminQuestsPanel() {
           collection_tag: editing.collection_tag || null,
           mission_config: editing.mission_config || [],
           survey_config: editing.survey_config || [],
+          invite_usernames: isNew
+            ? inviteUsernames
+                .split(/[,\s]+/)
+                .map((value) => value.replace(/^@/, "").trim())
+                .filter(Boolean)
+            : [],
         }),
       })
       const data = await res.json()
@@ -589,6 +598,22 @@ export function AdminQuestsPanel() {
                 </Select>
               </div>
             </div>
+            {!editing.id && (
+              <div className="space-y-1.5 rounded-xl border border-dashed border-border/70 bg-muted/30 p-3">
+                <Label className="flex items-center gap-1.5">
+                  <UserPlus className="h-3.5 w-3.5" /> Invite friends
+                </Label>
+                <Input
+                  value={inviteUsernames}
+                  onChange={(e) => setInviteUsernames(e.target.value)}
+                  placeholder="@ada, @grace"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Each handle gets a notification pointing at this quest the moment it is created. Leave empty to
+                  publish without invites.
+                </p>
+              </div>
+            )}
             <div className="space-y-1">
               <Label>Description</Label>
               <Textarea rows={2} value={editing.description || ""} onChange={(e) => setEditing((p) => ({ ...p, description: e.target.value }))} placeholder="Complete five steps across the community to earn the limited badge." />

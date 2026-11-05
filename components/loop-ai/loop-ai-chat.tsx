@@ -1,23 +1,68 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { ArrowUp, Bot, Loader2, Sparkles, User } from "lucide-react"
+import {
+  ArrowUp,
+  Check,
+  Clock3,
+  Copy,
+  CornerDownLeft,
+  Loader2,
+  MessageSquarePlus,
+  PenLine,
+  ShieldCheck,
+  Sparkle,
+  Users,
+  Wand2,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
+import { LoopAiMark } from "@/components/loop-ai/loop-ai-mark"
 
-type Message = { role: "user" | "assistant"; content: string }
+type Message = { role: "user" | "assistant"; content: string; at?: number }
 
 const SUGGESTIONS = [
-  "Draft a Loop announcing my community's first event",
-  "Turn this idea into three opening lines for a discussion thread",
-  "Summarise what makes a good Circle welcome post",
-  "Rewrite this caption shorter and sharper:",
+  {
+    icon: PenLine,
+    title: "Draft a Loop",
+    body: "Announce my community's first event in two short paragraphs.",
+    prompt: "Draft a Loop announcing my community's first event. Keep it short and warm.",
+  },
+  {
+    icon: MessageSquarePlus,
+    title: "Open a discussion",
+    body: "Give me three opening lines that invite real replies.",
+    prompt: "Give me three opening lines for a discussion thread about building in public.",
+  },
+  {
+    icon: Wand2,
+    title: "Sharpen a caption",
+    body: "Rewrite something I wrote: shorter, clearer, no clichés.",
+    prompt: "Rewrite this caption shorter and sharper:\n\n",
+  },
+  {
+    icon: Users,
+    title: "Plan a Circle week",
+    body: "A lightweight schedule with one prompt per day.",
+    prompt: "Plan a lightweight week of prompts for a small design Circle, one per day.",
+  },
 ]
 
 const STORAGE_KEY = "loop-ai:conversation"
+
+function initialsOf(value?: string | null) {
+  if (!value) return "YOU"
+  const parts = value.replace(/[^a-zA-Z0-9 ]/g, " ").trim().split(/\s+/)
+  return (parts[0]?.[0] || "U").toUpperCase() + (parts[1]?.[0] || "").toUpperCase()
+}
+
+function timeLabel(at?: number) {
+  if (!at) return null
+  return new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+}
 
 export function LoopAiChat() {
   const { user, getAuthHeader } = useAuth()
@@ -25,18 +70,17 @@ export function LoopAiChat() {
   const [input, setInput] = useState("")
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [providerLabel, setProviderLabel] = useState<string | null>(null)
+  const [provider, setProvider] = useState<string | null>(null)
+  const [copied, setCopied] = useState<number | null>(null)
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const areaRef = useRef<HTMLTextAreaElement | null>(null)
 
-  // Keep the conversation in the tab so a refresh does not lose it.
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem(STORAGE_KEY)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed)) setMessages(parsed.slice(-20))
-      }
+      if (!saved) return
+      const parsed = JSON.parse(saved)
+      if (Array.isArray(parsed)) setMessages(parsed.slice(-20))
     } catch {
       /* ignore malformed drafts */
     }
@@ -54,12 +98,20 @@ export function LoopAiChat() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
   }, [messages, sending])
 
+  // Grow with what is typed, up to a ceiling, so long drafts stay readable.
+  useEffect(() => {
+    const area = areaRef.current
+    if (!area) return
+    area.style.height = "auto"
+    area.style.height = `${Math.min(area.scrollHeight, 176)}px`
+  }, [input])
+
   const send = useCallback(
     async (text: string) => {
       const trimmed = text.trim()
       if (!trimmed || sending) return
 
-      const next: Message[] = [...messages, { role: "user", content: trimmed }]
+      const next: Message[] = [...messages, { role: "user", content: trimmed, at: Date.now() }]
       setMessages(next)
       setInput("")
       setSending(true)
@@ -69,33 +121,46 @@ export function LoopAiChat() {
         const res = await fetch("/api/ai/chat", {
           method: "POST",
           headers: { ...getAuthHeader(), "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: next.slice(-12) }),
+          body: JSON.stringify({ messages: next.slice(-12).map(({ role, content }) => ({ role, content })) }),
         })
         const data = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(data.message || data.error || "Loop AI could not answer")
-        setProviderLabel(data.provider_label ? `${data.provider_label} · ${data.model}` : null)
-        setMessages((prev) => [...prev, { role: "assistant", content: String(data.reply || "") }])
+        setProvider(data.provider_label ? `${data.provider_label} · ${data.model}` : null)
+        setMessages((prev) => [...prev, { role: "assistant", content: String(data.reply || ""), at: Date.now() }])
       } catch (err: any) {
         setError(err.message || "Loop AI could not answer right now.")
       } finally {
         setSending(false)
-        areaRef.current?.focus()
+        requestAnimationFrame(() => areaRef.current?.focus())
       }
     },
     [getAuthHeader, messages, sending],
   )
 
+  const copy = async (index: number, content: string) => {
+    try {
+      await navigator.clipboard.writeText(content)
+      setCopied(index)
+      setTimeout(() => setCopied(null), 1600)
+    } catch {
+      /* clipboard blocked */
+    }
+  }
+
+  const started = messages.length > 0
+  const userLabel = useMemo(() => user?.display_name || user?.username || "You", [user])
+
   if (!user) {
     return (
-      <div className="rounded-3xl border border-border bg-card p-8 text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400/20 to-violet-500/20">
-          <Bot className="h-6 w-6 text-cyan-400" />
+      <div className="mx-auto max-w-lg rounded-[28px] border border-border/70 bg-card/70 p-10 text-center shadow-sm backdrop-blur">
+        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400/25 to-violet-500/25 text-cyan-300 ring-1 ring-cyan-400/30">
+          <LoopAiMark className="h-7 w-7" glow />
         </div>
-        <p className="text-sm font-semibold">Sign in to talk to Loop AI</p>
-        <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
-          It keeps your drafts and questions attached to your account.
+        <p className="text-base font-semibold">Sign in to talk to Loop AI</p>
+        <p className="mx-auto mt-1.5 max-w-xs text-sm text-muted-foreground">
+          Your drafts stay attached to your account, never to this browser.
         </p>
-        <Button asChild className="mt-5 rounded-full">
+        <Button asChild className="mt-6 rounded-full px-6">
           <Link href="/auth?returnTo=%2Floop-ai">Sign in</Link>
         </Button>
       </div>
@@ -103,150 +168,243 @@ export function LoopAiChat() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-12rem)] flex-col overflow-hidden rounded-3xl border border-border bg-card/60 shadow-sm backdrop-blur">
-      <div className="flex items-center justify-between gap-3 border-b border-border/70 px-5 py-3">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <Sparkles className="h-4 w-4 text-cyan-400" />
-          Loop AI
-          {providerLabel && (
-            <span className="hidden rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline">
-              {providerLabel}
-            </span>
-          )}
-        </div>
-        {messages.length > 0 && (
-          <button
-            type="button"
-            onClick={() => {
-              setMessages([])
-              setError(null)
-            }}
-            className="text-xs font-medium text-muted-foreground transition hover:text-foreground"
-          >
-            New chat
-          </button>
-        )}
-      </div>
-
-      <div className="flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-6">
-        {messages.length === 0 ? (
-          <div className="mx-auto max-w-xl pt-6 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400/25 via-indigo-500/20 to-fuchsia-500/25 ring-1 ring-cyan-400/25">
-              <Sparkles className="h-6 w-6 text-cyan-400" />
-            </div>
-            <h2 className="text-xl font-bold tracking-tight">What are we building today?</h2>
-            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-              Draft posts and threads, sharpen captions, plan a Circle week, or think out loud. Loop AI answers with
-              whichever provider your admin connected.
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_290px]">
+      {/* ── Conversation ─────────────────────────────────────────── */}
+      <section className="flex h-[calc(100dvh-13rem)] min-h-[520px] flex-col overflow-hidden rounded-[26px] border border-border/70 bg-card/70 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_20px_50px_-30px_rgba(0,0,0,0.5)] backdrop-blur">
+        <header className="flex items-center gap-3 border-b border-border/60 px-4 py-3 sm:px-5">
+          <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400/25 to-violet-500/25 text-cyan-300 ring-1 ring-cyan-400/25">
+            <LoopAiMark className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="flex items-center gap-1.5 text-sm font-semibold leading-tight">
+              Loop AI
+              <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+              <span className="text-[11px] font-medium text-muted-foreground">
+                {provider || "assistant"}
+              </span>
             </p>
-            <div className="mt-6 grid gap-2 sm:grid-cols-2">
-              {SUGGESTIONS.map((suggestion) => (
-                <button
-                  key={suggestion}
-                  type="button"
-                  onClick={() => void send(suggestion)}
-                  className="rounded-2xl border border-border bg-background/60 px-3.5 py-3 text-left text-xs font-medium leading-relaxed text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
+            <p className="truncate text-[11px] text-muted-foreground">
+              {sending ? "Thinking…" : started ? `${messages.length} messages this session` : "Ready when you are"}
+            </p>
           </div>
-        ) : (
-          messages.map((message, index) => (
-            <div
-              key={`${message.role}-${index}`}
-              className={cn("flex gap-3", message.role === "user" ? "justify-end" : "justify-start")}
+          {started && (
+            <button
+              type="button"
+              onClick={() => {
+                setMessages([])
+                setError(null)
+              }}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border/70 px-3 py-1.5 text-[11px] font-semibold text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
             >
-              {message.role === "assistant" && (
-                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400/20 to-fuchsia-500/20 ring-1 ring-cyan-400/25">
-                  <Sparkles className="h-4 w-4 text-cyan-400" />
-                </span>
-              )}
-              <div
-                className={cn(
-                  "max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed",
-                  message.role === "user"
-                    ? "rounded-br-md bg-primary text-primary-foreground"
-                    : "rounded-bl-md border border-border/70 bg-background/80",
-                )}
-              >
-                {message.content}
+              <MessageSquarePlus className="h-3.5 w-3.5" />
+              New chat
+            </button>
+          )}
+        </header>
+
+        <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
+          {!started ? (
+            <div className="mx-auto max-w-xl">
+              <div className="flex flex-col items-center text-center">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-cyan-400/20 via-indigo-500/15 to-fuchsia-500/20 text-cyan-300 ring-1 ring-cyan-400/25">
+                  <LoopAiMark className="h-8 w-8" glow />
+                </div>
+                <h2 className="text-[22px] font-black leading-tight tracking-tight">What are we making?</h2>
+                <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-muted-foreground">
+                  Loop AI helps you write Loops, shape threads, plan Circle weeks and untangle half-formed ideas.
+                </p>
               </div>
-              {message.role === "user" && (
-                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                </span>
+
+              <div className="mt-6 grid gap-2 sm:grid-cols-2">
+                {SUGGESTIONS.map(({ icon: Icon, title, body, prompt }) => (
+                  <button
+                    key={title}
+                    type="button"
+                    onClick={() => void send(prompt)}
+                    className="group flex flex-col items-start gap-1.5 rounded-2xl border border-border/70 bg-background/50 p-3.5 text-left transition hover:-translate-y-0.5 hover:border-cyan-400/40 hover:bg-background"
+                  >
+                    <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-cyan-500">
+                      <Icon className="h-3.5 w-3.5" />
+                      {title}
+                    </span>
+                    <span className="text-xs leading-relaxed text-muted-foreground group-hover:text-foreground/90">
+                      {body}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="mx-auto max-w-2xl space-y-5">
+              {messages.map((message, index) => (
+                <div key={`${message.role}-${index}`} className="flex gap-3">
+                  {/* Avatar rail */}
+                  <div className="w-8 shrink-0">
+                    {message.role === "assistant" ? (
+                      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400/25 to-violet-500/25 text-cyan-300 ring-1 ring-cyan-400/25">
+                        <LoopAiMark className="h-4 w-4" />
+                      </span>
+                    ) : (
+                      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-muted text-[10px] font-bold text-muted-foreground">
+                        {initialsOf(userLabel)}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <span className="font-semibold text-foreground/80">
+                        {message.role === "assistant" ? "Loop AI" : userLabel}
+                      </span>
+                      {timeLabel(message.at) && <span>· {timeLabel(message.at)}</span>}
+                    </div>
+
+                    {message.role === "assistant" ? (
+                      <div className="group relative rounded-2xl rounded-tl-md border border-border/60 bg-background/70 px-4 py-3 text-[13.5px] leading-relaxed">
+                        <p className="whitespace-pre-wrap">{message.content}</p>
+                        <button
+                          type="button"
+                          onClick={() => void copy(index, message.content)}
+                          className="absolute -top-2 right-2 inline-flex items-center gap-1 rounded-full border border-border/70 bg-card px-2 py-1 text-[10px] font-medium text-muted-foreground opacity-0 shadow-sm transition group-hover:opacity-100 focus-visible:opacity-100"
+                        >
+                          {copied === index ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                          {copied === index ? "Copied" : "Copy"}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="whitespace-pre-wrap rounded-2xl rounded-tl-md bg-primary px-4 py-3 text-[13.5px] leading-relaxed text-primary-foreground">
+                        {message.content}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {sending && (
+                <div className="flex gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400/25 to-violet-500/25 text-cyan-300 ring-1 ring-cyan-400/25">
+                    <LoopAiMark className="h-4 w-4 animate-pulse" />
+                  </span>
+                  <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-md border border-border/60 bg-background/70 px-4 py-3.5">
+                    {[0, 150, 300].map((delay) => (
+                      <span
+                        key={delay}
+                        className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60"
+                        style={{ animationDelay: `${delay}ms` }}
+                      />
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
-          ))
-        )}
+          )}
 
-        {sending && (
-          <div className="flex gap-3">
-            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400/20 to-fuchsia-500/20 ring-1 ring-cyan-400/25">
-              <Sparkles className="h-4 w-4 animate-pulse text-cyan-400" />
-            </span>
-            <div className="rounded-2xl rounded-bl-md border border-border/70 bg-background/80 px-4 py-3">
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          {error && (
+            <div className="mx-auto mt-5 max-w-2xl rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs leading-relaxed text-amber-700 dark:text-amber-300">
+              {error}
+              {error.toLowerCase().includes("admin") && (
+                <>
+                  {" "}
+                  <Link href="/loopadmin" className="font-semibold underline underline-offset-4">
+                    Open the admin panel
+                  </Link>
+                  .
+                </>
+              )}
             </div>
-          </div>
-        )}
+          )}
 
-        {error && (
-          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs leading-relaxed text-amber-700 dark:text-amber-300">
-            {error}
-            {error.toLowerCase().includes("admin") && (
-              <>
-                {" "}
-                <Link href="/loopadmin" className="font-semibold underline underline-offset-4">
-                  Open the admin panel
-                </Link>
-                .
-              </>
-            )}
-          </div>
-        )}
-
-        <div ref={bottomRef} />
-      </div>
-
-      <form
-        onSubmit={(event) => {
-          event.preventDefault()
-          void send(input)
-        }}
-        className="border-t border-border/70 bg-background/80 px-3 py-3 sm:px-4"
-      >
-        <div className="flex items-end gap-2 rounded-2xl border border-border bg-background px-3 py-2 focus-within:border-primary/50">
-          <Textarea
-            ref={areaRef}
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault()
-                void send(input)
-              }
-            }}
-            rows={1}
-            placeholder="Ask Loop AI anything…"
-            className="min-h-[38px] max-h-40 flex-1 resize-none border-0 bg-transparent px-0 py-2 text-sm shadow-none focus-visible:ring-0"
-          />
-          <Button
-            type="submit"
-            size="icon"
-            disabled={sending || !input.trim()}
-            className="h-9 w-9 shrink-0 rounded-full"
-            aria-label="Send"
-          >
-            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
-          </Button>
+          <div ref={bottomRef} />
         </div>
-        <p className="mt-2 text-center text-[10px] text-muted-foreground">
-          Loop AI can be wrong. Check anything important before you publish it.
-        </p>
-      </form>
+
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            void send(input)
+          }}
+          className="border-t border-border/60 bg-background/60 px-3 py-3 sm:px-4"
+        >
+          <div className="relative rounded-2xl border border-border/80 bg-background px-3.5 pb-2 pt-2.5 transition focus-within:border-cyan-400/50 focus-within:ring-4 focus-within:ring-cyan-400/10">
+            <Textarea
+              ref={areaRef}
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault()
+                  void send(input)
+                }
+              }}
+              rows={1}
+              placeholder="Ask Loop AI, or paste something to rewrite…"
+              className="max-h-44 min-h-[26px] resize-none border-0 bg-transparent p-0 pr-12 text-[13.5px] leading-6 shadow-none focus-visible:ring-0"
+            />
+            <Button
+              type="submit"
+              size="icon"
+              disabled={sending || !input.trim()}
+              className="absolute bottom-2 right-2 h-8 w-8 rounded-xl"
+              aria-label="Send message"
+            >
+              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
+            </Button>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1 text-[10px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <CornerDownLeft className="h-3 w-3" /> Enter to send · Shift + Enter for a new line
+            </span>
+            <span>Loop AI can be wrong. Check anything you publish.</span>
+          </div>
+        </form>
+      </section>
+
+      {/* ── Context rail ─────────────────────────────────────────── */}
+      <aside className="hidden flex-col gap-3 lg:flex">
+        <div className="rounded-2xl border border-border/70 bg-card/60 p-4">
+          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            <Sparkle className="h-3 w-3" /> What it's good at
+          </p>
+          <ul className="mt-3 space-y-2.5 text-xs leading-relaxed text-muted-foreground">
+            {[
+              "Drafting Loops, threads and Circle announcements",
+              "Rewriting captions in your own voice",
+              "Planning prompts and events across a week",
+              "Explaining how chains, drops and coins work",
+            ].map((line) => (
+              <li key={line} className="flex gap-2">
+                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-cyan-400" />
+                {line}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="rounded-2xl border border-border/70 bg-card/60 p-4">
+          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            <ShieldCheck className="h-3 w-3" /> Boundaries
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            It can't post, delete or change anything for you. It answers in chat, and tags you can use on Loops
+            (<code className="rounded bg-muted px-1 py-0.5 text-[10px]">@loopai</code>) reply where you mentioned it.
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-border/70 bg-card/60 p-4">
+          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            <Clock3 className="h-3 w-3" /> This session
+          </p>
+          <dl className="mt-2 space-y-1.5 text-xs">
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Messages</dt>
+              <dd className="font-semibold tabular-nums">{messages.length}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-foreground">Model</dt>
+              <dd className="truncate font-semibold">{provider || "default"}</dd>
+            </div>
+          </dl>
+        </div>
+      </aside>
     </div>
   )
 }

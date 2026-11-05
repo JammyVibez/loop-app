@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { LoopAiMark } from "@/components/loop-ai/loop-ai-mark"
 
 // Pages where the global Loop AI FAB doesn't belong: auth flows, the AI
 // workspace itself (redundant), chat/messages (has its own "new message"
@@ -94,7 +94,7 @@ export function GlobalFab() {
         title="Ask Loop AI"
       >
         <span className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-br from-cyan-400/40 to-fuchsia-500/40 opacity-0 blur-md transition-opacity duration-300 group-hover:opacity-100" />
-        <Sparkles className="relative h-7 w-7 stroke-[2.2]" />
+        <LoopAiMark className="relative h-7 w-7" glow />
         <span className="sr-only">Ask Loop AI</span>
       </Link>
     </div>

@@ -136,7 +136,51 @@ export async function POST(request: NextRequest) {
     const { data: created, error } = await supabase.from("quests").insert(quest).select().single()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    return NextResponse.json({ success: true, quest: created, message: "Quest created successfully" })
+    // Optional invite step: the admin can bring friends into a brand-new quest
+    // instead of waiting for it to surface on the board.
+    let invited = 0
+    const invitees = Array.isArray(body.invite_usernames)
+      ? body.invite_usernames
+          .map((value: unknown) => String(value || "").replace(/^@/, "").trim().toLowerCase())
+          .filter(Boolean)
+          .slice(0, 25)
+      : []
+
+    if (invitees.length) {
+      try {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, username")
+          .in("username", invitees)
+
+        const { notifyUser } = await import("@/lib/notifications")
+        for (const profile of profiles || []) {
+          if (profile.id === user!.id) continue
+          await notifyUser(supabase, {
+            userId: profile.id,
+            type: "quest",
+            title: `You're invited: ${quest.title}`,
+            message: user!.user_metadata?.display_name
+              ? `${user!.user_metadata.display_name} invited you to a new quest.`
+              : "A new quest is waiting for you.",
+            actorId: user!.id,
+            actionUrl: `/quests/${created.id}`,
+            data: { quest_id: created.id },
+            pushCategory: "system",
+          })
+          invited += 1
+        }
+      } catch (inviteError) {
+        console.warn("Quest invite failed:", inviteError)
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      quest: created,
+      invited,
+      message: invited > 0 ? `Quest created · ${invited} friend${invited === 1 ? "" : "s"} invited` : "Quest created successfully",
+    })
   } catch (error: any) {
     console.error("Error in quest POST:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

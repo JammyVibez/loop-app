@@ -5,25 +5,28 @@ import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Spinner } from "@/components/ui/skeletons"
 import {
+  ArrowRight,
   ChevronRight,
+  ClipboardList,
   Coins,
+  EyeOff,
   Flame,
   Gamepad2,
+  History,
   Hourglass,
   ListChecks,
   MessagesSquare,
   MonitorPlay,
   Package,
+  Sparkles,
   Star,
   Target,
   TrendingUp,
   Trophy,
-  ClipboardList,
-  EyeOff,
+  Users,
   Zap,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -76,13 +79,13 @@ interface BoardData {
   caps: { daily_coin_cap: number; daily_xp_cap: number; earned_today_coins: number; earned_today_xp: number }
 }
 
-const ACCENTS: Record<string, { chip: string; bar: string; ring: string; text: string }> = {
-  violet: { chip: "bg-violet-500/10 text-violet-500", bar: "bg-violet-500", ring: "ring-violet-500/30", text: "text-violet-500" },
-  amber: { chip: "bg-amber-500/10 text-amber-600", bar: "bg-amber-500", ring: "ring-amber-500/30", text: "text-amber-600" },
-  emerald: { chip: "bg-emerald-500/10 text-emerald-500", bar: "bg-emerald-500", ring: "ring-emerald-500/30", text: "text-emerald-500" },
-  cyan: { chip: "bg-cyan-500/10 text-cyan-500", bar: "bg-cyan-500", ring: "ring-cyan-500/30", text: "text-cyan-500" },
-  rose: { chip: "bg-rose-500/10 text-rose-500", bar: "bg-rose-500", ring: "ring-rose-500/30", text: "text-rose-500" },
-  sky: { chip: "bg-sky-500/10 text-sky-500", bar: "bg-sky-500", ring: "ring-sky-500/30", text: "text-sky-500" },
+const ACCENTS: Record<string, { chip: string; bar: string; ring: string; text: string; wash: string }> = {
+  violet: { chip: "bg-violet-500/10 text-violet-500", bar: "bg-violet-500", ring: "ring-violet-500/30", text: "text-violet-500", wash: "from-violet-500/25" },
+  amber: { chip: "bg-amber-500/10 text-amber-600", bar: "bg-amber-500", ring: "ring-amber-500/30", text: "text-amber-600", wash: "from-amber-500/25" },
+  emerald: { chip: "bg-emerald-500/10 text-emerald-500", bar: "bg-emerald-500", ring: "ring-emerald-500/30", text: "text-emerald-500", wash: "from-emerald-500/25" },
+  cyan: { chip: "bg-cyan-500/10 text-cyan-500", bar: "bg-cyan-500", ring: "ring-cyan-500/30", text: "text-cyan-500", wash: "from-cyan-500/25" },
+  rose: { chip: "bg-rose-500/10 text-rose-500", bar: "bg-rose-500", ring: "ring-rose-500/30", text: "text-rose-500", wash: "from-rose-500/25" },
+  sky: { chip: "bg-sky-500/10 text-sky-500", bar: "bg-sky-500", ring: "ring-sky-500/30", text: "text-sky-500", wash: "from-sky-500/25" },
 }
 
 const TYPE_ICON: Record<string, React.ElementType> = {
@@ -103,6 +106,8 @@ const CATEGORY_LABEL: Record<string, string> = {
   seasonal: "Limited Time",
 }
 
+type SectionKey = BoardSection | "completed"
+
 /* ------------------------------------------------------------------ */
 
 export default function QuestsClient() {
@@ -112,6 +117,7 @@ export default function QuestsClient() {
   const [loading, setLoading] = useState(true)
   const [claiming, setClaiming] = useState<string | null>(null)
   const [justClaimed, setJustClaimed] = useState<string | null>(null)
+  const [filter, setFilter] = useState<"all" | SectionKey>("all")
 
   const load = useCallback(async () => {
     if (!user) return
@@ -183,7 +189,7 @@ export default function QuestsClient() {
     const active = byState(data.quests, ["available", "in_progress", "claimable"])
     const claimed = byState(data.quests, ["claimed"])
 
-    const out: { key: BoardSection | "completed"; label: string; icon: React.ElementType; quests: BoardQuest[] }[] = []
+    const out: { key: SectionKey; label: string; icon: React.ElementType; quests: BoardQuest[] }[] = []
 
     const featuredMission = active.filter((q) => q.quest_kind === "mission" && q.featured)
     if (featuredMission.length > 0) out.push({ key: "featured", label: "Featured Mission", icon: Star, quests: featuredMission })
@@ -222,6 +228,22 @@ export default function QuestsClient() {
     return out
   }, [data])
 
+  const visibleSections = useMemo(
+    () => (filter === "all" ? sections : sections.filter((section) => section.key === filter)),
+    [sections, filter],
+  )
+
+  const filters = useMemo(
+    () =>
+      sections.map((section) => ({
+        key: section.key,
+        label: section.label,
+        icon: section.icon,
+        count: section.quests.length,
+      })),
+    [sections],
+  )
+
   /* ---------------- Render ---------------- */
 
   if (loading) {
@@ -235,142 +257,267 @@ export default function QuestsClient() {
   const xp = data?.quest_xp
   const xpPercent = xp?.nextXp ? Math.min(100, Math.round(((xp.xp - xp.minXp) / (xp.nextXp - xp.minXp)) * 100)) : 100
   const claimableCount = data?.quests.filter((q) => q.state === "claimable").length ?? 0
+  const coinPercent = Math.min(100, ((data?.caps.earned_today_coins || 0) / Math.max(1, data?.caps.daily_coin_cap || 1)) * 100)
 
   return (
-    <div className="mx-auto max-w-5xl px-3 pb-24 pt-4 sm:px-5 sm:pt-6">
-      {/* Hero */}
-      <header className="mb-6">
-        <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
-          QUESTS
-        </h1>
-        <p className="mt-1 text-lg font-semibold text-foreground/90 sm:text-xl">
-          Do more. Earn more. Unlock more.
-        </p>
-        <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-          Complete missions across Loop, discover new experiences, and earn rewards along the way.
-        </p>
-      </header>
-
-      {/* Progress header */}
-      {data && (
-        <section className="mb-8 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border bg-card p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Quest Level</p>
-              <Badge variant="secondary" className="rounded-full">{xp?.level ?? 1}</Badge>
-            </div>
-            <p className="mt-1 text-xl font-bold">{xp?.name ?? "Explorer"}</p>
-            <div className="mt-2 space-y-1">
-              <Progress value={xpPercent} className="h-1.5" />
-              <p className="text-[11px] text-muted-foreground">
-                {xp?.xp ?? 0} XP{xp?.nextXp ? ` · next level at ${xp.nextXp}` : " · max level"}
-              </p>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border bg-card p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Loop Coins</p>
-              <Coins className="h-4 w-4 text-amber-500" />
-            </div>
-            <p className="mt-1 text-xl font-bold tabular-nums">{(data.coins || 0).toLocaleString()}</p>
-            <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
-              <span>
-                {data.caps.earned_today_coins}/{data.caps.daily_coin_cap} earned today
+    <div className="w-full pb-28 pt-3 sm:pt-5">
+      <div className="mx-auto w-full max-w-[1500px] px-3 sm:px-6 lg:px-8">
+        {/* ── Hero ─────────────────────────────────────────────── */}
+        <header className="relative overflow-hidden rounded-[30px] border border-border/70 bg-card/70">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_120%_at_0%_0%,rgba(139,92,246,0.18),transparent_55%),radial-gradient(120%_120%_at_100%_0%,rgba(34,211,238,0.16),transparent_50%)]" />
+          <div className="relative grid gap-6 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+            <div>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                <Sparkles className="h-3 w-3 text-violet-500" />
+                Quest board
               </span>
-              <Link href="/wallet" className="font-medium text-primary hover:underline">
-                Wallet
-              </Link>
-            </div>
-            <Progress
-              value={Math.min(100, (data.caps.earned_today_coins / Math.max(1, data.caps.daily_coin_cap)) * 100)}
-              className="mt-1 h-1"
-            />
-          </div>
+              <h1 className="mt-3 text-[34px] font-black leading-[0.95] tracking-tight sm:text-5xl">
+                Do more.
+                <span className="block bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 bg-clip-text text-transparent">
+                  Earn more.
+                </span>
+              </h1>
+              <p className="mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">
+                Quests are short missions across LOOP — post, comment, run a Circle, play a round. Finish them, collect
+                coins and XP, and level up your name.
+              </p>
 
-          <div className="rounded-2xl border bg-card p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Daily Streak</p>
-              <Flame className={cn("h-4 w-4", (data.streak.current || 0) > 0 ? "text-orange-500" : "text-muted-foreground")} />
-            </div>
-            <p className="mt-1 text-xl font-bold tabular-nums">
-              {data.streak.current || 0} <span className="text-sm font-medium text-muted-foreground">day{(data.streak.current || 0) === 1 ? "" : "s"}</span>
-            </p>
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              Best: {data.streak.best || 0} · Complete a daily quest to keep it going
-            </p>
-          </div>
-        </section>
-      )}
-
-      {/* Claimable banner */}
-      {claimableCount > 0 && (
-        <section className="mb-8 overflow-hidden rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15">
-                <Trophy className="h-5 w-5 text-amber-500" />
+              <div className="mt-5 flex flex-wrap items-center gap-2">
+                <Button asChild className="rounded-full">
+                  <Link href={claimableCount > 0 ? "#ready-to-claim" : "#quest-sections"}>
+                    {claimableCount > 0 ? `Claim ${claimableCount} reward${claimableCount === 1 ? "" : "s"}` : "Browse quests"}
+                    <ArrowRight className="ml-1.5 h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="rounded-full">
+                  <Link href="/quests/history">
+                    <History className="mr-1.5 h-4 w-4" /> History
+                  </Link>
+                </Button>
               </div>
-              <div>
-                <p className="font-semibold">
-                  {claimableCount} reward{claimableCount === 1 ? "" : "s"} ready to claim
+            </div>
+
+            {/* Level ring */}
+            <div className="flex items-center gap-5 rounded-3xl border border-border/60 bg-background/50 p-4 sm:gap-6 sm:p-5">
+              <div className="relative h-24 w-24 shrink-0">
+                <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
+                  <circle cx="50" cy="50" r="42" fill="none" strokeWidth="8" className="stroke-muted" />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="42"
+                    fill="none"
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    strokeDasharray={`${(xpPercent / 100) * 264} 264`}
+                    className="stroke-violet-500 transition-all duration-700"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Level</span>
+                  <span className="text-2xl font-black leading-none tabular-nums">{xp?.level ?? 1}</span>
+                </div>
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold">{xp?.name ?? "Explorer"}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                  {xp?.xp ?? 0} XP{xp?.nextXp ? ` · ${xp.nextXp - (xp?.xp ?? 0)} to next` : " · max"}
                 </p>
-                <p className="text-sm text-muted-foreground">Finish the loop — collect what you earned.</p>
+                <div className="mt-3 flex items-center gap-3 text-xs">
+                  <span className="inline-flex items-center gap-1 font-bold text-amber-600">
+                    <Coins className="h-3.5 w-3.5" /> {(data?.coins || 0).toLocaleString()}
+                  </span>
+                  <span className="inline-flex items-center gap-1 font-bold text-orange-500">
+                    <Flame className="h-3.5 w-3.5" /> {data?.streak.current || 0}d
+                  </span>
+                </div>
               </div>
             </div>
-            <Button size="sm" className="rounded-full" onClick={() => document.getElementById("section-completed-claim")?.scrollIntoView({ behavior: "smooth" })}>
-              View
+          </div>
+
+          {/* Daily caps strip */}
+          <div className="relative grid divide-y border-t border-border/60 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            {[
+              {
+                label: "Coins today",
+                value: `${(data?.caps.earned_today_coins || 0).toLocaleString()} / ${(data?.caps.daily_coin_cap || 0).toLocaleString()}`,
+                percent: coinPercent,
+                icon: Coins,
+              },
+              {
+                label: "XP today",
+                value: `${(data?.caps.earned_today_xp || 0).toLocaleString()} / ${(data?.caps.daily_xp_cap || 0).toLocaleString()}`,
+                percent: Math.min(100, ((data?.caps.earned_today_xp || 0) / Math.max(1, data?.caps.daily_xp_cap || 1)) * 100),
+                icon: Zap,
+              },
+              {
+                label: "Best streak",
+                value: `${data?.streak.best || 0} day${(data?.streak.best || 0) === 1 ? "" : "s"}`,
+                percent: Math.min(100, ((data?.streak.current || 0) / Math.max(1, data?.streak.best || 1)) * 100),
+                icon: Flame,
+              },
+            ].map((stat) => (
+              <div key={stat.label} className="flex items-center gap-3 px-5 py-3.5">
+                <stat.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{stat.label}</span>
+                    <span className="truncate text-xs font-bold tabular-nums">{stat.value}</span>
+                  </div>
+                  <Progress value={stat.percent} className="mt-1.5 h-1" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </header>
+
+        {/* ── Ready to claim ───────────────────────────────────── */}
+        {claimableCount > 0 && (
+          <section
+            id="ready-to-claim"
+            className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/[0.07] px-4 py-3.5"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/15">
+                <Trophy className="h-4 w-4 text-amber-500" />
+              </span>
+              <div>
+                <p className="text-sm font-bold">
+                  {claimableCount} reward{claimableCount === 1 ? "" : "s"} waiting
+                </p>
+                <p className="text-xs text-muted-foreground">You finished the work — take the coins.</p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              className="rounded-full bg-amber-500 text-white hover:bg-amber-500/90"
+              onClick={() => document.getElementById("quest-sections")?.scrollIntoView({ behavior: "smooth" })}
+            >
+              Show claimable
             </Button>
+          </section>
+        )}
+
+        {/* ── Filters ──────────────────────────────────────────── */}
+        {sections.length > 0 && (
+          <div className="sticky top-0 z-20 -mx-3 mt-4 border-b border-border/60 bg-background/85 px-3 py-2.5 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {[{ key: "all" as const, label: "All", icon: Sparkles, count: data?.quests.length ?? 0 }, ...filters].map((item) => {
+                const active = filter === item.key
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setFilter(item.key)}
+                    className={cn(
+                      "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition",
+                      active
+                        ? "border-transparent bg-foreground text-background"
+                        : "border-border/70 bg-card/60 text-muted-foreground hover:border-foreground/25 hover:text-foreground",
+                    )}
+                  >
+                    <item.icon className="h-3.5 w-3.5" />
+                    {item.label}
+                    <span className={cn("tabular-nums", active ? "text-background/70" : "text-muted-foreground/70")}>
+                      {item.count}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
-        </section>
-      )}
+        )}
 
-      {/* Sections */}
-      {data && sections.length === 0 && (
-        <div className="rounded-2xl border border-dashed p-12 text-center">
-          <Target className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
-          <p className="font-medium">No quests right now</p>
-          <p className="text-sm text-muted-foreground">New quests and missions land regularly. Check back soon.</p>
-        </div>
-      )}
-
-      {sections.map((section) => (
-        <section key={`${section.key}-${section.label}`} className="mb-9">
-          <div className="mb-3 flex items-center gap-2">
-            <section.icon className="h-4 w-4 text-primary" />
-            <h2 className="text-base font-bold tracking-tight">{section.label}</h2>
-            <Badge variant="outline" className="rounded-full text-[10px] text-muted-foreground">
-              {section.quests.length}
-            </Badge>
-          </div>
-
-          {/* Featured mission gets a wide card */}
-          {section.key === "featured" && section.quests[0] ? (
-            <FeaturedMissionCard quest={section.quests[0]} onClaim={claim} claiming={claiming === section.quests[0].id} justClaimed={justClaimed === section.quests[0].id} onHide={hideQuest} />
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {section.quests.map((q) => (
-                <QuestCard
-                  key={q.id}
-                  quest={q}
-                  onClaim={claim}
-                  claiming={claiming === q.id}
-                  justClaimed={justClaimed === q.id}
-                  onHide={hideQuest}
-                />
-              ))}
+        {/* ── Sections ─────────────────────────────────────────── */}
+        <div id="quest-sections" className="mt-5">
+          {data && sections.length === 0 && (
+            <div className="rounded-3xl border border-dashed border-border/70 p-16 text-center">
+              <Target className="mx-auto mb-3 h-9 w-9 text-muted-foreground/40" />
+              <p className="font-semibold">No quests right now</p>
+              <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+                New missions land all the time. Follow a Circle or check back tomorrow — daily quests reset at midnight.
+              </p>
+              <Button asChild variant="outline" className="mt-5 rounded-full">
+                <Link href="/communities">
+                  <Users className="mr-1.5 h-4 w-4" /> Find a Circle
+                </Link>
+              </Button>
             </div>
           )}
-        </section>
-      ))}
 
-      {/* History link */}
-      <div className="mt-4 flex justify-center">
-        <Button variant="outline" className="rounded-full" asChild>
-          <Link href="/quests/history">
-            <Trophy className="mr-2 h-4 w-4" /> Quest history
-          </Link>
-        </Button>
+          {visibleSections.map((section) => (
+            <section key={`${section.key}-${section.label}`} className="mb-10 last:mb-0">
+              <div className="mb-3 flex items-end justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
+                    <section.icon className="h-3.5 w-3.5 text-primary" />
+                  </span>
+                  <h2 className="text-[15px] font-black uppercase tracking-[0.08em]">{section.label}</h2>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold tabular-nums text-muted-foreground">
+                    {section.quests.length}
+                  </span>
+                </div>
+                {section.key === "daily" && (
+                  <span className="hidden text-[11px] font-medium text-muted-foreground sm:inline">
+                    Resets daily · {formatTimeRemaining(section.quests[0]?.ends_at) || "midnight"}
+                  </span>
+                )}
+              </div>
+
+              {section.key === "featured" && section.quests[0] ? (
+                <div className="space-y-4">
+                  <FeaturedMissionCard
+                    quest={section.quests[0]}
+                    onClaim={claim}
+                    claiming={claiming === section.quests[0].id}
+                    justClaimed={justClaimed === section.quests[0].id}
+                    onHide={hideQuest}
+                  />
+                  {section.quests.slice(1).length > 0 && (
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                      {section.quests.slice(1).map((q) => (
+                        <QuestCard
+                          key={q.id}
+                          quest={q}
+                          onClaim={claim}
+                          claiming={claiming === q.id}
+                          justClaimed={justClaimed === q.id}
+                          onHide={hideQuest}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                  {section.quests.map((q) => (
+                    <QuestCard
+                      key={q.id}
+                      quest={q}
+                      onClaim={claim}
+                      claiming={claiming === q.id}
+                      justClaimed={justClaimed === q.id}
+                      onHide={hideQuest}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          ))}
+        </div>
+
+        {/* ── Bottom rail ──────────────────────────────────────── */}
+        <div className="mt-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/50 px-5 py-4">
+          <div>
+            <p className="text-sm font-bold">Wondering where a reward went?</p>
+            <p className="text-xs text-muted-foreground">Every claim is listed with its timestamp.</p>
+          </div>
+          <Button asChild variant="outline" className="rounded-full">
+            <Link href="/quests/history">
+              <History className="mr-1.5 h-4 w-4" /> Quest history
+            </Link>
+          </Button>
+        </div>
       </div>
     </div>
   )
@@ -378,7 +525,6 @@ export default function QuestsClient() {
 
 /* ------------------------------------------------------------------ */
 /* Cards                                                               */
-/* ------------------------------------------------------------------ */
 
 function QuestCard({
   quest,
@@ -408,113 +554,135 @@ function QuestCard({
     : quest.cta_text || "Start quest"
 
   return (
-    <div
+    <article
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
+        "group relative flex flex-col overflow-hidden rounded-3xl border border-border/70 bg-card transition-all duration-300 hover:-translate-y-1 hover:border-foreground/15 hover:shadow-[0_24px_50px_-30px_rgba(0,0,0,0.55)]",
         justClaimed && "quest-complete-burst",
       )}
     >
-      {/* Banner / artwork */}
-      <Link href={href} className="relative block h-24 overflow-hidden bg-muted">
+      <Link href={href} className="relative block h-32 overflow-hidden bg-muted">
         {quest.banner_url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={quest.banner_url} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+          <img
+            src={quest.banner_url}
+            alt=""
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.06]"
+          />
         ) : (
-          <div className={cn("flex h-full w-full items-center justify-center", a.chip)}>
-            <TypeIcon className="h-8 w-8 opacity-70" />
+          <div className={cn("relative flex h-full w-full items-center justify-center bg-gradient-to-br to-transparent", a.wash)}>
+            <TypeIcon className={cn("h-9 w-9 opacity-60", a.text)} />
           </div>
         )}
-        {quest.is_sponsored && (
-          <span className="absolute left-2 top-2 rounded-full bg-background/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-            Sponsored
-          </span>
-        )}
-        {timeLeft && (
-          <span className="absolute right-2 top-2 rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-semibold">
-            {timeLeft}
-          </span>
-        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
+
+        <div className="absolute inset-x-2.5 top-2.5 flex items-start justify-between gap-2">
+          {quest.is_sponsored ? (
+            <span className="rounded-full bg-background/85 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground backdrop-blur">
+              {quest.sponsor_name ? quest.sponsor_name : "Sponsored"}
+            </span>
+          ) : quest.category ? (
+            <span className={cn("rounded-full bg-background/85 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider backdrop-blur", a.text)}>
+              {CATEGORY_LABEL[quest.category] || quest.category}
+            </span>
+          ) : (
+            <span />
+          )}
+          {timeLeft && (
+            <span className="rounded-full bg-background/85 px-2 py-0.5 text-[10px] font-bold tabular-nums backdrop-blur">
+              {timeLeft}
+            </span>
+          )}
+        </div>
+
         <button
-          onClick={(e) => {
-            e.preventDefault()
+          onClick={(event) => {
+            event.preventDefault()
             onHide(quest.id)
           }}
           title="Hide this quest"
-          className="absolute bottom-2 right-2 rounded-full bg-background/90 p-1 opacity-0 transition-opacity group-hover:opacity-100"
+          className="absolute bottom-2 right-2 rounded-full bg-background/85 p-1.5 opacity-0 backdrop-blur transition-opacity group-hover:opacity-100"
         >
           <EyeOff className="h-3 w-3 text-muted-foreground" />
         </button>
       </Link>
 
       <div className="flex flex-1 flex-col p-4">
-        <div className="mb-2 flex items-center gap-1.5">
-          {quest.category && (
-            <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", a.chip)}>
-              {CATEGORY_LABEL[quest.category] || quest.category}
-            </span>
-          )}
+        <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground">
+          <TypeIcon className="h-3 w-3" />
+          <span className="uppercase tracking-wider">{quest.quest_type === "native" ? "In LOOP" : quest.quest_type}</span>
           {quest.difficulty && quest.difficulty !== "easy" && (
-            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-              {quest.difficulty}
-            </span>
+            <>
+              <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+              <span className="capitalize">{quest.difficulty}</span>
+            </>
           )}
         </div>
 
-        <Link href={href}>
-          <h3 className="line-clamp-1 font-bold leading-snug hover:underline">{quest.title}</h3>
+        <Link href={href} className="mt-0.5">
+          <h3 className="line-clamp-2 text-[15px] font-bold leading-snug transition-colors group-hover:text-primary">
+            {quest.title}
+          </h3>
         </Link>
         {quest.description && (
-          <p className="mt-0.5 line-clamp-2 min-h-[2rem] text-xs text-muted-foreground">{quest.description}</p>
+          <p className="mt-1 line-clamp-2 min-h-[2rem] text-xs leading-relaxed text-muted-foreground">{quest.description}</p>
         )}
 
-        {/* Progress */}
         <div className="mt-3">
           {isMission && quest.mission_progress ? (
             <>
-              <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-muted-foreground">
-                <span>MISSION PROGRESS</span>
-                <span>{quest.mission_progress.done} / {quest.mission_progress.total} COMPLETE</span>
+              <div className="mb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                <span>Mission</span>
+                <span className="tabular-nums">
+                  {quest.mission_progress.done} / {quest.mission_progress.total}
+                </span>
               </div>
               <Progress value={(quest.mission_progress.done / Math.max(1, quest.mission_progress.total)) * 100} className="h-1.5" />
             </>
           ) : quest.state !== "claimed" && quest.state !== "expired" ? (
             <>
-              <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-muted-foreground">
-                <span>PROGRESS</span>
-                <span>{quest.progress.count} / {quest.progress.required}</span>
+              <div className="mb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                <span>Progress</span>
+                <span className="tabular-nums">
+                  {quest.progress.count} / {quest.progress.required}
+                </span>
               </div>
-              <Progress value={quest.progress.percent} className="h-1.5" />
+              <Progress value={quest.progress.percent} className={cn("h-1.5", quest.state === "claimable" && "[&>div]:bg-emerald-500")} />
             </>
           ) : (
-            <p className="text-[11px] font-medium text-emerald-600">{quest.state === "claimed" ? "Completed and claimed" : "Expired"}</p>
+            <p className={cn("text-[11px] font-semibold", quest.state === "claimed" ? "text-emerald-600" : "text-muted-foreground")}>
+              {quest.state === "claimed" ? "Completed and claimed" : "Expired"}
+            </p>
           )}
         </div>
 
-        {/* Reward + meta */}
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-          {quest.reward_coins && quest.reward_coins > 0 && (
-            <span className="inline-flex items-center gap-1 font-semibold text-amber-600">
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+          {!!quest.reward_coins && quest.reward_coins > 0 && (
+            <span className="inline-flex items-center gap-1 font-bold text-amber-600">
               <Coins className="h-3 w-3" /> {quest.reward_coins.toLocaleString()}
             </span>
           )}
-          {quest.reward_xp && quest.reward_xp > 0 && (
-            <span className="inline-flex items-center gap-1 font-semibold text-violet-500">
+          {!!quest.reward_xp && quest.reward_xp > 0 && (
+            <span className="inline-flex items-center gap-1 font-bold text-violet-500">
               <Zap className="h-3 w-3" /> {quest.reward_xp.toLocaleString()} XP
             </span>
           )}
           {quest.reward_item_preview && (
-            <span className="inline-flex items-center gap-1 font-semibold text-pink-500">
+            <span className="inline-flex items-center gap-1 font-bold text-pink-500">
               <Package className="h-3 w-3" /> {quest.reward_item_preview.name}
             </span>
           )}
-          {est && <span>{est}</span>}
+          {est && <span className="text-muted-foreground">{est}</span>}
         </div>
 
-        {/* CTA */}
-        <div className="mt-4">
+        <div className="mt-4 pt-0">
           {quest.state === "claimable" ? (
-            <Button size="sm" className="w-full rounded-full" disabled={claiming} onClick={() => onClaim(quest)}>
-              {claiming ? <Spinner className="h-4 w-4" /> : <Trophy className="mr-1 h-3.5 w-3.5" />}
+            <Button
+              size="sm"
+              className="w-full rounded-full bg-emerald-600 hover:bg-emerald-600/90"
+              disabled={claiming}
+              onClick={() => onClaim(quest)}
+            >
+              {claiming ? <Spinner className="h-4 w-4" /> : <Trophy className="mr-1.5 h-3.5 w-3.5" />}
               Claim reward
             </Button>
           ) : quest.state === "claimed" || quest.state === "expired" ? (
@@ -522,7 +690,12 @@ function QuestCard({
               <span>{cta}</span>
             </Button>
           ) : (
-            <Button size="sm" variant={quest.state === "in_progress" ? "secondary" : "default"} className="w-full rounded-full" asChild>
+            <Button
+              size="sm"
+              variant={quest.state === "in_progress" ? "secondary" : "default"}
+              className="w-full rounded-full"
+              asChild
+            >
               <Link href={href}>
                 {cta}
                 <ChevronRight className="ml-1 h-3.5 w-3.5" />
@@ -531,7 +704,7 @@ function QuestCard({
           )}
         </div>
       </div>
-    </div>
+    </article>
   )
 }
 
@@ -556,82 +729,103 @@ function FeaturedMissionCard({
   const total = quest.mission_progress?.total ?? 5
 
   return (
-    <div className={cn("relative overflow-hidden rounded-2xl border bg-card", justClaimed && "quest-complete-burst")}>
-      <div className="relative h-36 bg-muted sm:h-44">
+    <article
+      className={cn(
+        "relative grid overflow-hidden rounded-[30px] border border-border/70 bg-card lg:grid-cols-[1.15fr_1fr]",
+        justClaimed && "quest-complete-burst",
+      )}
+    >
+      <div className="relative min-h-[210px] overflow-hidden bg-muted lg:min-h-[280px]">
         {quest.banner_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={quest.banner_url} alt="" className="h-full w-full object-cover" />
         ) : (
-          <div className={cn("flex h-full w-full items-center justify-center", a.chip)}>
-            <ListChecks className="h-12 w-12 opacity-60" />
+          <div className={cn("flex h-full w-full items-center justify-center bg-gradient-to-br to-transparent", a.wash)}>
+            <ListChecks className={cn("h-14 w-14 opacity-50", a.text)} />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
-        {quest.is_sponsored && (
-          <span className="absolute left-3 top-3 rounded-full bg-background/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            Sponsored{sponsorSuffix(quest.sponsor_name)}
+        <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent lg:bg-gradient-to-r lg:from-transparent lg:to-card" />
+
+        <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
+          <span className="rounded-full bg-background/85 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground backdrop-blur">
+            {quest.is_sponsored ? `Sponsored${sponsorSuffix(quest.sponsor_name)}` : "Featured mission"}
           </span>
-        )}
-        {timeLeft && (
-          <span className="absolute right-3 top-3 rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-semibold">
-            {timeLeft}
-          </span>
-        )}
-        <button
-          onClick={() => onHide(quest.id)}
-          title="Hide this quest"
-          className="absolute bottom-3 right-3 rounded-full bg-background/90 p-1.5"
-        >
-          <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
-        </button>
+          <div className="flex items-center gap-1.5">
+            {timeLeft && (
+              <span className="rounded-full bg-background/85 px-2.5 py-1 text-[11px] font-bold tabular-nums backdrop-blur">
+                {timeLeft}
+              </span>
+            )}
+            <button
+              onClick={() => onHide(quest.id)}
+              title="Hide this quest"
+              className="rounded-full bg-background/85 p-1.5 backdrop-blur"
+            >
+              <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="p-5 sm:p-6">
-        <p className={cn("text-[11px] font-bold uppercase tracking-widest", a.text)}>Featured Mission</p>
-        <h3 className="mt-1 text-2xl font-black tracking-tight">{quest.title}</h3>
-        {quest.description && <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{quest.description}</p>}
+      <div className="flex flex-col justify-center p-5 sm:p-7">
+        <p className={cn("text-[10px] font-bold uppercase tracking-[0.16em]", a.text)}>Featured mission</p>
+        <h3 className="mt-1.5 text-2xl font-black leading-tight tracking-tight sm:text-3xl">{quest.title}</h3>
+        {quest.description && (
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">{quest.description}</p>
+        )}
 
-        <div className="mt-4">
-          <div className="mb-1.5 flex items-center justify-between text-xs font-semibold">
-            <span className="uppercase tracking-wide text-muted-foreground">Mission Progress</span>
-            <span>{done} / {total} COMPLETE</span>
+        <div className="mt-5">
+          <div className="mb-1.5 flex items-center justify-between text-[11px] font-bold uppercase tracking-wider">
+            <span className="text-muted-foreground">Mission progress</span>
+            <span className="tabular-nums">
+              {done} / {total}
+            </span>
           </div>
           <Progress value={(done / Math.max(1, total)) * 100} className="h-2" />
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          {quest.reward_coins && quest.reward_coins > 0 && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1 text-sm font-bold text-amber-600">
-              <Coins className="h-4 w-4" /> {quest.reward_coins.toLocaleString()} Loop Coins
+        <div className="mt-5 flex flex-wrap items-center gap-2">
+          {!!quest.reward_coins && quest.reward_coins > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-600">
+              <Coins className="h-3.5 w-3.5" /> {quest.reward_coins.toLocaleString()}
+            </span>
+          )}
+          {!!quest.reward_xp && quest.reward_xp > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/10 px-3 py-1.5 text-xs font-bold text-violet-500">
+              <Zap className="h-3.5 w-3.5" /> {quest.reward_xp.toLocaleString()} XP
             </span>
           )}
           {quest.reward_item_preview && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-pink-500/10 px-3 py-1 text-sm font-bold text-pink-500">
-              <Package className="h-4 w-4" /> {quest.reward_item_preview.name}
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-pink-500/10 px-3 py-1.5 text-xs font-bold text-pink-500">
+              <Package className="h-3.5 w-3.5" /> {quest.reward_item_preview.name}
             </span>
           )}
-          <div className="ml-auto">
-            {quest.state === "claimable" ? (
-              <Button className="rounded-full" disabled={claiming} onClick={() => onClaim(quest)}>
-                {claiming ? <Spinner className="h-4 w-4" /> : <Trophy className="mr-1.5 h-4 w-4" />}
-                Claim reward
-              </Button>
-            ) : quest.state === "claimed" ? (
-              <Button variant="outline" className="rounded-full" disabled>
-                Claimed
-              </Button>
-            ) : (
-              <Button asChild className="rounded-full">
-                <Link href={`/quests/${quest.id}`}>
-                  {quest.state === "in_progress" ? "Continue mission" : "Start mission"}
-                  <ChevronRight className="ml-1 h-4 w-4" />
-                </Link>
-              </Button>
-            )}
-          </div>
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center gap-2">
+          {quest.state === "claimable" ? (
+            <Button className="rounded-full bg-emerald-600 hover:bg-emerald-600/90" disabled={claiming} onClick={() => onClaim(quest)}>
+              {claiming ? <Spinner className="h-4 w-4" /> : <Trophy className="mr-1.5 h-4 w-4" />}
+              Claim reward
+            </Button>
+          ) : quest.state === "claimed" ? (
+            <Button variant="outline" className="rounded-full" disabled>
+              Claimed
+            </Button>
+          ) : (
+            <Button asChild className="rounded-full">
+              <Link href={`/quests/${quest.id}`}>
+                {quest.state === "in_progress" ? "Continue mission" : "Start mission"}
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </Link>
+            </Button>
+          )}
+          <Button asChild variant="ghost" className="rounded-full">
+            <Link href={`/quests/${quest.id}`}>Details</Link>
+          </Button>
         </div>
       </div>
-    </div>
+    </article>
   )
 }
 

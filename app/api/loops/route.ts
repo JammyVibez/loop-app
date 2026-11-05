@@ -395,6 +395,44 @@ export async function POST(request: NextRequest) {
       if (rpcError) console.error("Error calling increment_loop_branches:", rpcError.message)
     }
 
+    // Tagging @loopai on a new Loop gets an answer in its comments, the same way
+    // tagging an account would. No provider or a failed call simply leaves the
+    // Loop unanswered.
+    let aiReply: any = null
+    try {
+      const { LOOP_AI_BOT_ID, buildLoopAiReply, ensureLoopAiBot, mentionsLoopAi } = await import(
+        "@/lib/loop-ai/mentions"
+      )
+      if (textContent && mentionsLoopAi(textContent) && (await ensureLoopAiBot())) {
+        const answer = await buildLoopAiReply({
+          question: textContent,
+          context: "The person just published this Loop and tagged you in it.",
+        })
+        if (answer) {
+          const { data: aiComment } = await supabase
+            .from("comments")
+            .insert({
+              loop_id: loop.id,
+              author_id: LOOP_AI_BOT_ID,
+              content: answer.text,
+            })
+            .select(
+              `*, author:profiles!comments_author_id_fkey(id, username, display_name, avatar_url, is_verified)`
+            )
+            .single()
+          if (aiComment) {
+            aiReply = aiComment
+            await supabase
+              .from("loop_stats")
+              .update({ comments_count: 1 })
+              .eq("loop_id", loop.id)
+          }
+        }
+      }
+    } catch (aiError) {
+      console.warn("Loop AI mention reply failed:", aiError)
+    }
+
     for (const tag of hashtags) {
       const { data: existingTag } = await supabase.from("hashtags").select("tag, usage_count").eq("tag", tag).maybeSingle()
       if (existingTag) {
@@ -458,7 +496,7 @@ export async function POST(request: NextRequest) {
       /* non-fatal */
     }
 
-    return NextResponse.json({ success: true, loop: normalizeLoop(loop) })
+    return NextResponse.json({ success: true, loop: normalizeLoop(loop), ai_reply: aiReply })
   } catch (error: any) {
     console.error("Create loop error:", error)
     return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 })

@@ -436,6 +436,9 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
       )
       setNewComment("")
       setNewAttachments([])
+      // An @loopai mention comes back answered; reload so the reply lands in
+      // its thread instead of waiting for the realtime echo.
+      if (data.ai_reply) void loadComments()
     } finally {
       setSubmitting(false)
     }

@@ -356,6 +356,57 @@ export async function POST(
       console.error("quest track (add_comment):", err)
     }
 
+    // Someone tagged the assistant: answer in the thread as Loop AI, the way
+    // an account would. A missing provider or a failed call leaves the mention
+    // unanswered instead of posting an error.
+    let aiReply: any = null
+    if (text) {
+      try {
+        const { LOOP_AI_BOT_ID, buildLoopAiReply, ensureLoopAiBot, mentionsLoopAi } = await import(
+          "@/lib/loop-ai/mentions"
+        )
+        if (mentionsLoopAi(text) && (await ensureLoopAiBot())) {
+          const { data: loopContext } = await supabase
+            .from("loops")
+            .select("content")
+            .eq("id", loopId)
+            .maybeSingle()
+          const answer = await buildLoopAiReply({
+            question: text,
+            context: `The Loop being discussed: "${String((loopContext as any)?.content || "").slice(0, 600)}"`,
+          })
+
+          if (answer) {
+            const { data: aiComment } = await supabase
+              .from("comments")
+              .insert({
+                loop_id: loopId,
+                author_id: LOOP_AI_BOT_ID,
+                content: answer.text,
+                parent_comment_id: comment.id,
+              })
+              .select(
+                `*,
+                author:profiles!comments_author_id_fkey(
+                  id, username, display_name, avatar_url, is_verified, is_premium, level, badge_id
+                )`
+              )
+              .single()
+
+            if (aiComment) {
+              aiReply = aiComment
+              await supabase.rpc("increment_loop_comments", { loop_id: loopId }).then(
+                () => undefined,
+                () => undefined,
+              )
+            }
+          }
+        }
+      } catch (aiError) {
+        console.warn("Loop AI mention reply failed:", aiError)
+      }
+    }
+
     // Broadcast real-time update
     await supabase.channel(`loop:${loopId}`)
       .send({
@@ -363,13 +414,15 @@ export async function POST(
         event: 'new_comment',
         payload: {
           comment,
+          ai_reply: aiReply,
           loop_id: loopId
         }
       })
 
     return NextResponse.json({
       success: true,
-      comment
+      comment,
+      ai_reply: aiReply
     })
 
   } catch (error: any) {
