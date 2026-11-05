@@ -46,6 +46,14 @@ export async function rustApiRequest<T>(path: string, init: RequestInit = {}): P
   }
 
   if (!response.ok) {
+    // An HTML body means the request never reached the API — Next's own 404/500
+    // page answered instead. Surfacing that document as the error message (the
+    // old behaviour) leaked "<!DOCTYPE html>…" into toasts and broke any screen
+    // that expected JSON, so report it as an unavailable service.
+    if (typeof payload === "string" && /<(!doctype|html)/i.test(payload.slice(0, 80))) {
+      throw new RustApiError("This service is not available right now.", 503, "service_unavailable")
+    }
+
     const errorPayload = payload && typeof payload === "object"
       ? payload as RustErrorPayload
       : undefined
