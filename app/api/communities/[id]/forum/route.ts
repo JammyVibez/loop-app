@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { communityClient, logCommunityActivity } from "@/lib/community-engine"
+import { canAdmin, communityClient, logCommunityActivity } from "@/lib/community-engine"
+import { resolveStaffRole } from "@/lib/staff-roles"
 import { checkCirclePrivateAccess } from "@/lib/circle-access"
 import { getUserFromRequest } from "@/lib/server-auth"
 import { normalizeRules } from "@/lib/community-rules"
@@ -82,7 +83,22 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         { status: 403 },
       )
     }
-    const canManage = Boolean(user && (isStaff || String(circle.owner_id) === user.id || String(circle.creator_id) === user.id))
+    // Platform staff (not just this community's staff) can run any community,
+    // so a reported or abandoned one never has to wait on its founder.
+    let isAppAdmin = false
+    if (user) {
+      const { data: profile } = await sb
+        .from("profiles")
+        .select("is_admin, is_moderator, staff_role")
+        .eq("id", user.id)
+        .maybeSingle()
+      const staffRole = resolveStaffRole(profile)
+      isAppAdmin = staffRole === "developer" || staffRole === "admin"
+    }
+
+    const isCommunityOwner = Boolean(user && (String(circle.owner_id) === user.id || String(circle.creator_id) === user.id))
+    const canManage = Boolean(user && (isStaff || isCommunityOwner || isAppAdmin))
+    const canDelete = Boolean(user && (isAppAdmin || isCommunityOwner || canAdmin(role)))
 
     // Thread creation is a permission ∩ community policy: by default every
     // member who holds "Open threads" may start one; an owner who switched the
@@ -311,7 +327,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         can_post: isMember,
         can_create: createDecision.allowed,
         is_staff: isStaff,
+        is_app_admin: isAppAdmin,
         can_manage: canManage,
+        can_delete: canDelete,
         can_comment: canComment(role, policy),
         role,
       },

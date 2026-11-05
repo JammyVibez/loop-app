@@ -3,20 +3,20 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Plus } from "lucide-react"
+import { Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-// Pages where a global "create" FAB doesn't belong: auth flows, the create
-// flow itself (redundant), Co-Loop studio/join (has its own primary
-// actions), chat/messages (has its own "new message" action), Reels (full-
-// screen video with its own controls), Circles/communities (has its own
-// per-room compose actions), Live streams (video + chat + gifting already
-// fill the screen), and settings/admin surfaces.
+// Pages where the global Loop AI FAB doesn't belong: auth flows, the AI
+// workspace itself (redundant), chat/messages (has its own "new message"
+// action), Reels (full-screen video with its own controls),
+// Circles/communities (has its own per-room compose actions), Live streams
+// (video + chat + gifting already fill the screen), and settings/admin surfaces.
 const EXCLUDED_PREFIXES = [
   "/login",
   "/signup",
   "/onboarding",
   "/create",
+  "/loop-ai",
   "/co-loop",
   "/messages",
   "/trees",
@@ -43,8 +43,8 @@ export function GlobalFab() {
   const [hidden, setHidden] = useState(false)
   const lastScrollY = useRef(0)
 
-  // X/Twitter-style compose button: hide while scrolling down (reading),
-  // reappear as soon as the user scrolls up, and always show near the top.
+  // Hide while scrolling down (reading), reappear as soon as the user scrolls
+  // up, and always show near the top.
   useEffect(() => {
     lastScrollY.current = window.scrollY
     let ticking = false
@@ -88,13 +88,14 @@ export function GlobalFab() {
       )}
     >
       <Link
-        href="/create"
-        data-tour="create-loop"
-        className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:scale-110 active:scale-95 transition-transform duration-200 focus:outline-none focus:ring-4 focus:ring-cyan-500/40 border border-white/20"
-        title="Create New Post / Loop"
+        href="/loop-ai"
+        data-tour="loop-ai"
+        className="group relative flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-gradient-to-br from-cyan-500 via-indigo-500 to-fuchsia-500 text-white shadow-lg shadow-indigo-500/30 transition-transform duration-200 hover:scale-110 active:scale-95 focus:outline-none focus:ring-4 focus:ring-cyan-500/40"
+        title="Ask Loop AI"
       >
-        <Plus className="h-7 w-7 stroke-[2.5]" />
-        <span className="sr-only">Create New Post</span>
+        <span className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-br from-cyan-400/40 to-fuchsia-500/40 opacity-0 blur-md transition-opacity duration-300 group-hover:opacity-100" />
+        <Sparkles className="relative h-7 w-7 stroke-[2.2]" />
+        <span className="sr-only">Ask Loop AI</span>
       </Link>
     </div>
   )

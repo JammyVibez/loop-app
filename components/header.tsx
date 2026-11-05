@@ -40,6 +40,7 @@ import { AnimatedIconView } from "@/components/icons/animated/animated-icon-view
 import MagnifierIcon from "@/components/icons/animated/magnifier-icon"
 import { useAuth } from "@/hooks/use-auth"
 import { NotificationDropdown } from "@/components/notifications/notification-dropdown"
+import { NotificationCenterSheet } from "@/components/notifications/notification-center-sheet"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { UserBadges } from "@/components/user-badge"
 import { AccountSwitcher } from "@/components/accounts/account-switcher"
@@ -195,10 +196,13 @@ export function Header() {
             {Number(user.loop_coins || 0).toLocaleString()}
           </Link>
 
-          {/* Notifications */}
-          {/* On phones the bell lives in the tab bar, with its unread count. */}
-          <span data-tour="notifications" className="hidden lg:inline-flex">
-            <NotificationDropdown />
+          {/* Notifications — a compact dropdown on desktop, a full-height
+              slide-over center on phones and tablets (the tab bar has no bell). */}
+          <span data-tour="notifications" className="inline-flex">
+            <span className="hidden lg:inline-flex">
+              <NotificationDropdown />
+            </span>
+            <NotificationCenterSheet className="lg:hidden" />
           </span>
 
           {/* Consolidated User Profile Avatar Dropdown */}

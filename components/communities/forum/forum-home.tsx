@@ -97,7 +97,9 @@ type ForumData = {
     can_post: boolean
     can_create?: boolean
     is_staff: boolean
+    is_app_admin?: boolean
     can_manage: boolean
+    can_delete?: boolean
     role: string | null
   }
   threads: Thread[]
@@ -238,9 +240,10 @@ export function ForumHome({ communityId }: { communityId: string }) {
 
   const community = data?.community
   const viewer = data?.viewer
-  // Only the founder and admins may destroy the whole world; moderators can
-  // still run it from Settings and People.
-  const canDeleteCommunity = viewer?.role === "owner" || viewer?.role === "admin"
+  // Only the founder and this community's admins may destroy the whole world;
+  // moderators can still run it from Settings and People. Platform staff can
+  // delete any community (the server re-checks on DELETE).
+  const canDeleteCommunity = viewer?.can_delete ?? (viewer?.role === "owner" || viewer?.role === "admin")
   const forums = useMemo(() => data?.forums || [], [data?.forums])
   const rules: string[] = useMemo(
     () => (Array.isArray(community?.rules) ? community.rules.filter((r: any) => typeof r === "string" && r.trim()) : []),

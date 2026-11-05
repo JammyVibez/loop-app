@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { communityClient, getWorldBundle, logCommunityActivity, canAdmin } from "@/lib/community-engine"
+import { resolveStaffRole } from "@/lib/staff-roles"
 import { hardDeleteCircle } from "@/lib/circle-lifecycle"
 import { getUserFromRequest } from "@/lib/server-auth"
 
@@ -115,9 +116,10 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     // founder to answer.
     const [{ data: membership }, { data: profile }] = await Promise.all([
       sb.from("circle_members").select("role").eq("circle_id", id).eq("user_id", user.id).maybeSingle(),
-      sb.from("profiles").select("is_admin").eq("id", user.id).maybeSingle(),
+      sb.from("profiles").select("is_admin, is_moderator, staff_role").eq("id", user.id).maybeSingle(),
     ])
-    if (!canAdmin(membership?.role) && !profile?.is_admin) {
+    const staffRole = resolveStaffRole(profile)
+    if (!canAdmin(membership?.role) && staffRole !== "developer" && staffRole !== "admin") {
       return NextResponse.json({ error: "Only the owner or an admin can delete this community" }, { status: 403 })
     }
 

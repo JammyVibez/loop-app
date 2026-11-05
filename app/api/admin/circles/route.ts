@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
-import { getUserFromRequest } from "@/lib/server-auth";
+import { getUserFromRequest, requireAdmin } from "@/lib/server-auth";
 
 const supabase = createServerClient();
 
@@ -288,22 +288,10 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
 
-    const user = await getUserFromRequest(request)
-
-    if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
-    }
-
-    // Check if user is admin
-    const { data: adminProfile } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", user.id)
-      .single()
-
-    if (!adminProfile || !adminProfile.is_admin) {
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 })
-    }
+    // Staff-role aware: an admin or developer may remove any community, even
+    // one they neither founded nor joined.
+    const { response } = await requireAdmin(request)
+    if (response) return response
 
     const { searchParams } = new URL(request.url)
     const circleId = searchParams.get("circleId")
