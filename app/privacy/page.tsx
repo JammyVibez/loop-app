@@ -1,6 +1,11 @@
 import Link from "next/link"
 import { getLegalPublicationInfo } from "@/lib/legal-operator"
 
+// Same reason as the Terms page: the controller/processor details are read
+// from the environment at request time, so a build-time prerender would go
+// stale the moment they change.
+export const dynamic = "force-dynamic"
+
 const sections = [
   {
     id: "overview",

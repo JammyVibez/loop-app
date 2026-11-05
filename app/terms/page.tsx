@@ -1,6 +1,12 @@
 import Link from "next/link"
 import { getLegalPublicationInfo } from "@/lib/legal-operator"
 
+// The operator details (name, address, country, contacts, retention) come from
+// the deployment environment. Prerendering froze whatever was configured at
+// build time, so a page could keep announcing "publication is blocked" long
+// after the details were published — render it on request instead.
+export const dynamic = "force-dynamic"
+
 const sections = [
   {
     id: "acceptance",
