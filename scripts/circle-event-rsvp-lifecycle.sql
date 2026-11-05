@@ -19,7 +19,7 @@ RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp
-AS $
+AS $$
 DECLARE
   event_row public.circle_events%ROWTYPE;
   previous_status TEXT;

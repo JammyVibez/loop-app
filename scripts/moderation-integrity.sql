@@ -62,7 +62,7 @@ CREATE POLICY content_flags_moderator_select
 
 REVOKE ALL ON TABLE public.content_flags FROM PUBLIC;
 
-DO $
+DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
     REVOKE ALL ON TABLE public.content_flags FROM anon;
@@ -75,7 +75,7 @@ BEGIN
     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.content_flags TO service_role;
   END IF;
 END
-$;
+$$;
 
 CREATE OR REPLACE FUNCTION public.review_content_flag(
   p_flag_id UUID,

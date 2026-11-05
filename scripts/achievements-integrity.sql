@@ -486,7 +486,7 @@ FOR EACH ROW EXECUTE FUNCTION public.achievement_share_count_trigger();
 
 -- Re-check existing users after source counters are reconciled. Earned rows
 -- make this safe to re-run and prevent any duplicate reward.
-DO $
+DO $$
 DECLARE
   v_user RECORD;
 BEGIN
@@ -494,7 +494,7 @@ BEGIN
     PERFORM public.check_user_achievements(v_user.user_id);
   END LOOP;
 END;
-$;
+$$;
 
 REVOKE ALL ON FUNCTION public.check_user_achievements(UUID) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.update_user_stats_and_check_achievements(UUID, TEXT, INTEGER) FROM PUBLIC;

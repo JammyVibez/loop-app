@@ -96,22 +96,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       metadata: { title: title.trim() },
     })
 
-    // Update member stats
-    try {
-      await supabase.rpc("increment_circle_stat" as any, {
-        p_circle_id: circleId,
-        p_user_id: user.id,
-        p_field: "posts_count",
-      })
-    } catch {
-      // Fallback: manual update
-      await supabase.from("circle_member_stats").upsert({
-        circle_id: circleId,
-        user_id: user.id,
-        posts_count: 1,
-        total_contribution_score: 10,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "circle_id,user_id", ignoreDuplicates: false })
+    // Credit the author's Circle stats. The Co-Loop already exists, so a stats
+    // failure is logged instead of failing the request.
+    const { error: statError } = await supabase.rpc("increment_circle_stat", {
+      p_circle_id: circleId,
+      p_user_id: user.id,
+      p_field: "posts_count",
+    })
+    if (statError) {
+      console.error("Failed to increment circle member stats:", statError.message)
     }
 
     return NextResponse.json({ success: true, session })

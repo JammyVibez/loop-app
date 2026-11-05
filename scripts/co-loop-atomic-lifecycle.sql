@@ -18,7 +18,7 @@ RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp
-AS $
+AS $$
 DECLARE
     locked_session public.co_loop_sessions%ROWTYPE;
     actor_profile public.profiles%ROWTYPE;

@@ -677,3 +677,91 @@ BEGIN
   END IF;
 END
 $$;
+
+-- ---------------------------------------------------------------------------
+-- Circle member stats
+--
+-- app/api/circles/[id]/coloop/route.ts credits a member through
+-- increment_circle_stat(), which had no definition anywhere. The table is
+-- created here as well: scripts/circle-enhancements.sql creates it with
+-- circle_id TEXT but is not part of the production runner, and its foreign key
+-- to a UUID circles.id cannot be created at all. circle_id stays TEXT because
+-- the app writes Circle ids as strings and some deployments use BIGINT ids.
+CREATE TABLE IF NOT EXISTS public.circle_member_stats (
+  id BIGSERIAL PRIMARY KEY,
+  circle_id TEXT NOT NULL,
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  posts_count INTEGER NOT NULL DEFAULT 0,
+  reactions_received INTEGER NOT NULL DEFAULT 0,
+  reactions_given INTEGER NOT NULL DEFAULT 0,
+  comments_made INTEGER NOT NULL DEFAULT 0,
+  events_attended INTEGER NOT NULL DEFAULT 0,
+  messages_sent INTEGER NOT NULL DEFAULT 0,
+  current_streak INTEGER NOT NULL DEFAULT 0,
+  longest_streak INTEGER NOT NULL DEFAULT 0,
+  last_active_date DATE,
+  total_contribution_score INTEGER NOT NULL DEFAULT 0,
+  earned_badges TEXT[] NOT NULL DEFAULT '{}',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (circle_id, user_id)
+);
+
+-- ON CONFLICT (circle_id, user_id) below needs a unique key even on databases
+-- whose table predates the UNIQUE constraint above.
+CREATE UNIQUE INDEX IF NOT EXISTS circle_member_stats_circle_user_key
+  ON public.circle_member_stats (circle_id, user_id);
+
+CREATE INDEX IF NOT EXISTS idx_circle_member_stats_leaderboard
+  ON public.circle_member_stats (circle_id, total_contribution_score DESC);
+
+CREATE OR REPLACE FUNCTION public.increment_circle_stat(
+  p_circle_id TEXT,
+  p_user_id UUID,
+  p_field TEXT
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  v_allowed TEXT[] := ARRAY[
+    'posts_count', 'reactions_received', 'reactions_given',
+    'comments_made', 'events_attended', 'messages_sent'
+  ];
+BEGIN
+  IF p_field IS NULL OR NOT (p_field = ANY (v_allowed)) THEN
+    RAISE EXCEPTION 'invalid_circle_stat_field: %', p_field USING ERRCODE = '22023';
+  END IF;
+
+  INSERT INTO public.circle_member_stats (circle_id, user_id)
+  VALUES (p_circle_id, p_user_id)
+  ON CONFLICT (circle_id, user_id) DO NOTHING;
+
+  EXECUTE format(
+    'UPDATE public.circle_member_stats
+        SET %1$I = %1$I + 1,
+            total_contribution_score = total_contribution_score + 10,
+            updated_at = NOW()
+      WHERE circle_id = $1
+        AND user_id = $2',
+    p_field
+  ) USING p_circle_id, p_user_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.increment_circle_stat(TEXT, UUID, TEXT) FROM PUBLIC;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE ALL ON FUNCTION public.increment_circle_stat(TEXT, UUID, TEXT) FROM anon;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON FUNCTION public.increment_circle_stat(TEXT, UUID, TEXT) FROM authenticated;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+    GRANT EXECUTE ON FUNCTION public.increment_circle_stat(TEXT, UUID, TEXT) TO service_role;
+  END IF;
+END
+$$;

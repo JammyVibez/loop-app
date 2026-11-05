@@ -261,6 +261,32 @@ function applyFile(file, { strict = false } = {}) {
   return { applied, skipped, failed }
 }
 
+// The SQL below targets the UUID schema this runner creates. Databases created
+// before it (BIGINT circles / verification_requests) already carry the lifecycle
+// functions with matching signatures; creating UUID versions next to them leaves
+// PostgREST with two overloads and every call fails as ambiguous.
+for (const [table, label] of [
+  ["circles", "Circle"],
+  ["verification_requests", "verification"],
+]) {
+  const probe = spawnSync(
+    "psql",
+    [
+      databaseUrl,
+      "-tAc",
+      `select data_type from information_schema.columns where table_schema = 'public' and table_name = '${table}' and column_name = 'id'`,
+    ],
+    { encoding: "utf8" },
+  )
+  if ((probe.stdout || "").trim() === "bigint") {
+    console.warn(
+      `\nWARNING: public.${table}.id is BIGINT. The ${label} lifecycle functions in this runner assume UUID ids; ` +
+        "re-creating them here adds ambiguous overloads. Run this file set against a fresh database, " +
+        "or keep the existing BIGINT functions.\n",
+    )
+  }
+}
+
 for (const file of files) {
   // Verification owns private identity evidence and the admin review function;
   // never report setup success when any part of this security migration fails.

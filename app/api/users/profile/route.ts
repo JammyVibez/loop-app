@@ -232,7 +232,7 @@ export async function GET(request: NextRequest) {
       return filterCircleScopedContent(supabase, visibleAuthors, authedUser?.id || null)
     }
 
-    const [visibleRecentLoops, visibleRecentBranches, visibleMediaLoops] = await Promise.all([
+    const [visibleRecentLoops, visibleRecentBranches, surfaceMediaLoops] = await Promise.all([
       filterProfileSurface(combinedRecentLoops),
       filterProfileSurface(rawRecentBranches || []),
       filterProfileSurface(rawMediaLoops || []),
@@ -240,7 +240,7 @@ export async function GET(request: NextRequest) {
 
     const recentLoops = await enrichLoopsWithPollsAndDuels(supabase, visibleRecentLoops)
     const recentBranches = await enrichLoopsWithPollsAndDuels(supabase, visibleRecentBranches)
-    const mediaLoops = await enrichLoopsWithPollsAndDuels(supabase, visibleMediaLoops)
+    const mediaLoops = await enrichLoopsWithPollsAndDuels(supabase, surfaceMediaLoops)
     // Branched posts also carry a parent — fetch the real parent author so
     // branch banners can say "Branch from @username" here too.
     await Promise.all([
