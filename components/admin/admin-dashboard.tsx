@@ -32,6 +32,7 @@ import {
   Search,
   Shield,
   Smile,
+  Sparkles,
   Star,
   Target,
   TrendingUp,
@@ -91,6 +92,7 @@ import { AdminMonetizationPanel } from "@/components/admin/admin-monetization-pa
 import { AdminCommandPalette } from "@/components/admin/admin-command-palette"
 import { AdminPostsPanel } from "@/components/admin/admin-posts-panel"
 import { AdminCommunitiesPanel } from "@/components/admin/admin-communities-panel"
+import { AdminAiPanel } from "@/components/admin/admin-ai-panel"
 import { AdminUsersTable, type AdminUser } from "@/components/admin/admin-users-table"
 import { cn } from "@/lib/utils"
 
@@ -143,6 +145,7 @@ const NAV_GROUPS: {
       { value: "coloops", label: "Co-Loops", icon: GitBranch },
       { value: "broadcast", label: "Broadcast", icon: Megaphone },
       { value: "ads", label: "Ads", icon: Images },
+      { value: "ai", label: "Loop AI", icon: Sparkles },
     ],
   },
   {
@@ -500,6 +503,10 @@ export function AdminDashboard() {
 
           <TabsContent value="communities" className="mt-0">
             <AdminCommunitiesPanel />
+          </TabsContent>
+
+          <TabsContent value="ai" className="mt-0">
+            <AdminAiPanel />
           </TabsContent>
 
           {/* Every other section — unchanged functionality, consistent spacing */}
