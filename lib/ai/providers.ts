@@ -17,11 +17,12 @@ export const PROVIDERS: ProviderDefinition[] = [
     id: "gemini",
     label: "Google Gemini",
     keyUrl: "https://aistudio.google.com/apikey",
-    // Google retires model ids on a schedule (2.0-flash is already dead and
-    // answers "no longer available"), so the default tracks their current
-    // flash model and the fallback chain below catches the next retirement.
-    defaultModel: "gemini-3.8-flash",
-    suggestedModels: ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-1.5-flash"],
+    // Google retires model ids on a schedule (2.0-flash now answers "no longer
+    // available"), and the newest ids can hang while still being listed, so the
+    // default is the flash model verified against a live key. The chain below
+    // catches the next retirement.
+    defaultModel: "gemini-2.5-flash",
+    suggestedModels: ["gemini-2.5-flash", "gemini-3.8-flash", "gemini-1.5-flash"],
     note: "Generous free tier; good default for chat.",
   },
   {
