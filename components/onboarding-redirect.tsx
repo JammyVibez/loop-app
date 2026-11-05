@@ -66,14 +66,22 @@ export function OnboardingRedirect({ children }: { children: React.ReactNode }) 
     ])
       .then(([result, frontendReadiness]) => {
         if (!active) return
-        if (result.complete && result.publication_ready && frontendReadiness.publication_ready) {
+        // Nothing can be recorded until the operator publishes the required
+        // legal and privacy details, so an unpublished agreement must never
+        // lock an account out of the product: there is nothing to agree to yet.
+        const published = result.publication_ready && frontendReadiness.publication_ready
+        if (!published || result.complete) {
           setLegalStatus("accepted")
         } else {
           openConsent()
         }
       })
-      .catch(() => {
-        if (active) openConsent()
+      .catch((error: unknown) => {
+        if (!active) return
+        // A failed check must not trap the user behind a loading screen. The
+        // server still refuses to record an agreement it cannot verify.
+        console.warn("Legal acceptance check failed:", error)
+        setLegalStatus("accepted")
       })
 
     return () => {
