@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/server-auth"
-import { getActiveProvider, listSafeProviders, recordProviderCheck } from "@/lib/ai/config"
-import { callProvider, isProviderId, providerLabel } from "@/lib/ai/providers"
+import { getActiveProvider, listSafeProviders, recordProviderCheck, rememberModel } from "@/lib/ai/config"
+import { callProviderWithFallback, isProviderId, providerLabel } from "@/lib/ai/providers"
 
 export const dynamic = "force-dynamic"
 
@@ -27,16 +27,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const reply = await callProvider(active.provider, active.model, active.apiKey, [
-      { role: "system", content: "Reply with the single word: ready" },
-      { role: "user", content: "Connection check" },
-    ])
+    // The connection test goes through the same fallback chain as a real
+    // message, so a retired model id shows up as a working key on a new model
+    // instead of a false "key rejected".
+    const { text: reply, model } = await callProviderWithFallback(
+      active.provider,
+      active.model,
+      active.apiKey,
+      [
+        { role: "system", content: "Reply with the single word: ready" },
+        { role: "user", content: "Connection check" },
+      ],
+    )
     await recordProviderCheck(active.provider, null)
+    if (model !== active.model) await rememberModel(active.provider, model).catch(() => {})
     return NextResponse.json({
       ok: true,
       provider: active.provider,
       label: providerLabel(active.provider),
-      model: active.model,
+      model,
       reply: reply.slice(0, 120),
     })
   } catch (error: any) {

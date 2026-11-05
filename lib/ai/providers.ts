@@ -17,8 +17,11 @@ export const PROVIDERS: ProviderDefinition[] = [
     id: "gemini",
     label: "Google Gemini",
     keyUrl: "https://aistudio.google.com/apikey",
-    defaultModel: "gemini-2.0-flash",
-    suggestedModels: ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+    // Google retires model ids on a schedule (2.0-flash is already dead and
+    // answers "no longer available"), so the default tracks their current
+    // flash model and the fallback chain below catches the next retirement.
+    defaultModel: "gemini-3.8-flash",
+    suggestedModels: ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-1.5-flash"],
     note: "Generous free tier; good default for chat.",
   },
   {
@@ -94,6 +97,42 @@ async function readError(response: Response): Promise<string> {
  * One call to a configured provider. Every adapter returns plain assistant
  * text; the route decides how to present errors.
  */
+const RETIRED_MODEL = /no longer available|not found|does not exist|deprecated|is not supported|unsupported model|invalid model/i
+
+/** Whether a provider failure looks like the model id died, not the key or quota. */
+function looksLikeRetiredModel(message: string): boolean {
+  return RETIRED_MODEL.test(message) && !/api key|permission|quota|billing|rate limit|unauthori[sz]ed|forbidden/i.test(message)
+}
+
+/**
+ * Try the configured model, then the provider's known-good list. Google and
+ * OpenAI retire model ids without warning; a dead id should degrade to the next
+ * one instead of taking the assistant offline for every user.
+ */
+export async function callProviderWithFallback(
+  provider: ProviderId,
+  model: string,
+  apiKey: string,
+  messages: ChatMessage[],
+): Promise<{ text: string; model: string }> {
+  const definition = PROVIDERS.find((entry) => entry.id === provider)
+  const candidates = [model, definition?.defaultModel, ...(definition?.suggestedModels || [])]
+    .filter((value): value is string => Boolean(value && value.trim()))
+    .filter((value, index, list) => list.indexOf(value) === index)
+
+  let lastError: unknown = null
+  for (const candidate of candidates) {
+    try {
+      const text = await callProvider(provider, candidate, apiKey, messages)
+      return { text, model: candidate }
+    } catch (error: any) {
+      lastError = error
+      if (!looksLikeRetiredModel(String(error?.message || ""))) throw error
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("No usable model for this provider")
+}
+
 export async function callProvider(
   provider: ProviderId,
   model: string,

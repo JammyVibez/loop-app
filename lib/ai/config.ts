@@ -113,6 +113,15 @@ export async function recordProviderCheck(provider: ProviderId, error: string | 
   )
 }
 
+export async function rememberModel(provider: ProviderId, model: string): Promise<void> {
+  await authDbPool.query(
+    `UPDATE public.ai_providers
+        SET model = $2, last_error = NULL, updated_at = now()
+      WHERE provider = $1 AND model <> $2`,
+    [provider, model],
+  )
+}
+
 export async function getActiveProvider(): Promise<{ provider: ProviderId; model: string; apiKey: string } | null> {
   const rows = await readProviderRows()
   const row = rows.find((candidate) => candidate.is_enabled)

@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getUserFromRequest } from "@/lib/server-auth"
-import { getActiveProvider, recordProviderCheck } from "@/lib/ai/config"
-import { callProvider, providerLabel, type ChatMessage } from "@/lib/ai/providers"
+import { getActiveProvider, recordProviderCheck, rememberModel } from "@/lib/ai/config"
+import { callProviderWithFallback, providerLabel, type ChatMessage } from "@/lib/ai/providers"
 
 export const dynamic = "force-dynamic"
 
@@ -72,16 +72,22 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const reply = await callProvider(active.provider, active.model, active.apiKey, [
-      { role: "system", content: SYSTEM_PROMPT },
-      ...history,
-    ])
+    const { text: reply, model } = await callProviderWithFallback(
+      active.provider,
+      active.model,
+      active.apiKey,
+      [{ role: "system", content: SYSTEM_PROMPT }, ...history],
+    )
     await recordProviderCheck(active.provider, null).catch(() => {})
+    // A retired model id is replaced in place, so the next request is fast.
+    if (model !== active.model) {
+      await rememberModel(active.provider, model).catch(() => {})
+    }
     return NextResponse.json({
       reply,
       provider: active.provider,
       provider_label: providerLabel(active.provider),
-      model: active.model,
+      model,
     })
   } catch (error: any) {
     const message = error?.message || "Loop AI could not answer right now."

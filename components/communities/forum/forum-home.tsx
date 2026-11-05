@@ -424,6 +424,17 @@ export function ForumHome({ communityId }: { communityId: string }) {
                   >
                     <Shield className="mr-1.5 h-3.5 w-3.5" /> Roles
                   </Button>
+                  {canDeleteCommunity && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title="Delete this community"
+                      className="h-8 rounded-full px-3 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setDeleteOpen(true)}
+                    >
+                      <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete
+                    </Button>
+                  )}
                 </div>
               )}
             </div>

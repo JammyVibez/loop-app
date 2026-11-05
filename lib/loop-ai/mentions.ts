@@ -1,8 +1,8 @@
 import "server-only"
 
 import { authDbPool } from "@/lib/auth"
-import { getActiveProvider, recordProviderCheck } from "@/lib/ai/config"
-import { callProvider, type ChatMessage } from "@/lib/ai/providers"
+import { getActiveProvider, recordProviderCheck, rememberModel } from "@/lib/ai/config"
+import { callProviderWithFallback, type ChatMessage } from "@/lib/ai/providers"
 
 /**
  * Loop AI as a first-class participant: people can type `@loopai` in a Loop or
@@ -78,9 +78,15 @@ export async function buildLoopAiReply(input: {
   ]
 
   try {
-    const text = await callProvider(active.provider, active.model, active.apiKey, messages)
+    const { text: answer, model } = await callProviderWithFallback(
+      active.provider,
+      active.model,
+      active.apiKey,
+      messages,
+    )
     await recordProviderCheck(active.provider, null).catch(() => {})
-    return { text: text.trim().slice(0, 1200), provider: active.provider }
+    if (model !== active.model) await rememberModel(active.provider, model).catch(() => {})
+    return { text: answer.trim().slice(0, 1200), provider: active.provider }
   } catch (error: any) {
     await recordProviderCheck(active.provider, error?.message || "mention reply failed").catch(() => {})
     console.error("[loop-ai] mention reply failed:", error?.message)

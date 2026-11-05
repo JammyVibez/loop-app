@@ -5,14 +5,11 @@ import Link from "next/link"
 import {
   ArrowUp,
   Check,
-  Clock3,
   Copy,
   CornerDownLeft,
   Loader2,
   MessageSquarePlus,
   PenLine,
-  ShieldCheck,
-  Sparkle,
   Users,
   Wand2,
 } from "lucide-react"
@@ -168,9 +165,9 @@ export function LoopAiChat() {
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_290px]">
-      {/* ── Conversation ─────────────────────────────────────────── */}
-      <section className="flex h-[calc(100dvh-13rem)] min-h-[520px] flex-col overflow-hidden rounded-[26px] border border-border/70 bg-card/70 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_20px_50px_-30px_rgba(0,0,0,0.5)] backdrop-blur">
+    <div>
+      {/* ── Conversation: the whole page ─────────────────────────── */}
+      <section className="flex h-[calc(100dvh-3.75rem)] min-h-[540px] flex-col overflow-hidden border-border/60 bg-card/60 sm:h-[calc(100dvh-4.5rem)] sm:rounded-b-[26px] sm:border sm:border-t-0">
         <header className="flex items-center gap-3 border-b border-border/60 px-4 py-3 sm:px-5">
           <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400/25 to-violet-500/25 text-cyan-300 ring-1 ring-cyan-400/25">
             <LoopAiMark className="h-5 w-5" />
@@ -358,53 +355,6 @@ export function LoopAiChat() {
         </form>
       </section>
 
-      {/* ── Context rail ─────────────────────────────────────────── */}
-      <aside className="hidden flex-col gap-3 lg:flex">
-        <div className="rounded-2xl border border-border/70 bg-card/60 p-4">
-          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-            <Sparkle className="h-3 w-3" /> What it's good at
-          </p>
-          <ul className="mt-3 space-y-2.5 text-xs leading-relaxed text-muted-foreground">
-            {[
-              "Drafting Loops, threads and Circle announcements",
-              "Rewriting captions in your own voice",
-              "Planning prompts and events across a week",
-              "Explaining how chains, drops and coins work",
-            ].map((line) => (
-              <li key={line} className="flex gap-2">
-                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-cyan-400" />
-                {line}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="rounded-2xl border border-border/70 bg-card/60 p-4">
-          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-            <ShieldCheck className="h-3 w-3" /> Boundaries
-          </p>
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-            It can't post, delete or change anything for you. It answers in chat, and tags you can use on Loops
-            (<code className="rounded bg-muted px-1 py-0.5 text-[10px]">@loopai</code>) reply where you mentioned it.
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-border/70 bg-card/60 p-4">
-          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-            <Clock3 className="h-3 w-3" /> This session
-          </p>
-          <dl className="mt-2 space-y-1.5 text-xs">
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">Messages</dt>
-              <dd className="font-semibold tabular-nums">{messages.length}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-muted-foreground">Model</dt>
-              <dd className="truncate font-semibold">{provider || "default"}</dd>
-            </div>
-          </dl>
-        </div>
-      </aside>
     </div>
   )
 }
