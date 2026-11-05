@@ -115,10 +115,12 @@ export function ShareToCircleModal({ open, onOpenChange, item }: ShareToCircleMo
     try {
       const shareLabel = item.shareLabel || (item.type === "reel" ? "Tree" : "Loop")
       const bodyText = (item.text || "").trim()
-      const heading =
+      const rawHeading =
         (item.title || "").trim() ||
         bodyText.split("\n")[0]?.slice(0, 120) ||
         (item.type === "reel" ? "A Tree worth sharing" : "A Loop worth sharing")
+      // Threads need a 3+ character title; a two-word post is not a reason to fail.
+      const heading = rawHeading.trim().length >= 3 ? rawHeading.trim() : `${shareLabel} share`
 
       // Share into the community forum as a real thread. The Loop itself is
       // attached by id, so the thread carries the original — its text, media,
