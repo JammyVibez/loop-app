@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabase"
 import { maskAuthor } from "@/lib/user-status"
 import { getUserFromRequest } from "@/lib/server-auth"
 import { realQuoteCounts } from "@/lib/loop-stats"
+import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
 
 export const dynamic = "force-dynamic"
 
@@ -52,6 +53,12 @@ export async function GET(request: NextRequest) {
     // card never shows a stale denormalized counter.
     const quoteCounts = await realQuoteCounts(supabase, (data || []).map((r: any) => r.id))
 
+    // A quote should carry what the original carries — its poll, its duel, its
+    // collaborators — not just the text. One batched enrichment covers every
+    // quote on the page.
+    const enrichedQuotes = await enrichLoopsWithPollsAndDuels(supabase, data || [])
+    const enrichedById = new Map(enrichedQuotes.map((row: any) => [String(row.id), row]))
+
     // Membership, per community, for the ones the viewer is not the author of.
     const circleIds = Array.from(
       new Set((data || []).map((r: any) => r.circle_id).filter(Boolean).map(String)),
@@ -91,6 +98,13 @@ export async function GET(request: NextRequest) {
         metadataUrls.length > 0 ? metadataUrls : primaryMedia ? [primaryMedia] : []
 
       const stats = Array.isArray(row.loop_stats) ? row.loop_stats[0] : row.loop_stats
+      const enriched = enrichedById.get(String(row.id)) || row
+      const metadata = (row.content_metadata || {}) as Record<string, any>
+      const coAuthors = Array.isArray(enriched.co_authors)
+        ? enriched.co_authors
+        : Array.isArray(metadata.co_authors)
+          ? metadata.co_authors
+          : []
 
       return {
         id: row.id,
@@ -112,6 +126,17 @@ export async function GET(request: NextRequest) {
           views: Number(stats?.views_count || 0),
           quotes: Number(quoteCounts.get(row.id) ?? row.quote_count ?? 0),
         },
+        // Attached surfaces, when the original has one. Consumers render these
+        // compactly and link back for the interaction itself.
+        poll: enriched.poll || null,
+        duel: enriched.duel || null,
+        co_authors: coAuthors.slice(0, 6).map((ca: any) => ({
+          id: ca?.id ? String(ca.id) : null,
+          username: ca?.username || "unknown",
+          display_name: ca?.display_name || ca?.username || "Collaborator",
+          avatar_url: ca?.avatar_url || null,
+          role: ca?.role || "Co-Author",
+        })),
         author: {
           username: author.username || "unknown",
           display_name: author.display_name || author.username || "Unknown",

@@ -19,6 +19,7 @@ import { RichContent } from "@/components/content/rich-content"
 import { Spinner } from "@/components/ui/skeletons"
 import { RoleChip, type RoleBadgeLike } from "@/components/communities/forum/role-chip"
 import { MiniProfile } from "@/components/communities/forum/mini-profile"
+import { QuotedLoopCard } from "@/components/loops/quoted-loop-card"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { cn } from "@/lib/utils"
 import {
@@ -34,6 +35,7 @@ import {
   Pencil,
   Pin,
   Send,
+  Share2,
   Shield,
   SmilePlus,
   Trash2,
@@ -85,6 +87,8 @@ type ThreadPayload = {
       total_votes: number
       expires_at?: string | null
     } | null
+    /** A Loop shared into the community — rendered live from its own row. */
+    shared_loop_id?: string | null
     author: Author | null
     forum: { id: string; name: string; icon?: string | null } | null
     pinned: boolean
@@ -939,6 +943,14 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
                   {votedOption ? "Your vote is in." : "Pick one — you can vote once."}{' '}
                   {thread.poll.total_votes || 0} vote{(thread.poll.total_votes || 0) === 1 ? "" : "s"}
                 </p>
+              </div>
+            )}
+            {thread.shared_loop_id && (
+              <div className="mt-4">
+                <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <Share2 className="h-3 w-3" aria-hidden /> Shared from the Loop feed
+                </p>
+                <QuotedLoopCard loopId={thread.shared_loop_id} className="mt-0" />
               </div>
             )}
             {thread.tags.length > 0 && (

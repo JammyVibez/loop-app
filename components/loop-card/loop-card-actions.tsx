@@ -217,7 +217,7 @@ export function LoopCardActions({
               className="cursor-pointer font-medium flex items-center gap-2 py-2 text-xs"
             >
               <Users className="h-4 w-4 text-emerald-500" />
-              <span>Share in a Circle</span>
+              <span>Share to community</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={onShareSheetOpen}

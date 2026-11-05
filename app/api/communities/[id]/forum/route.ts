@@ -170,6 +170,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         pinned: Boolean(p.is_pinned),
         locked: Boolean(p.comments_locked),
         post_type: String(p.post_type || "thread"),
+        shared_loop_id: meta.shared_loop_id ? String(meta.shared_loop_id) : null,
         created_at: p.created_at,
         last_activity_at: p.last_activity_at || p.updated_at || p.created_at,
         shared_to_feed: Boolean(p.feed_loop_id),
@@ -377,6 +378,42 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     if (title.length < 3) return NextResponse.json({ error: "Give the thread a title (3+ characters)" }, { status: 400 })
 
+    // Sharing a Loop into a community attaches the original by reference, the
+    // same way a quote does. The thread renders it live, never a copy — so the
+    // author's edits, poll and credits stay true in both places.
+    const sharedLoopId =
+      typeof body.shared_loop_id === "string" && body.shared_loop_id.trim()
+        ? body.shared_loop_id.trim().slice(0, 64)
+        : null
+    if (sharedLoopId) {
+      const { data: shared } = await sb
+        .from("loops")
+        .select("id, author_id, visibility, circle_id")
+        .eq("id", sharedLoopId)
+        .maybeSingle()
+      if (!shared) {
+        return NextResponse.json({ error: "That Loop is no longer available" }, { status: 404 })
+      }
+      if (String(shared.author_id) !== user.id) {
+        const visibility = String(shared.visibility || "public")
+        if (visibility === "private") {
+          return NextResponse.json({ error: "That Loop is private" }, { status: 403 })
+        }
+        if (visibility === "circle" && shared.circle_id) {
+          // A community-only Loop may only travel where its audience already is.
+          const { data: sharedMembership } = await sb
+            .from("circle_members")
+            .select("status")
+            .eq("circle_id", shared.circle_id)
+            .eq("user_id", user.id)
+            .maybeSingle()
+          if (!sharedMembership || !["active", "approved"].includes(String(sharedMembership.status || ""))) {
+            return NextResponse.json({ error: "That Loop is only visible to its community" }, { status: 403 })
+          }
+        }
+      }
+    }
+
     // A thread can be text, a picture, a clip, or a poll — or any mix.
     const mediaUrl = typeof body.media_url === "string" && body.media_url ? body.media_url.slice(0, 600) : null
     const mediaType = mediaUrl ? (body.media_type === "video" ? "video" : "image") : null
@@ -391,7 +428,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (rawPoll && (!pollQuestion || pollOptions.length < 2)) {
       return NextResponse.json({ error: "A poll needs a question and at least 2 options" }, { status: 400 })
     }
-    if (!content && !mediaUrl && !rawPoll) {
+    if (!content && !mediaUrl && !rawPoll && !sharedLoopId) {
       return NextResponse.json({ error: "Write something in the thread" }, { status: 400 })
     }
 
@@ -415,7 +452,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         post_type: "thread",
         space_id: spaceId,
         tags,
-        content_metadata: { title },
+        content_metadata: { title, ...(sharedLoopId ? { shared_loop_id: sharedLoopId } : {}) },
         media_url: mediaUrl,
         media_type: mediaType,
         status: "published",

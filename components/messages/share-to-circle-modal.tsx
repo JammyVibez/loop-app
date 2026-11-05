@@ -79,7 +79,9 @@ export function ShareToCircleModal({ open, onOpenChange, item }: ShareToCircleMo
             id: c.id,
             name: c.name || "Unnamed circle",
             avatar_url: c.avatar_url || c.image_url,
-            member_count: Number(c.member_count || 0),
+            member_count: Array.isArray(c.member_count)
+              ? Number(c.member_count[0]?.count || 0)
+              : Number(c.member_count || 0),
             description: c.description,
           })),
         )
@@ -89,7 +91,9 @@ export function ShareToCircleModal({ open, onOpenChange, item }: ShareToCircleMo
             id: c.id,
             name: c.name || "Unnamed circle",
             avatar_url: c.avatar_url || c.image_url,
-            member_count: Number(c.member_count || 0),
+            member_count: Array.isArray(c.member_count)
+              ? Number(c.member_count[0]?.count || 0)
+              : Number(c.member_count || 0),
             description: c.description,
           })),
         )
@@ -109,43 +113,40 @@ export function ShareToCircleModal({ open, onOpenChange, item }: ShareToCircleMo
 
     setSending(true)
     try {
-      const shareUrl =
-        (item.url
-          ? item.url.startsWith("http")
-            ? item.url
-            : `${typeof window !== "undefined" ? window.location.origin : ""}${item.url}`
-          : null) ||
-        (typeof window !== "undefined"
-          ? `${window.location.origin}/${item.type === "reel" ? "reels?focus=" + item.id : "loop/" + item.id}`
-          : `/${item.type === "reel" ? "reels?focus=" + item.id : "loop/" + item.id}`)
-
       const shareLabel = item.shareLabel || (item.type === "reel" ? "Tree" : "Loop")
-      const shareText = customNote.trim()
-        ? `${customNote.trim()}\n\n📌 Shared ${shareLabel}: ${item.title || "Check this out!"}\n${shareUrl}`
-        : `📌 Shared ${shareLabel}: ${item.title || "Check this out!"}\n${shareUrl}`
+      const bodyText = (item.text || "").trim()
+      const heading =
+        (item.title || "").trim() ||
+        bodyText.split("\n")[0]?.slice(0, 120) ||
+        (item.type === "reel" ? "A Tree worth sharing" : "A Loop worth sharing")
 
-      const res = await fetch(`/api/circles/${selectedCircle.id}/posts`, {
+      // Share into the community forum as a real thread. The Loop itself is
+      // attached by id, so the thread carries the original — its text, media,
+      // poll, duel and co-loop credits — instead of a pasted URL.
+      const res = await fetch(`/api/communities/${selectedCircle.id}/forum`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...getAuthHeader(),
         },
         body: JSON.stringify({
-          content: shareText,
+          title: heading.slice(0, 160),
+          content: customNote.trim(),
+          shared_loop_id: item.type === "loop" ? item.id : undefined,
           media_url: item.mediaUrl || null,
-          media_type: item.type === "reel" ? "video" : null,
+          media_type: item.type === "reel" ? "video" : item.mediaUrl ? "image" : null,
         }),
       })
 
       const { data } = await parseJsonResponse<any>(res)
       if (!res.ok) {
-        throw new Error(data?.error || "Failed to share to circle")
+        throw new Error(data?.error || `Failed to share to ${selectedCircle.name}`)
       }
 
       setSentSuccess(true)
       toast({
-        title: "Shared to Circle! 🎉",
-        description: `Posted in ${selectedCircle.name}`,
+        title: `Shared to ${selectedCircle.name}`,
+        description: `It's in the community's threads now as “${heading.slice(0, 60)}”.`,
       })
 
       setTimeout(() => {
@@ -154,7 +155,7 @@ export function ShareToCircleModal({ open, onOpenChange, item }: ShareToCircleMo
     } catch (err: any) {
       toast({
         title: "Couldn't share",
-        description: err.message || "Failed to share to circle",
+        description: err.message || `Failed to share to ${selectedCircle.name}`,
         variant: "destructive",
       })
     } finally {
@@ -172,10 +173,11 @@ export function ShareToCircleModal({ open, onOpenChange, item }: ShareToCircleMo
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg font-bold">
             <Share2 className="h-5 w-5 text-emerald-500" />
-            Share {item?.type === "reel" ? "Tree" : "Loop"} in a Circle
+            Share {item?.type === "reel" ? "Tree" : "Loop"} to a community
           </DialogTitle>
           <DialogDescription className="text-muted-foreground text-xs">
-            Post this content to your circle&apos;s community feed so everyone can see it.
+            Start a thread in a community you belong to. The original stays live — its edits,
+            poll and credits show up right in the thread.
           </DialogDescription>
         </DialogHeader>
 
@@ -223,11 +225,11 @@ export function ShareToCircleModal({ open, onOpenChange, item }: ShareToCircleMo
 
         {/* Circle picker */}
         <div className="space-y-2 mt-2">
-          <label className="text-xs font-medium text-muted-foreground">Pick a circle</label>
+          <label className="text-xs font-medium text-muted-foreground">Pick a community</label>
           <div className="relative">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search your circles..."
+              placeholder="Search your communities..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 text-xs rounded-xl"
@@ -238,13 +240,13 @@ export function ShareToCircleModal({ open, onOpenChange, item }: ShareToCircleMo
             {loading ? (
               <div className="flex items-center justify-center py-6 text-muted-foreground">
                 <Spinner className="h-5 w-5 mr-2" />
-                <span className="text-xs">Loading circles...</span>
+                <span className="text-xs">Loading communities...</span>
               </div>
             ) : filteredCircles.length === 0 ? (
               <div className="text-center py-6 text-xs text-muted-foreground">
                 {circles.length === 0
-                  ? "You haven't joined any circles yet. Join one from the Circles page to share content."
-                  : "No circles match your search."}
+                  ? "You haven't joined a community yet. Join one from Discover to share content."
+                  : "No communities match your search."}
               </div>
             ) : (
               filteredCircles.map((circle) => {
@@ -303,7 +305,7 @@ export function ShareToCircleModal({ open, onOpenChange, item }: ShareToCircleMo
             ) : (
               <>
                 <Send className="mr-2 h-4 w-4" />
-                Post to Circle
+                Share to community
               </>
             )}
           </Button>

@@ -5,7 +5,16 @@ import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { FreshnessTimestamp } from "@/components/ui/freshness-timestamp"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
-import { ArrowUpRight, GitBranch, Heart, MessageCircle, Quote } from "lucide-react"
+import {
+  ArrowUpRight,
+  GitBranch,
+  Heart,
+  MessageCircle,
+  Quote,
+  Swords,
+  Users,
+  Vote,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export interface QuotedLoop {
@@ -19,6 +28,28 @@ export interface QuotedLoop {
   media_type?: string
   hashtags?: string[]
   created_at?: string
+  /** The original asked a question; the quote shows the standing, not a vote. */
+  poll?: {
+    question?: string
+    options?: Array<{ id?: string; text?: unknown; votes?: number } | string>
+    total_votes?: number
+    expires_at?: string | null
+  } | null
+  /** The original is a duel; the quote shows the two sides and their weight. */
+  duel?: {
+    prompt?: string
+    side_a_label?: string | null
+    side_b_label?: string | null
+    status?: string | null
+    entries?: Array<{ id?: string; side?: string; votes_count?: number | null }>
+  } | null
+  /** A Co-Loop carries the people who made it. */
+  co_authors?: Array<{
+    username?: string
+    display_name?: string
+    avatar_url?: string | null
+    role?: string
+  }>
   stats?: {
     likes: number
     comments: number
@@ -126,6 +157,37 @@ const formatCount = (n: number) => {
 
 const isVideoUrl = (url: string) => /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url)
 
+/** Poll options arrive as strings or as { text } objects depending on writer. */
+function pollOptionText(option: { text?: unknown } | string) {
+  const raw = typeof option === "string" ? option : option?.text
+  if (raw && typeof raw === "object") {
+    const nested = raw as Record<string, unknown>
+    return String(nested.text ?? nested.value ?? nested.label ?? "")
+  }
+  return String(raw ?? "")
+}
+
+function pollOptions(poll: QuotedLoop["poll"]) {
+  return (poll?.options || [])
+    .map((option) => ({
+      text: pollOptionText(option).trim(),
+      votes: typeof option === "string" ? 0 : Number(option.votes || 0),
+    }))
+    .filter((option) => option.text)
+    .slice(0, 4)
+}
+
+function duelTotals(duel: QuotedLoop["duel"]) {
+  let a = 0
+  let b = 0
+  for (const entry of duel?.entries || []) {
+    const votes = Number(entry.votes_count || 0)
+    if (entry.side === "A") a += votes
+    else if (entry.side === "B") b += votes
+  }
+  return { a, b, total: a + b }
+}
+
 /** The original post, embedded by reference inside the quoting post. */
 export function QuotedLoopCard({
   loopId,
@@ -177,6 +239,12 @@ export function QuotedLoopCard({
   ).filter(Boolean)
   const stats = quote.stats
   const statsTotal = stats ? stats.likes + stats.comments + stats.branches : 0
+  const poll = quote.poll || null
+  const options = pollOptions(poll)
+  const pollTotal = Number(poll?.total_votes || 0) || options.reduce((sum, o) => sum + o.votes, 0)
+  const duel = quote.duel || null
+  const duelTotalsValue = duelTotals(duel)
+  const coAuthors = (quote.co_authors || []).filter((ca) => ca?.username)
 
   const text = (quote.text || "").trim()
   const isLong = text.length > 220 || text.split("\n").length > 4
@@ -210,6 +278,27 @@ export function QuotedLoopCard({
           <Quote className="h-3.5 w-3.5 text-muted-foreground/60" aria-hidden />
         </span>
       </div>
+
+      {/* Co-Loop credit — the quote names the people who built the original */}
+      {coAuthors.length > 0 && (
+        <div className="mx-3.5 mb-1 mt-2 flex items-center gap-2 rounded-xl border border-cyan-500/25 bg-cyan-500/[0.07] px-2.5 py-1.5">
+          <Users className="h-3.5 w-3.5 shrink-0 text-cyan-600 dark:text-cyan-400" aria-hidden />
+          <div className="flex -space-x-1.5">
+            {coAuthors.slice(0, 3).map((ca, index) => (
+              <Avatar key={`${ca.username}-${index}`} className="h-4 w-4 ring-1 ring-background">
+                <AvatarImage src={ca.avatar_url || undefined} alt="" />
+                <AvatarFallback className="text-[7px]">
+                  {(ca.display_name || ca.username || "?").charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            ))}
+          </div>
+          <span className="truncate text-[11px] font-medium text-cyan-700 dark:text-cyan-300">
+            Co-Loop with {coAuthors.map((ca) => ca.display_name || ca.username).slice(0, 2).join(", ")}
+            {coAuthors.length > 2 ? ` +${coAuthors.length - 2}` : ""}
+          </span>
+        </div>
+      )}
 
       {/* Body — title, text and the author's tags */}
       <div className="px-3.5 pb-2.5 pt-1.5">
@@ -259,6 +348,82 @@ export function QuotedLoopCard({
           </div>
         )}
       </div>
+
+      {/* Poll — the standing as of right now, with the vote itself on the original */}
+      {options.length > 0 && (
+        <Link
+          href={postHref}
+          className="mx-3.5 mb-2.5 block rounded-xl border border-border/60 bg-background/60 p-3 transition-colors hover:border-border"
+          aria-label={`Vote in the quoted poll by @${handle}`}
+        >
+          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            <Vote className="h-3 w-3" aria-hidden /> Poll
+          </p>
+          <p className="mt-0.5 text-[13px] font-semibold leading-snug text-foreground">
+            {poll?.question || "Which one?"}
+          </p>
+          <div className="mt-2 space-y-1.5">
+            {options.map((option, index) => {
+              const pct = pollTotal ? Math.round((option.votes / pollTotal) * 100) : 0
+              return (
+                <div
+                  key={`${option.text}-${index}`}
+                  className="relative overflow-hidden rounded-lg border border-border/60 px-2 py-1"
+                >
+                  <span
+                    className="absolute inset-y-0 left-0 bg-foreground/[0.07]"
+                    style={{ width: `${pct}%` }}
+                    aria-hidden
+                  />
+                  <span className="relative flex items-center justify-between gap-2 text-[11px] font-medium">
+                    <span className="truncate">{option.text}</span>
+                    <span className="shrink-0 tabular-nums text-muted-foreground">{pct}%</span>
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+          <p className="mt-1.5 text-[10px] text-muted-foreground">
+            {pollTotal.toLocaleString()} vote{pollTotal === 1 ? "" : "s"} · Tap to vote
+          </p>
+        </Link>
+      )}
+
+      {/* Duel — two sides, their weight, and a way into the vote */}
+      {duel && (
+        <Link
+          href={postHref}
+          className="mx-3.5 mb-2.5 block rounded-xl border border-border/60 bg-background/60 p-3 transition-colors hover:border-border"
+          aria-label={`Open the quoted duel by @${handle}`}
+        >
+          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            <Swords className="h-3 w-3" aria-hidden /> Duel
+          </p>
+          <p className="mt-0.5 line-clamp-2 text-[13px] font-semibold leading-snug text-foreground">
+            {duel.prompt || "Pick a side"}
+          </p>
+          <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-muted">
+            <span
+              className="h-full bg-cyan-500"
+              style={{
+                width: `${duelTotalsValue.total ? (duelTotalsValue.a / duelTotalsValue.total) * 100 : 50}%`,
+              }}
+              aria-hidden
+            />
+            <span
+              className="h-full bg-rose-500"
+              style={{
+                width: `${duelTotalsValue.total ? (duelTotalsValue.b / duelTotalsValue.total) * 100 : 50}%`,
+              }}
+              aria-hidden
+            />
+          </div>
+          <div className="mt-1 flex items-center justify-between gap-2 text-[10px] font-semibold text-muted-foreground">
+            <span className="truncate">{duel.side_a_label || "Side A"}</span>
+            <span className="truncate text-right">{duel.side_b_label || "Side B"}</span>
+          </div>
+        </Link>
+      )}
 
       {/* Media — every attachment the quoted post carries, with an overflow count */}
       {mediaUrls.length > 0 && (

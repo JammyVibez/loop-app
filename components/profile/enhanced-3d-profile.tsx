@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Calendar, Coins, Edit, Flame, Gift, Heart, Link as LinkIcon, Lock, MapPin, MessageCircle, MoreHorizontal, Pin, PinOff, Plus, Palette, Share2, Wand2, Zap, Trophy, Upload, Users, Package, Building2, } from "lucide-react"
+import { ArrowLeft, Calendar, Coins, Edit, Flame, Gift, Heart, Link as LinkIcon, Lock, MapPin, MessageCircle, MoreHorizontal, Plus, Palette, Share2, Wand2, Zap, Trophy, Upload, Users, Package, Building2, } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -37,6 +37,7 @@ import { ProfileAboutTab } from "@/components/profile/profile-about-tab"
 import { ProfileCompletionIndicator } from "@/components/profile/profile-completion"
 import { ActivityHeatmap } from "@/components/profile/activity-heatmap"
 import { ProfileMediaGrid } from "@/components/profile/profile-media-grid"
+import { ProfilePostGrid } from "@/components/profile/profile-post-grid"
 import { SimilarCreators } from "@/components/profile/similar-creators"
 import { AccountStatusScreen } from "@/components/profile/account-status-screen"
 import { RichContent } from "@/components/content/rich-content"
@@ -101,6 +102,8 @@ interface UserProfile {
   location?: string
   achievements: Achievement[]
   recent_loops: any[]
+  /** Author-only: posts hidden from the grid, so they can be restored. */
+  hidden_loops?: any[]
   recent_branches?: any[]
   media_loops?: any[]
   is_following?: boolean
@@ -232,6 +235,26 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       toast({ title: "Couldn't update pin", description: error.message, variant: "destructive" })
     } finally {
       setPinningId(null)
+    }
+  }
+
+  const [hidingId, setHidingId] = useState<string | null>(null)
+  const handleHidePost = async (loopId: string, hidden: boolean) => {
+    setHidingId(loopId)
+    try {
+      const res = await fetch(`/api/loops/${loopId}/profile-visibility`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ hidden }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to update post")
+      toast({ description: hidden ? "Hidden from your profile" : "Back on your profile" })
+      await fetchProfile({ silent: true })
+    } catch (error: any) {
+      toast({ title: "Couldn't update post", description: error.message, variant: "destructive" })
+    } finally {
+      setHidingId(null)
     }
   }
 
@@ -1105,63 +1128,18 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           )}
         </TabsContent>
 
-        <TabsContent value="loops" className="mt-0 space-y-0">
-          {(() => {
-            const pinnedLoops = (profile.recent_loops || []).filter((l: any) => l.is_pinned)
-            const unpinnedLoops = (profile.recent_loops || []).filter((l: any) => !l.is_pinned)
-            const canPin = isOwnProfile
-            const renderPinButton = (loop: any) => {
-              if (!canPin) return null
-              if (!loop.is_pinned && pinnedLoops.length >= 3) return null
-              return (
-                <button
-                  type="button"
-                  disabled={pinningId === loop.id}
-                  onClick={() => handleTogglePin(loop.id, !loop.is_pinned)}
-                  className={cn(
-                    "absolute right-3 top-3 z-10 flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold shadow-sm backdrop-blur transition-colors",
-                    loop.is_pinned
-                      ? "border-sky-500/50 bg-sky-500/15 text-sky-500 hover:bg-sky-500/25"
-                      : "border-border/60 bg-background/80 text-muted-foreground hover:text-foreground",
-                  )}
-                  title={loop.is_pinned ? "Unpin from profile" : "Pin to profile (best work)"}
-                >
-                  {loop.is_pinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
-                  {loop.is_pinned ? "Pinned" : "Pin"}
-                </button>
-              )
-            }
-
-            if (!profile.recent_loops?.length) {
-              return <EmptyBlock icon={Flame} label="No loops yet" />
-            }
-
-            return (
-              <>
-                {pinnedLoops.length > 0 && (
-                  <div className="border-b border-border/60 bg-muted/20 px-4 py-3">
-                    <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                      <Pin className="h-3.5 w-3.5 text-sky-500" /> Pinned
-                    </p>
-                    <div className="space-y-0 divide-y divide-border/40 rounded-xl border border-border/50 overflow-hidden bg-background">
-                      {pinnedLoops.map((loop: any) => (
-                        <div key={loop.id} className="relative">
-                          {renderPinButton(loop)}
-                          <LoopCard loop={loop} className="rounded-none border-0 shadow-none" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {unpinnedLoops.map((loop: any) => (
-                  <div key={loop.id} className="relative border-b border-border/60 px-0 py-0">
-                    {renderPinButton(loop)}
-                    <LoopCard loop={loop} className="rounded-none border-0 shadow-none" />
-                  </div>
-                ))}
-              </>
-            )
-          })()}
+        <TabsContent value="loops" className="mt-0">
+          {/* The profile is a portfolio: a grid you can scan, with pinned work
+              first and anything the author wants off their profile hideable
+              without deleting it from the app. */}
+          <ProfilePostGrid
+            loops={profile.recent_loops || []}
+            hiddenLoops={profile.hidden_loops || []}
+            isOwnProfile={isOwnProfile}
+            onTogglePin={handleTogglePin}
+            onHide={handleHidePost}
+            busyId={hidingId || pinningId}
+          />
         </TabsContent>
 
         <TabsContent value="branches" className="mt-0 space-y-0">

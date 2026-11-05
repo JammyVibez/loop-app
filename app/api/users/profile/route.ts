@@ -266,6 +266,15 @@ export async function GET(request: NextRequest) {
       applyRealCommentCounts(supabase, mediaLoops),
     ])
 
+    // Posts the author chose to keep off their profile grid. The Loop itself
+    // stays public elsewhere — this only changes the profile. Hidden posts are
+    // returned to their author so they can put them back.
+    const hiddenFromProfile = (loop: any) => Boolean(loop?.content_metadata?.profile_hidden)
+    const visibleLoops = (recentLoops || []).filter((loop: any) => !hiddenFromProfile(loop))
+    const hiddenLoops = isSelf ? (recentLoops || []).filter(hiddenFromProfile) : []
+    const visibleBranches = (recentBranches || []).filter((loop: any) => !hiddenFromProfile(loop))
+    const visibleMediaLoops = (mediaLoops || []).filter((loop: any) => !hiddenFromProfile(loop))
+
     const likesReceived = (recentLoops || []).reduce((sum, loop: any) => {
       const stats = Array.isArray(loop.loop_stats) ? loop.loop_stats[0] : loop.loop_stats
       return sum + Number(stats?.likes_count || 0)
@@ -300,9 +309,10 @@ export async function GET(request: NextRequest) {
           : derivedCosmetics,
       available_earnings: profile.available_earnings ?? 0,
       total_earnings: profile.total_earnings ?? 0,
-      recent_loops: normalizeLoops(recentLoops || []),
-      recent_branches: normalizeLoops(recentBranches || []),
-      media_loops: normalizeLoops(mediaLoops || []),
+      recent_loops: normalizeLoops(visibleLoops),
+      recent_branches: normalizeLoops(visibleBranches),
+      media_loops: normalizeLoops(visibleMediaLoops),
+      hidden_loops: normalizeLoops(hiddenLoops),
       is_following: isFollower,
       is_follower: isFollower,
       is_self: isSelf,

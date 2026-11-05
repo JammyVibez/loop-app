@@ -38,6 +38,7 @@ import {
   Search,
   SearchX,
   Settings2,
+  Share2,
   Shield,
   Sparkles,
   Swords,
@@ -66,6 +67,8 @@ type Thread = {
   views: number
   pinned: boolean
   locked: boolean
+  /** A Loop attached from the feed — the thread renders it live. */
+  shared_loop_id?: string | null
   created_at: string
   last_activity_at: string
 }
@@ -596,6 +599,11 @@ export function ForumHome({ communityId }: { communityId: string }) {
                         {t.locked && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
                             <Lock className="h-2.5 w-2.5" /> Locked
+                          </span>
+                        )}
+                        {t.shared_loop_id && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] font-bold text-cyan-600 dark:text-cyan-400">
+                            <Share2 className="h-2.5 w-2.5" /> Shared Loop
                           </span>
                         )}
                         {t.forum && (

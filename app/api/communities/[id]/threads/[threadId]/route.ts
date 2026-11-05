@@ -176,6 +176,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         media_url: post.media_url || (Array.isArray(post.media_urls) ? post.media_urls[0] : null) || null,
         media_type: post.media_type || null,
         poll: pollRow || null,
+        shared_loop_id: meta.shared_loop_id ? String(meta.shared_loop_id) : null,
         author: author || null,
         forum: space ? { id: String(space.id), name: space.name, icon: space.icon } : null,
         pinned: Boolean(post.is_pinned),

@@ -55,6 +55,14 @@ export async function GET(request: NextRequest) {
       query = query.eq("is_private", true)
     } else if (status === "public") {
       query = query.eq("is_private", false)
+    } else if (status === "banned") {
+      // A soft-banned community is paused, not deleted — the admin list needs
+      // to be able to find exactly those.
+      query = query.eq("is_active", false)
+    } else if (status === "active") {
+      // NULL means the column was added after this row was created; those
+      // communities were never paused.
+      query = query.neq("is_active", false)
     }
 
     const { data: circles, error } = await query
