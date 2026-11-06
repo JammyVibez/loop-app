@@ -230,7 +230,7 @@ export default function QuestDetailClient({ questId }: { questId: string }) {
             </span>
           )}
         </div>
-        <h1 className="text-2xl font-black tracking-tight sm:text-3xl">{quest.title}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]">{quest.title}</h1>
         {quest.description && <p className="mt-2 text-sm text-muted-foreground sm:text-base">{quest.description}</p>}
       </div>
 
@@ -938,7 +938,7 @@ function MissionTracker({ quest, onChanged }: { quest: DetailQuest; onChanged: (
     <div className="mb-6 overflow-hidden rounded-2xl border bg-card">
       <div className="border-b bg-muted/40 px-4 py-3">
         <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Mission Progress</p>
-        <p className="mt-0.5 text-lg font-black">
+        <p className="mt-0.5 text-lg font-semibold tabular-nums">
           {completed.size} / {steps.length} COMPLETE
         </p>
         <Progress value={(completed.size / Math.max(1, steps.length)) * 100} className="mt-2 h-2" />

@@ -52,6 +52,7 @@ export const SIDEBAR_NAV: SidebarNavItem[] = [
   { href: "/messages", label: "Inbox", group: "primary" },
 
   // Specialist surfaces remain reachable without competing with core social actions.
+  { href: "/quests", label: "Quests", group: "secondary" },
   { href: "/chains", label: "Chains", badge: "NEW", group: "secondary" },
   { href: "/streams", label: "Live", badge: "LIVE", group: "secondary" },
   { href: "/co-loop/studio", label: "Co-Loop Studio", badge: "NEW", group: "secondary" },

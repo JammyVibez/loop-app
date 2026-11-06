@@ -14,6 +14,7 @@ import {
   Users,
   Lock,
   BarChart3,
+  Eye,
   MoreHorizontal,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -63,6 +64,8 @@ interface LoopCardActionsProps {
   onShareCircleOpen: () => void
   onShareSheetOpen: () => void
   onShareImageOpen: () => void
+  /** Opens the author's post analytics sheet. */
+  onOpenAnalytics?: () => void
 }
 
 /**
@@ -103,11 +106,24 @@ export function LoopCardActions({
   onShareCircleOpen,
   onShareSheetOpen,
   onShareImageOpen,
+  onOpenAnalytics,
 }: LoopCardActionsProps) {
   const { user: currentUser } = useAuth()
   const { requireAuth } = useLoginGate()
+  const isAuthor = Boolean(currentUser?.id && currentUser.id === loop.author_id)
 
   const viewsCount = Number(loop.stats?.views_count || 0)
+  const engagementCount =
+    Number(loop.stats?.views_count || 0) > 0
+      ? Math.round(
+          ((Number(loop.stats?.likes_count || 0) +
+            Number(loop.stats?.comments_count || 0) +
+            Number(loop.stats?.shares_count || 0) +
+            Number(loop.stats?.saves_count || 0)) /
+            Math.max(1, Number(loop.stats?.views_count || 0))) *
+            100,
+        )
+      : null
   const giftsCount = Number(loop.gifts_received || 0)
   const isCode = isCodeLoop(loop) || isCodeLoop(rawLoop)
   const canFork = isCode && currentUser?.id !== loop.author_id
@@ -260,6 +276,22 @@ export function LoopCardActions({
         </DropdownMenu>
       </div>
 
+      {/* Read-only reach: every viewer sees that a post is being read, and the
+          author gets one tap into the full breakdown. */}
+      <div className="flex shrink-0 items-center gap-1">
+        {shouldShowCount(viewsCount) && (
+          <span
+            className="inline-flex items-center gap-1 rounded-full px-1.5 py-1 text-[13px] font-medium tabular-nums text-muted-foreground"
+            title={`${viewsCount.toLocaleString()} views${engagementCount !== null ? ` · ${engagementCount}% engagement` : ""}`}
+          >
+            <Eye className="h-4 w-4" aria-hidden />
+            {viewsCount >= 1000 ? `${(viewsCount / 1000).toFixed(viewsCount >= 10_000 ? 0 : 1)}K` : viewsCount}
+            {isAuthor && engagementCount !== null ? (
+              <span className="ml-0.5 text-[11px] text-muted-foreground/80">{engagementCount}%</span>
+            ) : null}
+          </span>
+        )}
+
       {/* Everything else — one overflow menu instead of five more icons. */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -326,21 +358,19 @@ export function LoopCardActions({
             </DropdownMenuItem>
           )}
 
-          {(shouldShowCount(viewsCount) || isBoosted) && <DropdownMenuSeparator />}
-          {shouldShowCount(viewsCount) && (
+          {(isBoosted || (isAuthor && onOpenAnalytics)) && <DropdownMenuSeparator />}
+          {isAuthor && onOpenAnalytics && (
             <DropdownMenuItem
-              asChild
-              className="cursor-pointer gap-2 py-2 text-xs text-muted-foreground"
+              onClick={onOpenAnalytics}
+              className="cursor-pointer gap-2 py-2 text-xs"
             >
-              <Link href={`/loop/${loop.id}`} aria-label="View post analytics">
-                <BarChart3 className="h-4 w-4" />
-                <span>Analytics</span>
-                <span className="ml-auto text-[11px] tabular-nums">
-                  {viewsCount >= 1000
-                    ? `${(viewsCount / 1000).toFixed(viewsCount >= 10000 ? 0 : 1)}K views`
-                    : `${viewsCount} views`}
-                </span>
-              </Link>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <span>Post analytics</span>
+              <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
+                {viewsCount >= 1000
+                  ? `${(viewsCount / 1000).toFixed(viewsCount >= 10_000 ? 0 : 1)}K views`
+                  : `${viewsCount} views`}
+              </span>
             </DropdownMenuItem>
           )}
           {isBoosted && (
@@ -351,6 +381,7 @@ export function LoopCardActions({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      </div>
     </div>
   )
 }

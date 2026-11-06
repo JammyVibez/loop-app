@@ -6,9 +6,9 @@ import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import { PageHeader, StatTile } from "@/components/ui/page-header"
 import { Spinner } from "@/components/ui/skeletons"
 import {
-  ArrowRight,
   Check,
   ChevronRight,
   ClipboardList,
@@ -299,114 +299,61 @@ export default function QuestsClient() {
   return (
     <div className="w-full pb-28 pt-3 sm:pt-5">
       <div className="mx-auto w-full max-w-[1500px] px-3 sm:px-6 lg:px-8">
-        {/* ── Hero ─────────────────────────────────────────────── */}
-        <header className="relative overflow-hidden rounded-[30px] border border-border/70 bg-card/70">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_120%_at_0%_0%,rgba(139,92,246,0.18),transparent_55%),radial-gradient(120%_120%_at_100%_0%,rgba(34,211,238,0.16),transparent_50%)]" />
-          <div className="relative grid gap-6 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-            <div>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                <Sparkles className="h-3 w-3 text-violet-500" />
-                Quest board
-              </span>
-              <h1 className="mt-3 text-[34px] font-black leading-[0.95] tracking-tight sm:text-5xl">
-                Do more.
-                <span className="block bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 bg-clip-text text-transparent">
-                  Earn more.
-                </span>
-              </h1>
-              <p className="mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">
-                Quests are short missions across LOOP — post, comment, run a Circle, play a round. Finish them, collect
-                coins and XP, and level up your name.
-              </p>
+        <PageHeader
+          eyebrow="Quest board"
+          title="Quests"
+          description="Short missions across Loop — write, reply, run a Circle, play a round. Finish them to collect coins and XP."
+          actions={
+            <>
+              <Button asChild size="sm" className="rounded-lg">
+                <Link href={claimableCount > 0 ? "#ready-to-claim" : "#quest-sections"}>
+                  {claimableCount > 0
+                    ? `Claim ${claimableCount} reward${claimableCount === 1 ? "" : "s"}`
+                    : "Browse quests"}
+                </Link>
+              </Button>
+              <Button asChild size="sm" variant="outline" className="rounded-lg">
+                <Link href="/quests/history">
+                  <History className="mr-1.5 h-3.5 w-3.5" /> History
+                </Link>
+              </Button>
+            </>
+          }
+        />
 
-              <div className="mt-5 flex flex-wrap items-center gap-2">
-                <Button asChild className="rounded-full">
-                  <Link href={claimableCount > 0 ? "#ready-to-claim" : "#quest-sections"}>
-                    {claimableCount > 0 ? `Claim ${claimableCount} reward${claimableCount === 1 ? "" : "s"}` : "Browse quests"}
-                    <ArrowRight className="ml-1.5 h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="rounded-full">
-                  <Link href="/quests/history">
-                    <History className="mr-1.5 h-4 w-4" /> History
-                  </Link>
-                </Button>
-              </div>
-            </div>
-
-            {/* Level ring */}
-            <div className="flex items-center gap-5 rounded-3xl border border-border/60 bg-background/50 p-4 sm:gap-6 sm:p-5">
-              <div className="relative h-24 w-24 shrink-0">
-                <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
-                  <circle cx="50" cy="50" r="42" fill="none" strokeWidth="8" className="stroke-muted" />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="42"
-                    fill="none"
-                    strokeWidth="8"
-                    strokeLinecap="round"
-                    strokeDasharray={`${(xpPercent / 100) * 264} 264`}
-                    className="stroke-violet-500 transition-all duration-700"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Level</span>
-                  <span className="text-2xl font-black leading-none tabular-nums">{xp?.level ?? 1}</span>
-                </div>
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-bold">{xp?.name ?? "Explorer"}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
-                  {xp?.xp ?? 0} XP{xp?.nextXp ? ` · ${xp.nextXp - (xp?.xp ?? 0)} to next` : " · max"}
-                </p>
-                <div className="mt-3 flex items-center gap-3 text-xs">
-                  <span className="inline-flex items-center gap-1 font-bold text-amber-600">
-                    <Coins className="h-3.5 w-3.5" /> {(data?.coins || 0).toLocaleString()}
-                  </span>
-                  <span className="inline-flex items-center gap-1 font-bold text-orange-500">
-                    <Flame className="h-3.5 w-3.5" /> {data?.streak.current || 0}d
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Daily caps strip */}
-          <div className="relative grid divide-y border-t border-border/60 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-            {[
-              {
-                label: "Coins today",
-                value: `${(data?.caps.earned_today_coins || 0).toLocaleString()} / ${(data?.caps.daily_coin_cap || 0).toLocaleString()}`,
-                percent: coinPercent,
-                icon: Coins,
-              },
-              {
-                label: "XP today",
-                value: `${(data?.caps.earned_today_xp || 0).toLocaleString()} / ${(data?.caps.daily_xp_cap || 0).toLocaleString()}`,
-                percent: Math.min(100, ((data?.caps.earned_today_xp || 0) / Math.max(1, data?.caps.daily_xp_cap || 1)) * 100),
-                icon: Zap,
-              },
-              {
-                label: "Best streak",
-                value: `${data?.streak.best || 0} day${(data?.streak.best || 0) === 1 ? "" : "s"}`,
-                percent: Math.min(100, ((data?.streak.current || 0) / Math.max(1, data?.streak.best || 1)) * 100),
-                icon: Flame,
-              },
-            ].map((stat) => (
-              <div key={stat.label} className="flex items-center gap-3 px-5 py-3.5">
-                <stat.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{stat.label}</span>
-                    <span className="truncate text-xs font-bold tabular-nums">{stat.value}</span>
-                  </div>
-                  <Progress value={stat.percent} className="mt-1.5 h-1" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </header>
+        {/* Summary: level, earnings today, streak. Same numbers the cards use. */}
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <StatTile
+            label="Level"
+            value={xp?.level ?? 1}
+            hint={
+              xp?.nextXp
+                ? `${xp?.name ?? "Explorer"} · ${Math.max(0, xp.nextXp - (xp?.xp ?? 0)).toLocaleString()} XP to next`
+                : `${xp?.name ?? "Explorer"} · max level`
+            }
+            progress={xpPercent}
+          />
+          <StatTile
+            label="Coins today"
+            value={`${(data?.caps.earned_today_coins || 0).toLocaleString()}`}
+            hint={`of ${(data?.caps.daily_coin_cap || 0).toLocaleString()} daily cap`}
+            progress={coinPercent}
+            icon={Coins}
+          />
+          <StatTile
+            label="XP today"
+            value={`${(data?.caps.earned_today_xp || 0).toLocaleString()}`}
+            hint={`of ${(data?.caps.daily_xp_cap || 0).toLocaleString()} daily cap`}
+            progress={Math.min(100, ((data?.caps.earned_today_xp || 0) / Math.max(1, data?.caps.daily_xp_cap || 1)) * 100)}
+            icon={Zap}
+          />
+          <StatTile
+            label="Streak"
+            value={`${data?.streak.current || 0}d`}
+            hint={`Best ${data?.streak.best || 0} day${(data?.streak.best || 0) === 1 ? "" : "s"} · ${(data?.coins || 0).toLocaleString()} coins`}
+            icon={Flame}
+          />
+        </div>
 
         {/* ── Ready to claim ───────────────────────────────────── */}
         {claimableCount > 0 && (
@@ -468,7 +415,7 @@ export default function QuestsClient() {
         {/* ── Sections ─────────────────────────────────────────── */}
         <div id="quest-sections" className="mt-5">
           {data && sections.length === 0 && (
-            <div className="rounded-3xl border border-dashed border-border/70 p-16 text-center">
+            <div className="rounded-xl border border-dashed border-border/70 p-16 text-center">
               <Target className="mx-auto mb-3 h-9 w-9 text-muted-foreground/40" />
               <p className="font-semibold">No quests right now</p>
               <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
@@ -486,11 +433,9 @@ export default function QuestsClient() {
             <section key={`${section.key}-${section.label}`} className="mb-10 last:mb-0">
               <div className="mb-3 flex items-end justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
-                    <section.icon className="h-3.5 w-3.5 text-primary" />
-                  </span>
-                  <h2 className="text-[15px] font-black uppercase tracking-[0.08em]">{section.label}</h2>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold tabular-nums text-muted-foreground">
+                  <section.icon className="h-3.5 w-3.5 text-muted-foreground" />
+                  <h2 className="text-sm font-semibold tracking-tight text-foreground">{section.label}</h2>
+                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
                     {section.quests.length}
                   </span>
                 </div>
@@ -617,7 +562,7 @@ function QuestCard({
   return (
     <article
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-3xl border bg-card transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-30px_rgba(0,0,0,0.55)]",
+        "group relative flex flex-col overflow-hidden rounded-xl border bg-card transition-colors duration-200",
         // A finished quest is framed in green, so "done" is readable from the
         // card itself without opening it.
         isClaimed
@@ -637,11 +582,11 @@ function QuestCard({
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.06]"
           />
         ) : (
-          <div className={cn("relative flex h-full w-full items-center justify-center bg-gradient-to-br to-transparent", a.wash)}>
-            <TypeIcon className={cn("h-9 w-9 opacity-60", a.text)} />
+          <div className="relative flex h-full w-full items-center justify-center bg-muted/60">
+            <TypeIcon className={cn("h-9 w-9 opacity-70", a.text)} />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/10 to-transparent" />
 
         <div className="absolute inset-x-2.5 top-2.5 flex items-start justify-between gap-2">
           {quest.is_sponsored ? (
@@ -730,8 +675,8 @@ function QuestCard({
             </span>
           )}
           {!!quest.reward_xp && quest.reward_xp > 0 && (
-            <span className="inline-flex items-center gap-1 font-bold text-violet-500">
-              <Zap className="h-3 w-3" /> {quest.reward_xp.toLocaleString()} XP
+            <span className="inline-flex items-center gap-1 font-medium text-muted-foreground">
+              <Zap className="h-3 w-3 text-primary" /> {quest.reward_xp.toLocaleString()} XP
             </span>
           )}
           {quest.reward_item_preview && (
@@ -838,7 +783,7 @@ function FeaturedMissionCard({
   return (
     <article
       className={cn(
-        "relative grid overflow-hidden rounded-[30px] border bg-card lg:grid-cols-[1.15fr_1fr]",
+        "relative grid overflow-hidden rounded-2xl border bg-card lg:grid-cols-[1.15fr_1fr]",
         quest.state === "claimed"
           ? "border-emerald-500/45 ring-1 ring-emerald-500/25"
           : quest.state === "claimable"
@@ -852,8 +797,8 @@ function FeaturedMissionCard({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={quest.banner_url} alt="" className="h-full w-full object-cover" />
         ) : (
-          <div className={cn("flex h-full w-full items-center justify-center bg-gradient-to-br to-transparent", a.wash)}>
-            <ListChecks className={cn("h-14 w-14 opacity-50", a.text)} />
+          <div className="flex h-full w-full items-center justify-center bg-muted/60">
+            <ListChecks className={cn("h-14 w-14 opacity-70", a.text)} />
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent lg:bg-gradient-to-r lg:from-transparent lg:to-card" />
@@ -881,7 +826,7 @@ function FeaturedMissionCard({
 
       <div className="flex flex-col justify-center p-5 sm:p-7">
         <p className={cn("text-[10px] font-bold uppercase tracking-[0.16em]", a.text)}>Featured mission</p>
-        <h3 className="mt-1.5 text-2xl font-black leading-tight tracking-tight sm:text-3xl">{quest.title}</h3>
+        <h3 className="mt-1.5 text-xl font-semibold leading-tight tracking-tight sm:text-2xl">{quest.title}</h3>
         {quest.description && (
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">{quest.description}</p>
         )}
@@ -903,7 +848,7 @@ function FeaturedMissionCard({
             </span>
           )}
           {!!quest.reward_xp && quest.reward_xp > 0 && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/10 px-3 py-1.5 text-xs font-bold text-violet-500">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary">
               <Zap className="h-3.5 w-3.5" /> {quest.reward_xp.toLocaleString()} XP
             </span>
           )}

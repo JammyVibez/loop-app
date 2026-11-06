@@ -19,6 +19,7 @@ import { supabase } from "@/lib/supabase"
 import { TransactionFilter } from "@/components/wallet/transaction-filter"
 import { Spinner } from "@/components/ui/skeletons"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { PageHeader } from "@/components/ui/page-header"
 
 interface Transaction {
   id: string
@@ -539,54 +540,39 @@ function WalletContent() {
 
   return (
     <div className="container max-w-6xl mx-auto px-4 py-6 sm:py-8 space-y-6">
-      {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/60 pb-5">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2.5">
-            <Coins className="w-7 h-7 text-yellow-500 shrink-0" />
-            Wallet & Vault
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage your Loop Coin balance, purchase top-ups, and track transaction history.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchWalletData}
-            disabled={loading}
-            className="rounded-lg text-xs"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-          <Button
-            asChild
-            variant="secondary"
-            size="sm"
-            className="rounded-lg text-xs font-medium"
-          >
-            <Link href="/quests" className="inline-flex items-center">
-              <Target className="w-3.5 h-3.5 mr-1.5 text-violet-400" />
-              Quests
-            </Link>
-          </Button>
-          <Button
-            asChild
-            variant="secondary"
-            size="sm"
-            className="rounded-lg text-xs font-medium"
-          >
-            <Link href="/shop">Shop & Perks</Link>
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Your balance"
+        title="Wallet"
+        description="Loop Coins, top-ups, gifts and payouts in one place."
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchWalletData}
+              disabled={loading}
+              className="rounded-lg text-xs"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+            <Button asChild variant="secondary" size="sm" className="rounded-lg text-xs font-medium">
+              <Link href="/quests" className="inline-flex items-center">
+                <Target className="w-3.5 h-3.5 mr-1.5" />
+                Quests
+              </Link>
+            </Button>
+            <Button asChild variant="secondary" size="sm" className="rounded-lg text-xs font-medium">
+              <Link href="/shop">Shop</Link>
+            </Button>
+          </>
+        }
+      />
 
       {/* Main Grid: Balance Card + Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Balance Card */}
-        <Card className="lg:col-span-2 relative overflow-hidden border-border/60 bg-gradient-to-br from-indigo-950/40 via-background to-cyan-950/30 shadow-xl">
+        <Card className="lg:col-span-2 relative overflow-hidden border-border/70">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <Badge variant="outline" className="border-yellow-500/40 text-yellow-500 bg-yellow-500/10 px-2.5 py-0.5 text-xs">
@@ -601,12 +587,12 @@ function WalletContent() {
           <CardContent className="space-y-6">
             <div>
               <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Total Balance</p>
-              <div className="flex items-baseline gap-3 mt-1">
-                <span className="text-4xl sm:text-5xl font-extrabold tracking-tight text-foreground">
+              <div className="flex items-baseline gap-2.5 mt-1">
+                <span className="text-3xl sm:text-4xl font-semibold tracking-tight tabular-nums text-foreground">
                   {balance.toLocaleString()}
                 </span>
-                <span className="text-base sm:text-lg font-semibold text-yellow-500 flex items-center gap-1">
-                  <Coins className="w-5 h-5" /> Loop Coins
+                <span className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                  <Coins className="w-4 h-4 text-amber-500" /> Loop Coins
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -621,7 +607,7 @@ function WalletContent() {
                   setDepositOpen(true)
                   fetchCoinPackages()
                 }}
-                className="rounded-xl px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white shadow-md shadow-indigo-600/20 font-semibold text-sm"
+                className="rounded-lg px-4 py-2.5 font-semibold text-sm"
               >
                 <PlusCircle className="w-4 h-4 mr-2" />
                 Deposit Coins
@@ -629,7 +615,7 @@ function WalletContent() {
               <Button
                 variant="outline"
                 onClick={() => setGiftOpen(true)}
-                className="rounded-xl px-4 py-2.5 border-border/80 hover:bg-muted text-sm font-semibold"
+                className="rounded-lg px-4 py-2.5 border-border/80 hover:bg-muted text-sm font-medium"
               >
                 <Gift className="w-4 h-4 mr-2 text-rose-500" />
                 Send Gift
@@ -637,12 +623,12 @@ function WalletContent() {
               <Button
                 variant="outline"
                 onClick={() => setWithdrawOpen(true)}
-                className="rounded-xl px-4 py-2.5 border-emerald-500/40 hover:bg-emerald-500/10 text-emerald-500 font-semibold text-sm flex items-center gap-2"
+                className="rounded-lg px-4 py-2.5 text-sm font-medium flex items-center gap-2"
               >
                 <DollarSign className="w-4 h-4" />
-                Withdraw Cash
-                <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] px-1.5 py-0 font-bold">
-                  Verified Creators
+                Withdraw cash
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-medium text-muted-foreground">
+                  Verified creators
                 </Badge>
               </Button>
             </div>
@@ -856,18 +842,18 @@ function WalletContent() {
 
             {/* Tab 4: Withdrawals */}
             <TabsContent value="withdrawals" className="m-0 space-y-4">
-              <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-950/30 via-background to-teal-950/20 border border-emerald-500/30 space-y-4 shadow-sm">
+              <div className="space-y-4 rounded-xl border border-border/70 bg-card p-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-2">
-                      <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40 text-xs px-2.5 py-0.5">
-                        ⚡ Verified Creator Cashouts
+                      <Badge variant="outline" className="text-[11px] px-2 py-0.5 text-muted-foreground">
+                        Verified creator cashouts
                       </Badge>
-                      <Badge variant="outline" className="border-sky-500/40 text-sky-400 text-[10px] px-2 py-0">
-                        Manually Reviewed
+                      <Badge variant="outline" className="text-[10px] px-2 py-0 text-muted-foreground">
+                        Reviewed manually
                       </Badge>
                     </div>
-                    <h3 className="text-lg font-bold text-foreground mt-2">Withdraw Earnings & Payouts</h3>
+                    <h3 className="mt-2 text-base font-semibold text-foreground">Withdraw earnings</h3>
                     <p className="text-xs text-muted-foreground mt-1 max-w-xl">
                       Request a real cashout of your Loop Coins to your bank account, PayPal, or Stripe. Coins are
                       reserved as soon as you submit, and our team reviews and pays out requests manually within a
@@ -877,10 +863,10 @@ function WalletContent() {
 
                   <Button
                     onClick={() => setWithdrawOpen(true)}
-                    className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs shrink-0 px-4 py-2"
+                    className="shrink-0 rounded-lg px-4 py-2 text-xs font-semibold"
                   >
                     <DollarSign className="w-4 h-4 mr-1.5" />
-                    Request Payout
+                    Request payout
                   </Button>
                 </div>
 
@@ -890,8 +876,8 @@ function WalletContent() {
                     <p className="text-base font-bold text-foreground">500 Loop Coins ($5.00)</p>
                   </div>
                   <div className="p-3 rounded-xl bg-card/60 border border-border/50 text-xs space-y-1">
-                    <p className="text-muted-foreground font-semibold">Creator Platform Fee</p>
-                    <p className="text-base font-bold text-emerald-500">0% (for now)</p>
+                    <p className="text-muted-foreground font-semibold">Creator platform fee</p>
+                    <p className="text-base font-semibold text-foreground">0% (for now)</p>
                   </div>
                   <div className="p-3 rounded-xl bg-card/60 border border-border/50 text-xs space-y-1">
                     <p className="text-muted-foreground font-semibold">Estimated Cash Value</p>
@@ -983,8 +969,8 @@ function WalletContent() {
                     }`}
                   >
                     {idx === 1 && (
-                      <Badge className="absolute -top-2.5 right-3 bg-gradient-to-r from-indigo-500 to-cyan-500 text-white text-[10px] px-2 py-0">
-                        Most Popular
+                      <Badge className="absolute -top-2.5 right-3 bg-primary text-primary-foreground text-[10px] px-2 py-0">
+                        Most popular
                       </Badge>
                     )}
                     <p className="text-xs text-muted-foreground font-medium truncate">{pkg.name}</p>
@@ -1009,7 +995,7 @@ function WalletContent() {
             <Button
               onClick={handleDeposit}
               disabled={depositing || !selectedPkgId}
-              className="rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-semibold w-full sm:w-auto"
+              className="w-full rounded-lg font-semibold sm:w-auto"
             >
               {depositing
                 ? "Redirecting to checkout..."
@@ -1082,7 +1068,7 @@ function WalletContent() {
             <Button
               onClick={handleSendGift}
               disabled={gifting}
-              className="rounded-xl bg-gradient-to-r from-rose-500 to-violet-600 hover:from-rose-600 hover:to-violet-700 text-white font-semibold"
+              className="rounded-lg font-semibold"
             >
               {gifting ? "Sending..." : `Send ${giftAmount.toLocaleString()} Coins`}
             </Button>
@@ -1167,7 +1153,7 @@ function WalletContent() {
             <Button
               onClick={handleRequestWithdrawal}
               disabled={withdrawing || !payoutDetails.trim() || withdrawCoins < 500 || withdrawCoins > balance}
-              className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold"
+              className="rounded-lg font-semibold"
             >
               {withdrawing ? "Submitting..." : `Request $${(withdrawCoins * 0.01).toFixed(2)} Payout`}
             </Button>

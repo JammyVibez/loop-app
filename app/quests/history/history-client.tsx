@@ -89,22 +89,22 @@ export default function QuestHistoryClient() {
         <ArrowLeft className="h-4 w-4" /> Quests
       </Link>
 
-      <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Quest History</h1>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]">Quest history</h1>
 
       <div className="mt-3 grid grid-cols-3 gap-3">
-        <div className="rounded-xl border bg-card p-3 text-center">
-          <p className="text-xl font-bold tabular-nums">{totals.quests}</p>
+        <div className="rounded-xl border border-border/70 bg-card p-3 text-center">
+          <p className="text-xl font-semibold tabular-nums">{totals.quests}</p>
           <p className="text-[11px] text-muted-foreground">Quests claimed</p>
         </div>
-        <div className="rounded-xl border bg-card p-3 text-center">
-          <p className="inline-flex items-center gap-1 text-xl font-bold tabular-nums text-amber-600">
+        <div className="rounded-xl border border-border/70 bg-card p-3 text-center">
+          <p className="inline-flex items-center gap-1 text-xl font-semibold tabular-nums text-amber-600">
             <Coins className="h-4 w-4" /> {totals.coins.toLocaleString()}
           </p>
           <p className="text-[11px] text-muted-foreground">Coins earned</p>
         </div>
-        <div className="rounded-xl border bg-card p-3 text-center">
-          <p className="inline-flex items-center gap-1 text-xl font-bold tabular-nums text-violet-500">
-            <Zap className="h-4 w-4" /> {totals.xp.toLocaleString()}
+        <div className="rounded-xl border border-border/70 bg-card p-3 text-center">
+          <p className="inline-flex items-center gap-1 text-xl font-semibold tabular-nums text-foreground">
+            <Zap className="h-4 w-4 text-primary" /> {totals.xp.toLocaleString()}
           </p>
           <p className="text-[11px] text-muted-foreground">XP earned</p>
         </div>

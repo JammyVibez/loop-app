@@ -23,6 +23,7 @@ import { LoopCardContent } from "./loop-card/loop-card-content"
 import { LoopCardActions } from "./loop-card/loop-card-actions"
 import { LoopCardBoostBar } from "./loop-card/loop-card-boost-bar"
 import { LoopCardModals } from "./loop-card/loop-card-modals"
+import { PostAnalyticsDialog } from "@/components/analytics/post-analytics-dialog"
 import { CreateBranchDialog } from "@/components/create-branch-dialog"
 import {
   QuotedLoopCard,
@@ -81,6 +82,7 @@ export const LoopCard = memo(function LoopCard({
   const [shareCircleOpen, setShareCircleOpen] = useState(false)
   const [shareImageOpen, setShareImageOpen] = useState(false)
   const [shareSheetOpen, setShareSheetOpen] = useState(false)
+  const [analyticsOpen, setAnalyticsOpen] = useState(false)
   const [boostCoinsCurrent, setBoostCoinsCurrent] = useState<number>(
     rawLoop?.boost_coins_current || 0
   )
@@ -678,6 +680,7 @@ export const LoopCard = memo(function LoopCard({
               onShareCircleOpen={() => setShareCircleOpen(true)}
               onShareSheetOpen={() => setShareSheetOpen(true)}
               onShareImageOpen={() => setShareImageOpen(true)}
+              onOpenAnalytics={() => setAnalyticsOpen(true)}
             />
           </CardContent>
         </Card>
@@ -728,6 +731,8 @@ export const LoopCard = memo(function LoopCard({
         shareSheetOpen={shareSheetOpen}
         setShareSheetOpen={setShareSheetOpen}
       />
+
+      <PostAnalyticsDialog loopId={loop.id} open={analyticsOpen} onOpenChange={setAnalyticsOpen} />
 
       {/* Quote the embedded original directly from its card */}
       {quoteTarget && (

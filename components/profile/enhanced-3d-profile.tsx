@@ -777,7 +777,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                 </div>
                 {!profile.is_premium && (
                   <Link href="/premium" className="w-full sm:w-auto">
-                    <Button className="w-full rounded-full bg-gradient-to-r from-amber-500 to-orange-600 px-4 font-semibold text-white hover:from-amber-400 hover:to-orange-500">
+                    <Button className="w-full rounded-full px-4 font-semibold">
                       Get Pro
                     </Button>
                   </Link>
@@ -948,8 +948,8 @@ export function Enhanced3DProfile({ username }: { username: string }) {
 
             {/* Organization Account Tier & Follower Progress Status */}
             {profile.is_organization ? (
-              <div className="mt-3 rounded-xl bg-gradient-to-r from-emerald-950/80 via-slate-900 to-teal-950/80 border border-emerald-500/30 p-3.5 space-y-2 shadow-lg">
-                <div className="flex items-center justify-between">
+              <div className="mt-3 space-y-2 rounded-xl border border-border/70 bg-card p-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <UserBadges
                       is_organization={true}
@@ -958,48 +958,44 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                       showText={true}
                       size="md"
                     />
-                    <span className="font-bold text-white text-sm">Official Organization Partner</span>
+                    <span className="text-sm font-semibold text-foreground">Organization partner</span>
                   </div>
-                  <span className="text-[11px] font-mono text-emerald-300 font-semibold bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                    ⚡ {profile.organization_config?.coin_rate_multiplier || 1.5}x Coin Rate
+                  <span className="rounded-full border border-border/70 px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
+                    {profile.organization_config?.coin_rate_multiplier || 1.5}x coin rate
                   </span>
                 </div>
-                <p className="text-xs text-slate-300">
-                  Full earning privileges unlocked, custom circle branding, and event hosting capabilities.
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Earning privileges, custom Circle branding and event hosting are unlocked.
                 </p>
               </div>
             ) : (
-              <div className="mt-3 rounded-xl bg-slate-900/60 border border-border/80 p-3 space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-foreground flex items-center gap-1.5">
-                    <Building2 className="h-3.5 w-3.5 text-emerald-500" />
-                    Organization Partnership Progress
+              <div className="mt-3 space-y-1.5 rounded-xl border border-border/70 bg-card p-3">
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="flex items-center gap-1.5 font-medium text-foreground">
+                    <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                    Organization partnership
                   </span>
-                  <span className="font-mono text-emerald-400 font-bold">
-                    {profile.followers_count} / 100 Followers
+                  <span className="tabular-nums text-muted-foreground">
+                    {profile.followers_count} / 100 followers
                   </span>
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                   <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      profile.followers_count >= 100
-                        ? "bg-gradient-to-r from-emerald-500 to-teal-400"
-                        : "bg-emerald-500/80"
-                    }`}
+                    className="h-full rounded-full bg-foreground/70 transition-all duration-500"
                     style={{ width: `${Math.min(100, Math.round((profile.followers_count / 100) * 100))}%` }}
                   />
                 </div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
                   {profile.followers_count >= 100
-                    ? "🎉 Follower goal reached! Account is eligible for Organization partnership review."
-                    : `${100 - profile.followers_count} more followers needed for Organization partnership eligibility.`}
+                    ? "Follower goal reached — your account is eligible for partnership review."
+                    : `${100 - profile.followers_count} more followers to become eligible.`}
                 </p>
               </div>
             )}
             {(cosmetics.badge || cosmetics.frame || cosmetics.aura || cosmetics.effect || cosmetics.font || cosmetics.cardEffect) && (
-              <div className="rounded-xl border border-border/60 bg-gradient-to-br from-violet-500/5 via-transparent to-cyan-500/5 p-3 space-y-2.5">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <Palette className="h-3 w-3 text-violet-400" /> Equipped Cosmetics
+              <div className="space-y-2.5 rounded-xl border border-border/70 bg-card p-3">
+                <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  <Palette className="h-3 w-3" /> Equipped cosmetics
                 </p>
                 <div className="flex flex-col gap-1.5">
                   {cosmetics.frame && (

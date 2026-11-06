@@ -29,6 +29,7 @@ import LockIcon from "@/components/icons/animated/lock-icon"
 import UsersGroupIcon from "@/components/icons/animated/users-group-icon"
 import ShieldCheckIcon from "@/components/icons/animated/shield-check"
 import FlameIcon from "@/components/icons/animated/flame-icon"
+
 import { UserBadges } from "@/components/user-badge"
 import {
   primarySidebarNav,
@@ -58,6 +59,7 @@ const NAV_ICONS: Record<string, AnimatedIconComponent> = {
   "/messages": MessageCircleIcon,
   "/streams": RadioIcon,
   "/wallet": WalletIcon,
+  "/quests": ChartLineIcon,
   "/co-loop/studio": CodeIcon,
   "/earnings": ChartLineIcon,
   "/developers": CodeIcon,
@@ -156,9 +158,9 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
 
         <ScrollArea className="flex-1 my-2 pr-2 scrollbar-thin">
           {/* Main Discovery Navigation Links */}
-          <div className="space-y-1">
-            <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              Discover & Tools
+          <div className="space-y-0.5">
+            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
+              Navigation
             </p>
             {primaryNav.map((item) => {
               const Icon = NAV_ICONS[item.href]
@@ -294,18 +296,6 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
             </div>
           </div>
 
-          {/* Quick User Balance Card */}
-          <div className="mt-6 rounded-2xl border border-border/60 bg-muted/40 p-3.5 text-xs space-y-2 mb-2">
-            <div className="flex items-center justify-between">
-              <span className="font-semibold text-muted-foreground">Loop Coins</span>
-              <Badge className="bg-amber-500/20 text-amber-500 border-amber-500/30 text-xs font-bold">
-                🪙 {Number(user.loop_coins || 0).toLocaleString()}
-              </Badge>
-            </div>
-            <Button asChild variant="outline" size="sm" className="w-full text-xs rounded-xl h-7" onClick={onLinkClick}>
-              <Link href="/wallet">Top Up & Send Gifts</Link>
-            </Button>
-          </div>
         </ScrollArea>
       </div>
 

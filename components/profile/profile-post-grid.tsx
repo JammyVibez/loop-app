@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Eye, EyeOff, Heart, LayoutGrid, List, MessageCircle, Pin, PinOff, Vote, Swords, Users, Play } from "lucide-react"
+import { BarChart3, Eye, EyeOff, Heart, LayoutGrid, List, MessageCircle, Pin, PinOff, Vote, Swords, Users, Play } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { PostAnalyticsDialog } from "@/components/analytics/post-analytics-dialog"
 
 const VIEW_STORAGE_KEY = "loop:profile-post-view"
 type PostView = "grid" | "list"
@@ -19,8 +20,10 @@ interface ProfilePost {
   is_pinned?: boolean
   is_co_loop?: boolean
   co_authors?: unknown[]
-  loop_stats?: { likes_count?: number; comments_count?: number } | Array<{ likes_count?: number; comments_count?: number }>
-  stats?: { likes_count?: number; comments_count?: number }
+  loop_stats?:
+    | { likes_count?: number; comments_count?: number; views_count?: number }
+    | Array<{ likes_count?: number; comments_count?: number; views_count?: number }>
+  stats?: { likes_count?: number; comments_count?: number; views_count?: number }
   poll?: { question?: string; total_votes?: number } | null
   duel?: { prompt?: string } | null
 }
@@ -30,6 +33,7 @@ function statsOf(loop: ProfilePost) {
   return {
     likes: Number(raw?.likes_count ?? loop.stats?.likes_count ?? 0),
     comments: Number(raw?.comments_count ?? loop.stats?.comments_count ?? 0),
+    views: Number(raw?.views_count ?? loop.stats?.views_count ?? 0),
   }
 }
 
@@ -45,6 +49,7 @@ function PostTile({
   owner,
   onTogglePin,
   onHide,
+  onAnalytics,
   busy,
   muted,
 }: {
@@ -52,6 +57,7 @@ function PostTile({
   owner: boolean
   onTogglePin?: (loopId: string, next: boolean) => void
   onHide?: (loopId: string, hidden: boolean) => void
+  onAnalytics?: (loopId: string) => void
   busy: boolean
   muted?: boolean
 }) {
@@ -118,8 +124,13 @@ function PostTile({
         )}
 
         {/* Engagement sits on the media only, and only once it has some. */}
-        {media && (stats.likes > 0 || stats.comments > 0) && (
+        {media && (stats.views > 0 || stats.likes > 0 || stats.comments > 0) && (
           <div className="absolute inset-x-0 bottom-0 flex items-center gap-3 bg-gradient-to-t from-black/70 to-transparent px-2 pb-1.5 pt-6 text-[10px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
+            {stats.views > 0 && (
+              <span className="inline-flex items-center gap-0.5">
+                <Eye className="h-3 w-3" /> {stats.views}
+              </span>
+            )}
             {stats.likes > 0 && (
               <span className="inline-flex items-center gap-0.5">
                 <Heart className="h-3 w-3 fill-current" /> {stats.likes}
@@ -142,6 +153,17 @@ function PostTile({
 
       {owner && (
         <div className="absolute right-1.5 top-1.5 z-10 flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+          {!muted && onAnalytics && (
+            <button
+              type="button"
+              onClick={() => onAnalytics(loop.id)}
+              aria-label="Post analytics"
+              title="Post analytics"
+              className="flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur transition-colors hover:bg-black/75"
+            >
+              <BarChart3 className="h-3 w-3" />
+            </button>
+          )}
           {!muted && onTogglePin && (
             <button
               type="button"
@@ -181,6 +203,7 @@ function PostRow({
   owner,
   onTogglePin,
   onHide,
+  onAnalytics,
   busy,
   muted,
 }: {
@@ -188,6 +211,7 @@ function PostRow({
   owner: boolean
   onTogglePin?: (loopId: string, next: boolean) => void
   onHide?: (loopId: string, hidden: boolean) => void
+  onAnalytics?: (loopId: string) => void
   busy: boolean
   muted?: boolean
 }) {
@@ -239,6 +263,11 @@ function PostRow({
             </span>
           </span>
           <span className="mt-1 flex items-center gap-3 text-[11px] text-muted-foreground">
+            {stats.views > 0 && (
+              <span className="inline-flex items-center gap-0.5">
+                <Eye className="h-3 w-3" /> {stats.views}
+              </span>
+            )}
             {stats.likes > 0 && (
               <span className="inline-flex items-center gap-0.5">
                 <Heart className="h-3 w-3" /> {stats.likes}
@@ -256,6 +285,17 @@ function PostRow({
 
       {owner && (
         <div className="flex shrink-0 items-center gap-1">
+          {!muted && onAnalytics && (
+            <button
+              type="button"
+              onClick={() => onAnalytics(loop.id)}
+              aria-label="Post analytics"
+              title="Post analytics"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <BarChart3 className="h-3.5 w-3.5" />
+            </button>
+          )}
           {!muted && onTogglePin && (
             <button
               type="button"
@@ -308,6 +348,7 @@ export function ProfilePostGrid({
 }) {
   const [showHidden, setShowHidden] = useState(false)
   const [view, setView] = useState<PostView>("grid")
+  const [analyticsLoopId, setAnalyticsLoopId] = useState<string | null>(null)
 
   // Read the saved preference after mount so server and client markup match.
   useEffect(() => {
@@ -349,6 +390,7 @@ export function ProfilePostGrid({
             owner={isOwnProfile}
             onTogglePin={muted ? undefined : onTogglePin}
             onHide={onHide}
+            onAnalytics={isOwnProfile ? setAnalyticsLoopId : undefined}
             busy={busyId === loop.id}
             muted={muted}
           />
@@ -363,6 +405,7 @@ export function ProfilePostGrid({
             owner={isOwnProfile}
             onTogglePin={muted ? undefined : onTogglePin}
             onHide={onHide}
+            onAnalytics={isOwnProfile ? setAnalyticsLoopId : undefined}
             busy={busyId === loop.id}
             muted={muted}
           />
@@ -403,6 +446,16 @@ export function ProfilePostGrid({
       </div>
 
       {renderLoops(ordered)}
+
+      {analyticsLoopId && (
+        <PostAnalyticsDialog
+          loopId={analyticsLoopId}
+          open={Boolean(analyticsLoopId)}
+          onOpenChange={(next) => {
+            if (!next) setAnalyticsLoopId(null)
+          }}
+        />
+      )}
 
       {isOwnProfile && hiddenLoops.length > 0 && (
         <div className="mt-4 border-t border-border/60 pt-3">

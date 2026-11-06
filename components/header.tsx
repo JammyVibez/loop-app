@@ -27,6 +27,7 @@ import {
   User,
   LogOut,
   Coins,
+  Target,
   X,
   Sun,
   Moon,
@@ -123,8 +124,9 @@ export function Header() {
     <header className="sticky top-0 z-40 w-full border-b border-border/70 bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
       <div className="container mx-auto flex h-14 items-center justify-between gap-2 px-3 sm:px-4">
         {/* Brand & Expandable Search Input */}
-        <div className="flex items-center gap-2 min-w-0">
-          <Link href="/" className="group flex shrink-0 items-center gap-2.5">
+        <div className="flex items-center gap-2 min-w-0">          {/* The desktop rail already carries the brand, so the bar starts at
+              search there instead of repeating the logo twice per screen. */}
+          <Link href="/" className="group flex shrink-0 items-center gap-2.5 lg:hidden">
             <LogoMark />
             <div className="hidden flex-col leading-tight sm:flex">
               <span className="text-base font-bold tracking-tight text-foreground">loopapp.me</span>
@@ -251,17 +253,26 @@ export function Header() {
                 </Link>
               </DropdownMenuItem>
 
-              {/* Messages are reached from the bottom nav / inbox, not the top
-                  bar — the bar stays brand, search, coins and notifications. */}
-              <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
-                <Link href="/wallet" className="flex items-center gap-2">
-                  <Coins className="h-4 w-4 text-amber-500" />
-                  <span className="text-xs font-medium">Wallet</span>
-                  <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
-                    {Number(user.loop_coins || 0).toLocaleString()}
-                  </span>
-                </Link>
-              </DropdownMenuItem>
+              {/* Wallet and Quests already live in the desktop rail and the
+                  coin pill, so they only appear here on phones — where the tab
+                  bar has no room for them and the rail is behind a swipe. */}
+              <div className="sm:hidden">
+                <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                  <Link href="/wallet" className="flex items-center gap-2">
+                    <Coins className="h-4 w-4 text-amber-500" />
+                    <span className="text-xs font-medium">Wallet</span>
+                    <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
+                      {Number(user.loop_coins || 0).toLocaleString()}
+                    </span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                  <Link href="/quests" className="flex items-center gap-2">
+                    <Target className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs font-medium">Quests</span>
+                  </Link>
+                </DropdownMenuItem>
+              </div>
 
               {/* Theme submenu replaces the bar's theme button. */}
               <DropdownMenuSub>
