@@ -302,10 +302,67 @@ export const gradients = {
   warning: `linear-gradient(100deg, ${palette.yellow} 0%, ${palette.red} 100%)`,
 } as const;
 
+/* ──────────────────────────────────────────────────────────────────
+ * 9. STATUS COLORS — the only place success / warning / info live.
+ *    Mirrored as --success / --warning / --info in app/globals.css.
+ * ────────────────────────────────────────────────────────────────── */
+export const statusColors = {
+  light: {
+    success: "#1a7f37",
+    successSurface: "#e9f6ec",
+    successBorder: "#bfe3c6",
+    warning: "#9a6700",
+    warningSurface: "#fff8e1",
+    warningBorder: "#f0dfa8",
+    info: "#0a5db3",
+    infoSurface: "#e8f2fc",
+    infoBorder: "#bcd9f5",
+  },
+  dark: {
+    success: "#4ac26b",
+    successSurface: "#0f2417",
+    successBorder: "#1f4a2c",
+    warning: "#d4a72c",
+    warningSurface: "#241d0b",
+    warningBorder: "#4d3f14",
+    info: "#6cb6ff",
+    infoSurface: "#0c1a28",
+    infoBorder: "#1e3a52",
+  },
+} as const;
+
+/* ──────────────────────────────────────────────────────────────────
+ * 10. MOTION — every transition in the app uses these. No one-off
+ *     durations or cubic-beziers in components.
+ * ────────────────────────────────────────────────────────────────── */
+export const motion = {
+  duration: {
+    instant: "80ms", //    press feedback
+    fast: "140ms", //      hover / color
+    base: "200ms", //      menus, toggles
+    slow: "280ms", //      sheets, page transitions
+  },
+  easing: {
+    standard: "cubic-bezier(0.2, 0, 0, 1)",
+    entrance: "cubic-bezier(0.16, 1, 0.3, 1)",
+    exit: "cubic-bezier(0.4, 0, 1, 1)",
+  },
+} as const;
+
+/* ──────────────────────────────────────────────────────────────────
+ * 11. ICONS — lucide only, one size ladder and one stroke weight.
+ *     Anything larger than xl belongs to illustration, not UI.
+ * ────────────────────────────────────────────────────────────────── */
+export const icon = {
+  size: { xs: 14, sm: 16, md: 18, lg: 20, xl: 24 },
+  stroke: { regular: 1.75, strong: 2 },
+} as const;
+
 /* Bundled export */
 export const designTokens = {
   palette,
   color: semanticColors,
+  status: statusColors,
   textRamp,
   backgroundLevels,
   space,
@@ -314,6 +371,8 @@ export const designTokens = {
   typography,
   layout,
   gradients,
+  motion,
+  icon,
 } as const;
 
 export default designTokens;

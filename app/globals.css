@@ -46,6 +46,33 @@
     --ring: 240 100% 72%; /*               #7070ff  brand-bg */
     --radius: 0.5rem; /* Linear radius-8 → scale 4 / 6 / 8 / 12 / 16 / 24 */
 
+    /* — Status: the only semantic greens/ambers/blues in the app —
+         (lib/design-tokens.ts → statusColors) — */
+    --success: 137 66% 30%; /*        #1a7f37 */
+    --success-foreground: 0 0% 100%;
+    --success-surface: 137 44% 94%; /* #e9f6ec */
+    --success-border: 134 43% 82%; /* #bfe3c6 */
+    --warning: 40 100% 30%; /*         #9a6700 */
+    --warning-foreground: 0 0% 100%;
+    --warning-surface: 45 100% 94%; /* #fff8e1 */
+    --warning-border: 45 69% 80%; /*   #f0dfa8 */
+    --info: 209 89% 37%; /*            #0a5db3 */
+    --info-foreground: 0 0% 100%;
+    --info-surface: 206 78% 95%; /*    #e8f2fc */
+    --info-border: 208 68% 85%; /*     #bcd9f5 */
+
+    /* — Motion: one duration/easing ladder for the whole app — */
+    --motion-instant: 80ms;
+    --motion-fast: 140ms;
+    --motion-base: 200ms;
+    --motion-slow: 280ms;
+    --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+    /* — Icons: lucide, one stroke weight (lib/design-tokens.ts → icon) — */
+    --icon-stroke: 1.75;
+
     /* — Raw palette (theme-independent Linear colors) — */
     --brand: #5e6ad2;
     --brand-light: #7070ff;
@@ -125,6 +152,20 @@
     --shadow-stack: 0px 8px 2px 0px #0000, 0px 5px 2px 0px #00000003,
       0px 3px 2px 0px #0000000a, 0px 1px 1px 0px #00000012,
       0px 0px 1px 0px #00000014;
+
+    /* — Status (dark): lifted for contrast on near-black surfaces — */
+    --success: 137 55% 53%; /*        #4ac26b */
+    --success-foreground: 137 70% 8%;
+    --success-surface: 140 42% 10%; /* #0f2417 */
+    --success-border: 139 41% 21%; /* #1f4a2c */
+    --warning: 43 65% 50%; /*         #d4a72c */
+    --warning-foreground: 43 70% 8%;
+    --warning-surface: 43 53% 9%; /*   #241d0b */
+    --warning-border: 43 59% 19%; /*   #4d3f14 */
+    --info: 208 100% 71%; /*          #6cb6ff */
+    --info-foreground: 208 80% 8%;
+    --info-surface: 208 53% 10%; /*    #0c1a28 */
+    --info-border: 207 46% 22%; /*     #1e3a52 */
   }
 
   /* Full Dark — pure black, zero gray */
@@ -148,6 +189,26 @@
     --border: 0 0% 12%;
     --input: 0 0% 12%;
     --ring: 263 70% 58%;
+  }
+
+  /* Status colours for the dark-first themes, so success/warning/info keep
+     their contrast on near-black surfaces instead of inheriting the light set. */
+  html[data-theme="midnight"],
+  html[data-theme="forest"],
+  html[data-theme="forest"].dark,
+  html[data-theme="sakura"].dark {
+    --success: 137 55% 53%;
+    --success-foreground: 137 70% 8%;
+    --success-surface: 140 42% 10%;
+    --success-border: 139 41% 21%;
+    --warning: 43 65% 50%;
+    --warning-foreground: 43 70% 8%;
+    --warning-surface: 43 53% 9%;
+    --warning-border: 43 59% 19%;
+    --info: 208 100% 71%;
+    --info-foreground: 208 80% 8%;
+    --info-surface: 208 53% 10%;
+    --info-border: 207 46% 22%;
   }
 
   /* Sakura — soft pink blossom */
@@ -272,26 +333,22 @@
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .transition-spring {
-    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: all var(--motion-base) var(--ease-entrance);
   }
   .hover-lift {
-    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease;
+    transition: border-color var(--motion-fast) var(--ease-standard);
   }
   @media (hover: hover) and (pointer: fine) {
     .hover-lift:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 10px -6px rgba(0, 0, 0, 0.1);
-    }
-    .hover-lift:active {
-      transform: translateY(0);
+      border-color: hsl(var(--border));
     }
   }
   .hover-glow {
-    transition: box-shadow 0.3s ease, border-color 0.3s ease;
+    transition: border-color var(--motion-fast) var(--ease-standard);
   }
   @media (hover: hover) and (pointer: fine) {
     .hover-glow:hover {
-      box-shadow: 0 0 0 1px hsl(var(--primary) / 0.2), 0 4px 12px -2px hsl(var(--primary) / 0.15);
+      border-color: hsl(var(--primary) / 0.4);
     }
   }
   /* Image loading optimization */
@@ -389,47 +446,42 @@
   background: hsl(var(--primary) / 0.5);
 }
 
-/* Glass morphism effect */
-.glass {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.dark .glass {
-  background: rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* 3D card hover effects */
-.card-3d {
-  transform-style: preserve-3d;
-  transition: transform 0.3s ease;
-}
-
-.card-3d:hover {
-  transform: rotateY(5deg) rotateX(5deg) translateZ(10px);
-}
-
-/* Loop-specific styles */
-.loop-card {
+/* One surface treatment for the whole app.
+   Every card/panel in the product ends up here instead of each page
+   inventing its own border opacity, radius and shadow. */
+.loop-card,
+.loop-surface {
   position: relative;
-  overflow: hidden;
+  border: 1px solid hsl(var(--border) / 0.7);
+  border-radius: 12px;
+  background-color: hsl(var(--card));
 }
 
-.loop-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.1), transparent);
-  transition: left 0.5s;
+.loop-surface-muted {
+  border: 1px solid hsl(var(--border) / 0.6);
+  border-radius: 12px;
+  background-color: hsl(var(--muted) / 0.4);
 }
 
-.loop-card:hover::before {
-  left: 100%;
+/* Section label: the small all-caps eyebrow above a group of content. */
+.loop-label {
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Numeric readouts (stats, coin balances) never jitter between frames. */
+.loop-stat {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* cards keep a flat face; the old 3D tilt read as decoration */
+.card-3d {
+  transform-style: flat;
 }
 
 /* Branch visualization */

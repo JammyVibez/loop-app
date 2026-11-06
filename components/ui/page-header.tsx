@@ -91,6 +91,83 @@ export function StatTile({
   )
 }
 
+/**
+ * Surface — the one card treatment.
+ *
+ * Use this instead of hand-rolling `rounded-2xl border border-border/40
+ * bg-slate-900/60 shadow-xl`. Radius, border, background and padding all come
+ * from the token layer, so every panel on every page matches.
+ */
+export function Surface({
+  as: Tag = "div",
+  tone = "default",
+  padded = true,
+  id,
+  className,
+  children,
+}: {
+  as?: "div" | "section" | "article" | "aside" | "li"
+  tone?: "default" | "muted" | "plain"
+  padded?: boolean
+  id?: string
+  className?: string
+  children: ReactNode
+}) {
+  return (
+    <Tag
+      id={id}
+      className={cn(
+        "rounded-xl border border-border/70",
+        tone === "default" && "bg-card",
+        tone === "muted" && "bg-muted/40",
+        tone === "plain" && "bg-transparent",
+        padded && "p-4 sm:p-5",
+        className,
+      )}
+    >
+      {children}
+    </Tag>
+  )
+}
+
+/**
+ * EmptyState — specific, product-native copy instead of “Nothing here yet”.
+ * Every empty state names the surface, what will appear, and the next action.
+ */
+export function EmptyState({
+  icon: Icon,
+  title,
+  description,
+  action,
+  className,
+}: {
+  icon?: ComponentType<{ className?: string }>
+  title: ReactNode
+  description?: ReactNode
+  action?: ReactNode
+  className?: string
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/70 bg-muted/20 px-6 py-10 text-center",
+        className,
+      )}
+    >
+      {Icon ? (
+        <span className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg border border-border/70 bg-card">
+          <Icon className="h-4 w-4 text-muted-foreground" />
+        </span>
+      ) : null}
+      <p className="text-sm font-medium text-foreground">{title}</p>
+      {description ? (
+        <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">{description}</p>
+      ) : null}
+      {action ? <div className="mt-2">{action}</div> : null}
+    </div>
+  )
+}
+
 /** Section label inside a page body. */
 export function SectionHeading({
   title,

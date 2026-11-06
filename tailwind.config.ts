@@ -13,6 +13,7 @@ const config: Config = {
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./lib/**/*.{js,ts,jsx,tsx,mdx}",
     "*.{js,ts,jsx,tsx,mdx}"
   ],
   theme: {
@@ -97,6 +98,24 @@ const config: Config = {
   				DEFAULT: 'hsl(var(--destructive))',
   				foreground: 'hsl(var(--destructive-foreground))'
   			},
+  			success: {
+  				DEFAULT: 'hsl(var(--success))',
+  				foreground: 'hsl(var(--success-foreground))',
+  				surface: 'hsl(var(--success-surface))',
+  				border: 'hsl(var(--success-border))'
+  			},
+  			warning: {
+  				DEFAULT: 'hsl(var(--warning))',
+  				foreground: 'hsl(var(--warning-foreground))',
+  				surface: 'hsl(var(--warning-surface))',
+  				border: 'hsl(var(--warning-border))'
+  			},
+  			info: {
+  				DEFAULT: 'hsl(var(--info))',
+  				foreground: 'hsl(var(--info-foreground))',
+  				surface: 'hsl(var(--info-surface))',
+  				border: 'hsl(var(--info-border))'
+  			},
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
@@ -122,6 +141,17 @@ const config: Config = {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
+  		},
+  		transitionDuration: {
+  			instant: 'var(--motion-instant)',
+  			fast: 'var(--motion-fast)',
+  			base: 'var(--motion-base)',
+  			slow: 'var(--motion-slow)'
+  		},
+  		transitionTimingFunction: {
+  			standard: 'var(--ease-standard)',
+  			entrance: 'var(--ease-entrance)',
+  			exit: 'var(--ease-exit)'
   		},
   		keyframes: {
   			'accordion-down': {
