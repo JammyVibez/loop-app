@@ -93,7 +93,7 @@ export function Header() {
   if (!user) {
     return (
       <header className="sticky top-0 z-50 w-full border-b border-border/70 bg-background/80 backdrop-blur-xl">
-        <div className="container mx-auto flex h-14 items-center justify-between px-3 sm:px-6">
+        <div className="container mx-auto flex h-16 items-center justify-between px-3 sm:px-6">
           <Link href="/" className="group flex items-center gap-2.5">
             <LogoMark />
             <div className="flex flex-col leading-tight">
@@ -122,7 +122,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/70 bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
-      <div className="container mx-auto flex h-14 items-center justify-between gap-2 px-3 sm:px-4">
+      <div className="container mx-auto flex h-16 items-center justify-between gap-2 px-3 sm:px-4">
         {/* Brand & Expandable Search Input */}
         <div className="flex items-center gap-2 min-w-0">          {/* The desktop rail already carries the brand, so the bar starts at
               search there instead of repeating the logo twice per screen. */}
@@ -138,34 +138,34 @@ export function Header() {
           {mobileSearchOpen ? (
             <form onSubmit={handleSearch} className="flex items-center gap-1 w-full max-w-xs animate-in fade-in duration-150">
               <div className="relative flex-1">
-                <AnimatedIconView component={MagnifierIcon} size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <AnimatedIconView component={MagnifierIcon} size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="text"
                   autoFocus
                   placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-8 rounded-full border-border bg-muted/40 pl-8 pr-3 text-xs"
+                  className="h-10 rounded-full border-border bg-muted/40 pl-9 pr-3 text-sm"
                 />
               </div>
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 rounded-full"
+                className="h-10 w-10 rounded-full"
                 onClick={() => setMobileSearchOpen(false)}
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </Button>
             </form>
           ) : (
             <form onSubmit={handleSearch} className="hidden md:flex relative w-48 lg:w-72 transition-all">
-              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />                <Input
+              <Search className="absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted-foreground" />                <Input
                   type="text"
                   placeholder="Search Loops, people, Circles"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-8 rounded-full border-border bg-muted/40 pl-8 pr-3 text-xs placeholder:text-muted-foreground"
+                  className="h-10 rounded-full border-border bg-muted/40 pl-9 pr-3 text-sm placeholder:text-muted-foreground"
                 />
             </form>
           )}
@@ -178,11 +178,11 @@ export function Header() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 rounded-full md:hidden"
+              className="h-10 w-10 rounded-full md:hidden"
               onClick={() => setMobileSearchOpen(true)}
               title="Search"
             >
-              <AnimatedIconView component={MagnifierIcon} size={17} />
+              <AnimatedIconView component={MagnifierIcon} size={22} />
             </Button>
           )}
 
@@ -191,11 +191,11 @@ export function Header() {
           <Link
             href="/wallet"
             data-tour="wallet"
-            className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/40 px-2 py-1 text-[11px] font-semibold tabular-nums text-foreground transition-colors duration-150 hover:border-primary/40 hover:text-primary sm:px-2.5 sm:text-xs"
+            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border/70 bg-muted/40 px-3 text-xs font-semibold tabular-nums text-foreground transition-colors duration-150 hover:border-primary/40 hover:text-primary"
             title="Loop Coins — open wallet"
             aria-label={`${Number(user.loop_coins || 0).toLocaleString()} Loop Coins — open wallet`}
           >
-            <Coins className="h-3.5 w-3.5 text-[hsl(var(--warning))]" />
+            <Coins className="h-4 w-4 text-[hsl(var(--warning))]" />
             {Number(user.loop_coins || 0).toLocaleString()}
           </Link>
 
@@ -214,13 +214,13 @@ export function Header() {
               <button
                 type="button"
                 data-tour="nav-profile"
-                className="relative h-8 w-8 rounded-full border border-border/70 bg-muted/50 p-0 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                className="relative h-10 w-10 rounded-full border border-border/70 bg-muted/50 p-0 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 <AvatarWithFrame
                   avatarUrl={user.avatar_url}
                   videoAvatarUrl={(user as any).video_avatar_url || null}
                   frameId={user.equipped_frame_id}
-                  size={32}
+                  size={36}
                   alt={user.display_name}
                 />
               </button>

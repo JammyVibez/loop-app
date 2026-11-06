@@ -147,13 +147,13 @@ export function NotificationCenterSheet({ className }: { className?: string }) {
           type="button"
           aria-label={unread > 0 ? `Notifications (${unread} unread)` : "Notifications"}
           className={cn(
-            "relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-background/70 text-foreground transition hover:border-primary/40 hover:text-primary",
+            "relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/70 text-foreground transition hover:border-primary/40 hover:text-primary",
             className,
           )}
         >
-          <Bell className="h-[18px] w-[18px]" />
+          <Bell className="h-[22px] w-[22px]" />
           {unread > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-background">
+            <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-micro font-bold leading-none text-white ring-2 ring-background">
               {unread > 99 ? "99+" : unread}
             </span>
           )}

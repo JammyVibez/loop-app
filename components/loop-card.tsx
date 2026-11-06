@@ -600,7 +600,7 @@ export const LoopCard = memo(function LoopCard({
           />
 
           {/* ── Content + Media + Actions ── */}
-          <CardContent className="px-3.5 pb-2 pt-0 sm:px-5">
+          <CardContent className="px-4 pb-2.5 pt-0 sm:px-5">
             <LoopCardContent
               loop={loop}
               rawLoop={rawLoop}

@@ -75,7 +75,7 @@ export function LoopCardContent({
                 </p>
               ) : null}
               {(loop as any).content_metadata?.forked_from ? (
-                <Badge variant="outline" className="text-[10px]">
+                <Badge variant="outline" className="text-caption">
                   Forked loop
                 </Badge>
               ) : null}
@@ -101,9 +101,9 @@ export function LoopCardContent({
             <>
               <RichContent
                 text={showFullContent ? content : contentPreview}
-                // X sets post copy at 15px with tight leading — dense but
-                // readable, and it keeps more of a post above the fold.
-                className="text-[15px] leading-[1.45]"
+                // Body copy sits at the 16px regular token with tight leading —
+                // dense but readable, and still keeps a post above the fold.
+                className="text-regular leading-[1.5]"
                 // The post author controls whether the rich link card shows
                 // for everyone viewing the post.
                 showPreviewCard={!loop.link_preview_disabled}
@@ -112,7 +112,7 @@ export function LoopCardContent({
                 <Button
                   variant="link"
                   size="sm"
-                  className="p-0 h-auto text-[var(--theme-primary)] hover:text-[var(--theme-secondary)] text-[13px]"
+                  className="p-0 h-auto text-[var(--theme-primary)] hover:text-[var(--theme-secondary)] text-mini"
                   onClick={() => setShowFullContent(!showFullContent)}
                 >
                   {showFullContent ? "Show less" : "Show more"}
@@ -132,7 +132,7 @@ export function LoopCardContent({
                 key={tag}
                 href={`/hashtag/${encodeURIComponent(tag.toLowerCase())}`}
                 onClick={(e) => e.stopPropagation()}
-                className="rounded-full bg-[var(--theme-primary,#0ea5e9)]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[var(--theme-primary,#0ea5e9)] ring-1 ring-inset ring-[var(--theme-primary,#0ea5e9)]/20 transition hover:bg-[var(--theme-primary,#0ea5e9)]/20"
+                className="rounded-full bg-[var(--theme-primary,#0ea5e9)]/10 px-3 py-1 text-caption font-semibold text-[var(--theme-primary,#0ea5e9)] ring-1 ring-inset ring-[var(--theme-primary,#0ea5e9)]/20 transition hover:bg-[var(--theme-primary,#0ea5e9)]/20"
               >
                 #{tag}
               </Link>

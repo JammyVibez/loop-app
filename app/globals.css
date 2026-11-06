@@ -96,9 +96,10 @@
     --space-10: 40px;
     --space-12: 48px;
     --space-16: 64px;
-    --gutter: 24px; /*           Linear --page-padding-inline */
+    --gutter: 1.5rem; /*         Linear --page-padding-inline */
     --page-max-width: 1024px; /* Linear --page-max-width */
-    --header-height: 72px; /*    Linear --header-height */
+    --header-height: 4rem; /*    64px — matches the header bar */
+    --bottom-nav-height: 4rem; /* 64px — matches the mobile tab bar */
 
     /* — Elevation: Linear --shadow-* (light values) — */
     --shadow-tiny: 0px 1px 1px 0px #00000017;
@@ -465,8 +466,8 @@
 
 /* Section label: the small all-caps eyebrow above a group of content. */
 .loop-label {
-  font-size: 11px;
-  line-height: 1.2;
+  font-size: 0.75rem; /* micro token — 12px floor */
+  line-height: 1.3;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -482,6 +483,29 @@
 /* cards keep a flat face; the old 3D tilt read as decoration */
 .card-3d {
   transform-style: flat;
+}
+
+/* Legacy literal sizes → type tokens.
+   Older components still spell sizes as text-[10px] / text-[13px] / text-[15px].
+   The scale in lib/design-tokens.ts is now a size up, so these literals are
+   remapped onto it here instead of each screen keeping its own pixel value.
+   rem keeps the browser/OS font-size setting working, and the 7–11px bucket
+   enforces the 12px floor the type scale promises. New code should use
+   text-micro / text-caption / text-mini / text-regular, not literals. */
+@layer utilities {
+  .text-\[7px\],
+  .text-\[8px\],
+  .text-\[9px\],
+  .text-\[10px\],
+  .text-\[11px\] {
+    font-size: 0.75rem;
+  }
+  .text-\[13px\] {
+    font-size: 0.875rem;
+  }
+  .text-\[15px\] {
+    font-size: 1rem;
+  }
 }
 
 /* Branch visualization */

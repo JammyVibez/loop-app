@@ -257,23 +257,23 @@ export function QuotedLoopCard({
       )}
     >
       {/* Author row — links to the original author, timestamp kept on the right */}
-      <div className="flex items-center gap-2 px-3.5 pt-3">
+      <div className="flex items-center gap-2 px-4 pt-3.5">
         <Link
           href={`/profile/${handle}`}
           className="flex min-w-0 items-center gap-2 rounded-full transition-opacity hover:opacity-80"
           aria-label={`Open @${handle}'s profile`}
         >
-          <Avatar className="h-6 w-6 shrink-0">
+          <Avatar className="h-8 w-8 shrink-0">
             <AvatarImage src={author.avatar_url || undefined} alt="" />
-            <AvatarFallback className="text-[10px]">
+            <AvatarFallback className="text-micro">
               {(author.display_name || handle).charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <span className="truncate text-xs font-semibold text-foreground">{author.display_name}</span>
+          <span className="truncate text-mini font-semibold text-foreground">{author.display_name}</span>
           {author.is_verified && <VerifiedSeal size={14} title="Verified" />}
-          <span className="truncate text-[11px] text-muted-foreground">@{handle}</span>
+          <span className="truncate text-micro text-muted-foreground">@{handle}</span>
         </Link>
-        <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+        <span className="ml-auto flex shrink-0 items-center gap-1.5 text-micro text-muted-foreground">
           {quote.created_at && <FreshnessTimestamp date={quote.created_at} />}
           <Quote className="h-3.5 w-3.5 text-muted-foreground/60" aria-hidden />
         </span>
@@ -313,7 +313,7 @@ export function QuotedLoopCard({
           <Link href={postHref} className="block" aria-label={`Open the quoted post by @${handle}`}>
             <p
               className={cn(
-                "whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/80",
+                "whitespace-pre-wrap text-mini leading-relaxed text-foreground/80",
                 !expanded && "line-clamp-4",
               )}
             >
@@ -321,7 +321,7 @@ export function QuotedLoopCard({
             </p>
           </Link>
         ) : mediaUrls.length === 0 ? (
-          <p className="text-[13px] italic text-muted-foreground">(media post)</p>
+          <p className="text-mini italic text-muted-foreground">(media post)</p>
         ) : null}
 
         {isLong && (

@@ -236,7 +236,12 @@ body { min-width: 320px; overflow-x: clip; }
   }
   .loop-mobile-nav a { flex-shrink: 1; }
 }
-@media (max-width: 360px) { .loop-mobile-nav a { font-size: 9px; } }
+/* Narrow phones keep the 12px label token and tighten tracking instead of
+   dropping below the type scale's floor. */
+@media (max-width: 360px) { .loop-mobile-nav a { font-size: 0.75rem; letter-spacing: -0.01em; } }
+/* 320–360px: four 44px action targets plus counts do not fit without
+   clipping, so the counts step aside and the tap targets stay full size. */
+@media (max-width: 360px) { .loop-action-row .loop-action-count { display: none; } }
 @media (prefers-reduced-motion: reduce) {
   .loop-card-motion, .loop-consent-enter { animation: none !important; transition: none !important; }
   .loop-card-motion:not([data-static="true"]):hover { transform: none !important; box-shadow: inherit; }

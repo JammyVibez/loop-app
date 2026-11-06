@@ -278,11 +278,11 @@ export function NotificationDropdown() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="relative flex items-center justify-center h-9 w-9 rounded-full hover:bg-muted/60 transition-colors"
+          className="relative flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted/60 transition-colors"
         >
-          <AnimatedIconView component={FilledBellIcon} size={18} className="text-muted-foreground" />
+          <AnimatedIconView component={FilledBellIcon} size={22} className="text-muted-foreground" />
           {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground ring-2 ring-background">
+            <span className="absolute -top-0.5 -right-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary px-1 text-micro font-bold leading-none text-primary-foreground ring-2 ring-background">
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}

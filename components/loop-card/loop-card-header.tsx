@@ -103,14 +103,14 @@ export function LoopCardHeader({
     (Array.isArray(loop.media_urls) && loop.media_urls.length > 1)
 
   return (
-    <div className="flex flex-col gap-1 px-3.5 pb-1.5 pt-3.5 sm:px-5">
+    <div className="flex flex-col gap-1 px-4 pb-2 pt-4 sm:px-5">
       {LoginGateDialog}
 
       {/* Branch origin banner — always name the author we branched from (@username + badge when verified) */}
       {loop.parent_loop_id && (
         <Link
           href={`/loop/${loop.parent_loop?.id || loop.parent_loop_id}`}
-          className="mb-1 flex items-center gap-2 rounded-lg bg-emerald-500/[0.08] px-2.5 py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-emerald-500/15 hover:text-foreground"
+          className="mb-1 flex items-center gap-2 rounded-lg bg-emerald-500/[0.08] px-3 py-2 text-micro text-muted-foreground transition-colors hover:bg-emerald-500/15 hover:text-foreground"
           title={`View the original loop this was branched from`}
         >
           <GitBranch className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
@@ -134,14 +134,14 @@ export function LoopCardHeader({
       {/* Co-loop collaboration banner */}
       {isCoLoop && (
         <div className="mb-1 flex flex-wrap items-center justify-between gap-1.5">
-          <Badge className="bg-primary text-primary-foreground font-bold text-[10px] px-2.5 py-0.5 rounded-full shadow-sm flex items-center gap-1">
+          <Badge className="bg-primary text-primary-foreground font-bold text-caption px-3 py-1 rounded-full shadow-sm flex items-center gap-1">
             <Zap className="h-3 w-3 animate-pulse text-cyan-200" />
             Co-Loop Collaboration
           </Badge>
           <button
             type="button"
             onClick={() => onSetRosterOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-bold text-cyan-400 transition-all hover:bg-cyan-500/20 hover:text-cyan-300"
+            className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-micro font-bold text-cyan-400 transition-all hover:bg-cyan-500/20 hover:text-cyan-300"
           >
             <Users className="h-3 w-3" />
             See the collaboration &middot; {coAuthors.length + 1} creators
@@ -164,7 +164,7 @@ export function LoopCardHeader({
                   avatarUrl={loop.author.avatar_url}
                   videoAvatarUrl={loop.author.video_avatar_url || null}
                   frameId={loop.author.equipped_frame_id}
-                  size={40}
+                  size={44}
                   alt={loop.author.display_name}
                   className="ring-2 ring-cyan-500 ring-offset-2 ring-offset-background group-hover:scale-105 transition-transform"
                 />
@@ -185,7 +185,7 @@ export function LoopCardHeader({
                 </div>
               ))}
               {coAuthors.length > 3 && (
-                <div className="-ml-3 relative z-0 flex h-8 w-8 items-center justify-center rounded-full bg-cyan-950 text-[10px] font-bold text-cyan-300 ring-2 ring-cyan-400">
+                <div className="-ml-3 relative z-0 flex h-9 w-9 items-center justify-center rounded-full bg-cyan-950 text-caption font-bold text-cyan-300 ring-2 ring-cyan-400">
                   +{coAuthors.length - 3}
                 </div>
               )}
@@ -196,7 +196,7 @@ export function LoopCardHeader({
                 avatarUrl={loop.author.avatar_url}
                 videoAvatarUrl={loop.author.video_avatar_url || null}
                 frameId={loop.author.equipped_frame_id}
-                size={40}
+                size={44}
                 alt={loop.author.display_name}
                 className={getAvatarStyle()}
               />
@@ -205,7 +205,7 @@ export function LoopCardHeader({
 
           {/* Author line — name, check, handle and timestamp on one row. */}
           <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 items-center gap-1 text-[15px]">
+            <div className="flex min-w-0 items-center gap-1.5 text-regular">
               {isCoLoop ? (
                 <div className="flex min-w-0 items-center gap-1 truncate font-semibold">
                   <Link
@@ -255,7 +255,7 @@ export function LoopCardHeader({
 
               {/* The co-loop branch above already prints every @handle. */}
               {!isCoLoop && (
-                <span className="min-w-0 truncate text-[13px] text-muted-foreground">
+                <span className="min-w-0 truncate text-mini text-muted-foreground">
                   @{loop.author.username}
                 </span>
               )}
@@ -275,26 +275,26 @@ export function LoopCardHeader({
             {/* Secondary/status badges render on their own line only when the
                 post actually has one — most posts show none. */}
             {showStatusRow && (
-              <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[13px] text-muted-foreground">
+              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-mini text-muted-foreground">
                 {Boolean(loop.comments_disabled) && (
                   <span className="inline-flex items-center gap-0.5 text-amber-500" title="Comments locked">
                     <Lock className="h-3 w-3" />
                   </span>
                 )}
                 {Number(loop.engagement_score) > 80 && (
-                  <Badge className="border-0 bg-orange-500/12 text-[10px] font-semibold text-orange-400 px-1.5 shadow-none">
+                  <Badge className="border-0 bg-orange-500/12 text-caption font-semibold text-orange-400 px-2 py-0.5 shadow-none">
                     <Zap className="h-2.5 w-2.5 mr-0.5" />
                     Hot
                   </Badge>
                 )}
                 {Boolean(loop.is_featured) && (
-                  <Badge className="border-0 bg-amber-400/12 text-[10px] font-semibold text-amber-400 px-1.5 shadow-none">
+                  <Badge className="border-0 bg-amber-400/12 text-caption font-semibold text-amber-400 px-2 py-0.5 shadow-none">
                     <Star className="h-2.5 w-2.5 mr-0.5" />
                     Featured
                   </Badge>
                 )}
                 {(isBoosted || boostCoinsCurrent >= 100) && (
-                  <Badge className="border-0 bg-cyan-500/12 text-[10px] font-semibold text-cyan-400 px-1.5 shadow-none">
+                  <Badge className="border-0 bg-cyan-500/12 text-caption font-semibold text-cyan-400 px-2 py-0.5 shadow-none">
                     <Rocket className="h-2.5 w-2.5 mr-0.5" />
                     Boosted{" "}
                     {boostCoinsCurrent >= 2000
@@ -305,7 +305,7 @@ export function LoopCardHeader({
                   </Badge>
                 )}
                 {Array.isArray(loop.media_urls) && loop.media_urls.length > 1 && (
-                  <Badge className="border-0 bg-purple-500/12 text-[10px] font-semibold text-purple-400 px-1.5 shadow-none">
+                  <Badge className="border-0 bg-purple-500/12 text-caption font-semibold text-purple-400 px-2 py-0.5 shadow-none">
                     {loop.media_urls.length} files
                   </Badge>
                 )}
@@ -320,9 +320,9 @@ export function LoopCardHeader({
             <Button
               variant="ghost"
               size="sm"
-              className="-mr-1.5 h-7 w-7 shrink-0 rounded-full p-0 text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
+              className="-mr-2 h-9 w-9 shrink-0 rounded-full p-0 text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
             >
-              <MoreHorizontal className="h-4 w-4" />
+              <MoreHorizontal className="h-[18px] w-[18px]" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

@@ -157,22 +157,22 @@ export const backgroundLevels = {
  *    Use Tailwind utilities in components; use these when writing raw CSS.
  * ────────────────────────────────────────────────────────────────── */
 export const space = {
-  0: "0px",
-  1: "4px",
-  2: "8px",
-  3: "12px",
-  4: "16px",
-  5: "20px",
-  6: "24px",
-  7: "28px",
-  8: "32px",
-  9: "36px",
-  10: "40px",
-  12: "48px",
-  14: "56px",
-  16: "64px",
-  20: "80px",
-  24: "96px",
+  0: "0rem",
+  1: "0.25rem", //  4px
+  2: "0.5rem", //   8px
+  3: "0.75rem", //  12px
+  4: "1rem", //     16px
+  5: "1.25rem", //  20px
+  6: "1.5rem", //   24px
+  7: "1.75rem", //  28px
+  8: "2rem", //     32px
+  9: "2.25rem", //  36px
+  10: "2.5rem", //  40px
+  12: "3rem", //    48px
+  14: "3.5rem", //  56px
+  16: "4rem", //    64px
+  20: "5rem", //    80px
+  24: "6rem", //    96px
 } as const;
 
 /* ──────────────────────────────────────────────────────────────────
@@ -253,14 +253,26 @@ export const typography = {
    *               text-title3 text-title2 text-title1
    */
   fontSize: {
+    /* The bottom of the scale is a hard floor: micro (12px) is the smallest
+       anything may render, caption (13px) is for badges and chips, mini
+       (14px) is secondary copy and small (15px) sits just under body text.
+       Body copy is regular (16px) and never inflates beyond that. */
     micro: { size: "0.75rem", lineHeight: "1.4", letterSpacing: "0" },
-    mini: { size: "0.8125rem", lineHeight: "1.5", letterSpacing: "-0.01em" },
-    small: { size: "0.875rem", lineHeight: "1.5", letterSpacing: "-0.013em" },
-    regular: { size: "0.9375rem", lineHeight: "1.6", letterSpacing: "-0.011em" },
+    caption: { size: "0.8125rem", lineHeight: "1.35", letterSpacing: "0" },
+    mini: { size: "0.875rem", lineHeight: "1.5", letterSpacing: "-0.01em" },
+    small: { size: "0.9375rem", lineHeight: "1.55", letterSpacing: "-0.013em" },
+    regular: { size: "1rem", lineHeight: "1.6", letterSpacing: "-0.011em" },
     large: { size: "1.0625rem", lineHeight: "1.6", letterSpacing: "0" },
-    title3: { size: "1.25rem", lineHeight: "1.4", letterSpacing: "-0.01em" },
-    title2: { size: "1.5rem", lineHeight: "1.3", letterSpacing: "-0.015em" },
-    title1: { size: "2.25rem", lineHeight: "1.2", letterSpacing: "-0.02em" },
+    title3: { size: "1.3125rem", lineHeight: "1.4", letterSpacing: "-0.01em" },
+    title2: { size: "1.5625rem", lineHeight: "1.3", letterSpacing: "-0.015em" },
+    title1: { size: "2.375rem", lineHeight: "1.2", letterSpacing: "-0.02em" },
+
+    /* Tailwind's default names are remapped onto the same scale so text-xs /
+       text-sm / text-base are not a second, smaller system in disguise. */
+    xs: { size: "0.8125rem", lineHeight: "1.45", letterSpacing: "-0.005em" },
+    sm: { size: "0.9375rem", lineHeight: "1.55", letterSpacing: "-0.01em" },
+    base: { size: "1rem", lineHeight: "1.6", letterSpacing: "-0.011em" },
+    lg: { size: "1.125rem", lineHeight: "1.6", letterSpacing: "0" },
   },
 
   /**
@@ -280,7 +292,8 @@ export const typography = {
  * 7. LAYOUT CONSTANTS — Linear --header-height / --page-* / --prose-*
  * ────────────────────────────────────────────────────────────────── */
 export const layout = {
-  headerHeight: "72px",
+  headerHeight: "64px",
+  bottomNavHeight: "64px",
   headerBlur: "20px",
   pagePadding: "24px", //   --page-padding-inline (the gutter)
   pageMaxWidth: "1024px", // --page-max-width
@@ -354,8 +367,31 @@ export const motion = {
  *     Anything larger than xl belongs to illustration, not UI.
  * ────────────────────────────────────────────────────────────────── */
 export const icon = {
-  size: { xs: 14, sm: 16, md: 18, lg: 20, xl: 24 },
+  /** xl (24) is the action-row / bottom-nav / top-bar icon; 2xl is the
+      bottom-nav maximum, so nothing in the chrome is drawn smaller than md. */
+  size: { xs: 14, sm: 16, md: 20, lg: 22, xl: 24, "2xl": 26 },
   stroke: { regular: 1.75, strong: 2 },
+  /** Minimum square hit area for an icon-only control (WCAG 2.5.5). */
+  touch: 44,
+} as const;
+
+/* ──────────────────────────────────────────────────────────────────
+ * 12. CONTROLS — one height ladder for buttons, inputs and bars.
+ *     Tailwind aliases: h-control-sm / h-control / h-control-lg are not
+ *     generated, so components read these and the shared ui/* primitives
+ *     already encode them.
+ * ────────────────────────────────────────────────────────────────── */
+export const control = {
+  height: { sm: "2.25rem", md: "2.75rem", lg: "3rem" }, // 36 / 44 / 48px
+  touch: "2.75rem", // 44px minimum tap target
+} as const;
+
+/** Avatar ladder (px) — feed posts and quoted/nested posts. */
+export const avatar = {
+  feed: 44,
+  nested: 32,
+  bar: 36,
+  profile: 64,
 } as const;
 
 /* Bundled export */
@@ -373,6 +409,8 @@ export const designTokens = {
   gradients,
   motion,
   icon,
+  control,
+  avatar,
 } as const;
 
 export default designTokens;

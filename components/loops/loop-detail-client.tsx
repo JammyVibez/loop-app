@@ -1100,29 +1100,29 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
               type="button"
               onClick={handleLike}
               className={cn(
-                "flex items-center justify-center gap-1.5 py-2.5 text-sm transition-colors",
+                "flex items-center justify-center gap-1.5 py-3 text-sm transition-colors",
                 loop.isLiked ? "bg-rose-500/10 text-rose-500" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
               )}
             >
-              <Heart className={cn("h-4 w-4", loop.isLiked && "fill-rose-500")} />
+              <Heart className={cn("h-[22px] w-[22px]", loop.isLiked && "fill-rose-500")} />
               <span className="font-semibold">{formatCompact(loop.stats.likes)}</span>
             </button>
 
             <button
               type="button"
               onClick={handleCommentClick}
-              className="flex items-center justify-center gap-1.5 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+              className="flex items-center justify-center gap-1.5 py-3 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
             >
-              <MessageCircle className="h-4 w-4" />
+              <MessageCircle className="h-[22px] w-[22px]" />
               <span className="font-semibold">{formatCompact(loop.stats.comments)}</span>
             </button>
 
             <button
               type="button"
               onClick={handleShare}
-              className="flex items-center justify-center gap-1.5 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+              className="flex items-center justify-center gap-1.5 py-3 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
             >
-              <Share2 className="h-4 w-4" />
+              <Share2 className="h-[22px] w-[22px]" />
               <span className="font-semibold">{formatCompact(loop.stats.shares)}</span>
             </button>
 
@@ -1130,13 +1130,13 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
               type="button"
               onClick={handleBookmark}
               className={cn(
-                "flex items-center justify-center gap-1.5 py-2.5 text-sm transition-colors",
+                "flex items-center justify-center gap-1.5 py-3 text-sm transition-colors",
                 loop.isBookmarked
                   ? "bg-sky-500/10 text-sky-500"
                   : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
               )}
             >
-              <Bookmark className={cn("h-4 w-4", loop.isBookmarked && "fill-current")} />
+              <Bookmark className={cn("h-[22px] w-[22px]", loop.isBookmarked && "fill-current")} />
             </button>
 
             <DropdownMenu>
@@ -1146,9 +1146,9 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                   title={`${loop.stats.branches} branch${loop.stats.branches === 1 ? "" : "es"}${
                     loop.stats.quotes ? ` · ${loop.stats.quotes} rebranch${loop.stats.quotes === 1 ? "" : "es"}` : ""
                   }`}
-                  className="flex items-center justify-center gap-1.5 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                  className="flex items-center justify-center gap-1.5 py-3 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
                 >
-                  <GitBranch className="h-4 w-4" />
+                  <GitBranch className="h-[22px] w-[22px]" />
                   {/* Rebranches (quotes) count with branches — both are
                       rebranches of this post, so the stat tracks both. */}
                   {loop.stats.branches + loop.stats.quotes > 0 && (

@@ -138,23 +138,27 @@ export function LoopCardActions({
 
   // Shared X-like button styling: quiet by default, the hover tint lives on the
   // icon color only (never a filled pill), with a small press-in feedback.
+  // 44px tap target with a 22px glyph; the row's own gap supplies the rest of
+  // the separation so four actions still fit a 360px-wide screen.
   const action =
-    "h-8 rounded-full px-1.5 font-normal text-muted-foreground transition-colors active:scale-[0.97]"
-  const count = "text-[13px] tabular-nums font-medium"
+    "h-11 min-w-11 rounded-full px-1 font-normal text-muted-foreground transition-colors active:scale-[0.97]"
+  // `.loop-action-count` is hidden below 361px: four 44px targets plus counts
+  // cannot share a 320px row without clipping, and the tap target wins.
+  const count = "loop-action-count text-mini tabular-nums font-medium"
 
   /** Counts only earn space when they're actually non-zero. */
   const Count = ({ value }: { value: unknown }) =>
     shouldShowCount(value) ? <span className={count}>{Number(value)}</span> : null
 
   return (
-    <div className="mt-1 flex items-center justify-between gap-1">
+    <div className="mt-1.5 flex items-center justify-between gap-1">
       {/* Primary engagement — the four things people do from the feed. */}
-      <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+      <div className="loop-action-row flex min-w-0 items-center sm:gap-2">
         <Button
           variant="ghost"
           size="sm"
           aria-label={isLiked ? "Unlike this loop" : "Like this loop"}
-          className={`${action} relative -ml-1.5 gap-1.5 ${
+          className={`${action} relative -ml-2 gap-1.5 ${
             isLiked ? "text-rose-500" : "hover:text-rose-500"
           }`}
           onClick={onLike}
@@ -164,9 +168,9 @@ export function LoopCardActions({
             <span className="pointer-events-none absolute inset-0 rounded-full border-2 border-rose-400 animate-ping opacity-60" />
           )}
           {activeInteracting === `${loop.id}-like` ? (
-            <Spinner className="h-[18px] w-[18px]" />
+            <Spinner className="h-[22px] w-[22px]" />
           ) : (
-            <AnimatedIconView component={HeartIcon} size={18} className={isLiked ? "scale-105" : ""} />
+            <AnimatedIconView component={HeartIcon} size={22} className={isLiked ? "scale-105" : ""} />
           )}
           <Count value={likesCount} />
         </Button>
@@ -178,9 +182,9 @@ export function LoopCardActions({
             className={`${action} gap-1.5 hover:text-sky-500`}
           >
             {loop.comments_disabled ? (
-              <Lock className="h-[18px] w-[18px] text-amber-500" />
+              <Lock className="h-[22px] w-[22px] text-amber-500" />
             ) : (
-              <AnimatedIconView component={MessageCircleIcon} size={18} />
+              <AnimatedIconView component={MessageCircleIcon} size={22} />
             )}
             <Count value={commentsCount} />
           </Button>
@@ -197,7 +201,7 @@ export function LoopCardActions({
               }`}
               aria-label="Branch this loop or view the chain"
             >
-              <GitBranch className="h-[18px] w-[18px]" />
+              <GitBranch className="h-[22px] w-[22px]" />
               {/* Rebranches count with branches — a quote is still a rebranch
                   of the original, so the post's stat tracks both. */}
               <Count value={Number(branchesCount) + Number(quotesCount)} />
@@ -219,7 +223,7 @@ export function LoopCardActions({
               title="Share options"
               aria-label="Share this loop"
             >
-              <AnimatedIconView component={SendHorizontalIcon} size={18} />
+              <AnimatedIconView component={SendHorizontalIcon} size={22} />
               <Count value={sharesCount} />
             </Button>
           </DropdownMenuTrigger>
@@ -282,12 +286,12 @@ export function LoopCardActions({
       {/* Compact stats: reach on the right, actions on the left. Tapping the
           view count opens analytics for the author and the public stat sheet
           for everyone else. */}
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 items-center gap-0.5">
         {shouldShowCount(viewsCount) && (
           <button
             type="button"
             onClick={onOpenStats}
-            className="inline-flex items-center gap-1 rounded-full px-1.5 py-1 text-[13px] font-medium tabular-nums text-muted-foreground transition-colors duration-150 hover:bg-muted/60 hover:text-foreground"
+            className="inline-flex h-11 items-center gap-1 rounded-full px-1 text-mini font-medium tabular-nums text-muted-foreground transition-colors duration-150 hover:bg-muted/60 hover:text-foreground"
             title={
               isAuthor
                 ? `${viewsCount.toLocaleString()} views · open analytics`
@@ -295,10 +299,12 @@ export function LoopCardActions({
             }
             aria-label={isAuthor ? "Open post analytics" : "View post stats"}
           >
-            <Eye className="h-4 w-4" aria-hidden />
+            <Eye className="h-[18px] w-[18px]" aria-hidden />
             {viewsCount >= 1000 ? `${(viewsCount / 1000).toFixed(viewsCount >= 10_000 ? 0 : 1)}K` : viewsCount}
             {isAuthor && engagementCount !== null ? (
-              <span className="ml-0.5 text-[11px] text-muted-foreground/80">{engagementCount}%</span>
+              <span className="ml-0.5 hidden text-micro text-muted-foreground/80 sm:inline">
+                {engagementCount}%
+              </span>
             ) : null}
           </button>
         )}
@@ -313,7 +319,7 @@ export function LoopCardActions({
             title="More actions"
             aria-label="More actions for this loop"
           >
-            <MoreHorizontal className="h-[18px] w-[18px]" />
+            <MoreHorizontal className="h-[22px] w-[22px]" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56 rounded-xl bg-card border-border shadow-xl">

@@ -122,7 +122,8 @@ export function MobileBottomNav() {
         className="loop-mobile-nav fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
         aria-label="Mobile navigation"
       >
-        <div className="grid grid-cols-5 items-end px-1 pb-1.5 pt-1">
+        {/* 64px bar: 24px icons, 12px labels, 44px tap targets. */}
+        <div className="grid h-16 grid-cols-5 items-stretch px-1">
           {items.map((item) => {
             const active = isActive(item.href)
             const needsAuth = Boolean(item.auth)
@@ -134,17 +135,19 @@ export function MobileBottomNav() {
                   key={item.href}
                   href={item.href}
                   aria-current={active ? "page" : undefined}
-                  className="group relative flex min-h-14 flex-col items-center justify-end gap-0.5 pb-0.5 text-[10px] font-semibold touch-manipulation"
+                  className="group relative flex flex-col items-center justify-end gap-1 pb-1.5 text-micro font-semibold touch-manipulation"
                 >
                   <span
                     className={cn(
-                      "loop-tactile -mt-6 mb-0.5 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg ring-4 ring-background transition-transform group-active:translate-y-1",
+                      "loop-tactile -mt-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg ring-4 ring-background transition-transform group-active:translate-y-1",
                       active && "scale-105",
                     )}
                   >
-                    <AnimatedIconView component={item.icon} size={21} className="h-5 w-5" />
+                    <AnimatedIconView component={item.icon} size={24} className="h-6 w-6" />
                   </span>
-                  <span className={active ? "text-primary" : "text-muted-foreground"}>{item.label}</span>
+                  <span className={cn("max-w-full truncate", active ? "text-primary" : "text-muted-foreground")}>
+                    {item.label}
+                  </span>
                 </Link>
               )
             }
@@ -158,7 +161,7 @@ export function MobileBottomNav() {
                 }}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "group relative flex min-h-11 min-w-11 flex-col items-center justify-center gap-0.5 rounded-xl py-2 text-[10px] font-medium transition-colors touch-manipulation",
+                  "group relative flex min-h-[2.75rem] min-w-[2.75rem] flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-micro font-medium transition-colors touch-manipulation",
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -169,14 +172,14 @@ export function MobileBottomNav() {
                   )}
                 />
                 <div className="relative">
-                  <AnimatedIconView component={item.icon} size={20} className="h-5 w-5" />
+                  <AnimatedIconView component={item.icon} size={24} className="h-6 w-6" />
                   {badge > 0 && (
-                    <span className="absolute -right-2.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white ring-2 ring-background">
+                    <span className="absolute -right-3 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-micro font-bold leading-none text-white ring-2 ring-background">
                       {formatUnreadBadge(badge)}
                     </span>
                   )}
                 </div>
-                <span>{item.label}</span>
+                <span className="max-w-full truncate">{item.label}</span>
               </Link>
             )
           })}
