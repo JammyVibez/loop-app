@@ -153,6 +153,10 @@ export async function GET(request: NextRequest) {
       return {
         ...q,
         state,
+        // Accepting a quest creates its progress row with a count of 0, so the
+        // row's existence — not the count — is what proves it was accepted.
+        // Without this the card offered "Accept quest" again after every reload.
+        accepted: Boolean(p) || doneSteps > 0,
         progress: {
           count: progressCount,
           required,

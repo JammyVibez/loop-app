@@ -113,8 +113,12 @@ export class EnhancedDatabaseService {
 
     if (!availableAchievements) return
 
-    // Check each achievement's requirements
+    // Check each achievement's requirements. Names are unique now, but a
+    // duplicated definition used to unlock — and notify — once per copy,
+    // which is how a single action produced a pile of identical notifications.
+    const seenNames = new Set<string>()
     for (const achievement of availableAchievements) {
+      if (seenNames.has(achievement.name)) continue
       const requirements = achievement.requirements as any
       let shouldUnlock = true
 
@@ -127,6 +131,7 @@ export class EnhancedDatabaseService {
       }
 
       if (shouldUnlock) {
+        seenNames.add(achievement.name)
         // Unlock achievement
         await this.client
           .from('user_achievements')

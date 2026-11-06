@@ -34,11 +34,24 @@ export async function POST(request: NextRequest) {
     const wk = windowKeyFor(q.cadence)
     const { data: progress } = await supabase
       .from("quest_progress")
-      .select("progress_count, completed_at")
+      .select("id, progress_count, completed_at, claimed_at")
       .eq("quest_id", questId)
       .eq("user_id", user.id)
       .eq("window_key", wk)
       .maybeSingle()
+
+    // Already claimed in this window: report success without crediting again.
+    // This is what stops a claim button from paying out on every tap.
+    if (progress?.claimed_at) {
+      return NextResponse.json({
+        success: true,
+        already_claimed: true,
+        coins: 0,
+        xp: 0,
+        item: null,
+        message: "Reward already claimed for this quest.",
+      })
+    }
 
     let verified = Boolean(progress?.completed_at)
 
@@ -61,10 +74,75 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Quest not completed yet" }, { status: 400 })
     }
 
+    // Claim gate: a single conditional UPDATE wins at most once per window, so
+    // two taps (or two tabs) can never both reach the credit step. Mission
+    // quests are tracked by steps, so make sure the progress row exists first.
+    const claimIso = new Date().toISOString()
+    let progressId = progress?.id as string | undefined
+    if (!progressId) {
+      const missionSteps = Array.isArray(q.mission_config) ? q.mission_config.length : 0
+      const { data: created } = await supabase
+        .from("quest_progress")
+        .insert({
+          quest_id: questId,
+          user_id: user.id,
+          window_key: wk,
+          progress_count: Math.max(1, missionSteps || Number(q.requirement_count || 1)),
+          completed_at: claimIso,
+        })
+        .select("id")
+        .maybeSingle()
+      progressId = created?.id as string | undefined
+    }
+
+    if (!progressId) {
+      return NextResponse.json({ error: "Could not record this quest" }, { status: 500 })
+    }
+
+    const { data: gate } = await supabase
+      .from("quest_progress")
+      .update({ claimed_at: claimIso, updated_at: claimIso })
+      .eq("id", progressId)
+      .is("claimed_at", null)
+      .select("id")
+
+    if (!gate?.length) {
+      return NextResponse.json({
+        success: true,
+        already_claimed: true,
+        coins: 0,
+        xp: 0,
+        item: null,
+        message: "Reward already claimed for this quest.",
+      })
+    }
+
     // Credit rewards (idempotent; caps applied).
     const result = await creditQuestRewards(supabase, q, user.id, "user")
     if (!result.ok) {
+      if (result.alreadyClaimed) {
+        return NextResponse.json({
+          success: true,
+          already_claimed: true,
+          coins: 0,
+          xp: 0,
+          item: null,
+          message: "Reward already claimed for this quest.",
+        })
+      }
+      // Release the gate so a transient failure does not burn the claim.
+      await supabase.from("quest_progress").update({ claimed_at: null }).eq("id", progressId)
       return NextResponse.json({ error: result.error || "Claim failed" }, { status: 400 })
+    }
+
+    // Repeatable quests (max_completions_per_user > 1) start over immediately:
+    // the counter drops back to zero so the next completion is a new claim.
+    // One-per-window quests stay marked claimed until the window resets.
+    if (Number(q.max_completions_per_user || 1) > 1) {
+      await supabase
+        .from("quest_progress")
+        .update({ progress_count: 0, completed_at: null, claimed_at: null, updated_at: claimIso })
+        .eq("id", progressId)
     }
 
     // Award Quest XP (separate from app XP).
@@ -120,16 +198,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Notification: reward added.
-    try {
-      await supabase.from("notifications").insert({
-        user_id: user.id,
-        type: "quest_reward",
-        title: "Reward added",
-        message: `Your reward for "${q.title}" is in your wallet.`,
-        data: { quest_id: q.id, coins: result.coins, xp: result.xp },
-      })
-    } catch { /* non-blocking */ }
+    // Notification: only when something was actually granted, and only once per
+    // claim. A capped claim (or a zero-reward quest) used to notify anyway,
+    // which is how a single completion could produce a pile of notifications.
+    const grantedSomething = result.coins > 0 || result.xp > 0 || Boolean(result.item)
+    if (grantedSomething) {
+      try {
+        await supabase.from("notifications").insert({
+          user_id: user.id,
+          type: "quest_reward",
+          title: "Reward added",
+          message: `Your reward for "${q.title}" is in your wallet.`,
+          data: { quest_id: q.id, coins: result.coins, xp: result.xp },
+        })
+      } catch { /* non-blocking */ }
+    }
 
     return NextResponse.json({
       success: true,

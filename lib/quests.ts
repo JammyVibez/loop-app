@@ -269,25 +269,32 @@ export async function creditQuestRewards(
 ): Promise<{
   ok: boolean
   error?: string
+  alreadyClaimed?: boolean
   coins: number
   xp: number
   item: { id: number; qty: number } | null
   newBalance?: number
   leveledUp?: boolean
 }> {
-  // Idempotency: check the ledger for this quest+user+window before crediting.
   const wk = windowKeyFor(quest.cadence)
-  const { data: existingClaim } = await supabase
-    .from("quest_claims")
-    .select("id")
-    .eq("quest_id", quest.id)
-    .eq("user_id", userId)
-    .eq("window_key", wk)
-    .maybeSingle()
-
   const allowMultiple = Number(quest.max_completions_per_user || 1) > 1
-  if (existingClaim && !allowMultiple) {
-    return { ok: false, error: "Reward already claimed", coins: 0, xp: 0, item: null }
+
+  // Idempotency: the claim ledger is the record of a completed payout. The
+  // claimed_at gate in /api/quests/claim makes the user-facing claim run once;
+  // this check makes a repeated or replayed call a no-op instead of a second
+  // payout. (Do not check claimed_at here — the claim route sets it just before
+  // crediting, so it would look "already claimed" on the first legitimate claim.)
+  if (!allowMultiple) {
+    const { data: existingClaim } = await supabase
+      .from("quest_claims")
+      .select("id")
+      .eq("quest_id", quest.id)
+      .eq("user_id", userId)
+      .eq("window_key", wk)
+      .maybeSingle()
+    if (existingClaim) {
+      return { ok: false, error: "Reward already claimed", alreadyClaimed: true, coins: 0, xp: 0, item: null }
+    }
   }
 
   const requestedCoins =
@@ -358,8 +365,10 @@ export async function creditQuestRewards(
     if (invErr) console.error("Quest item grant failed:", invErr.message)
   }
 
-  // Ledger entry (also powers the daily-cap accounting).
-  await supabase.from("quest_claims").insert({
+  // Ledger entry (also powers the daily-cap accounting). A duplicate key means
+  // a concurrent claim already landed, so this request must not report a fresh
+  // credit — but the reward itself is not granted twice.
+  const { error: ledgerError } = await supabase.from("quest_claims").insert({
     quest_id: quest.id,
     user_id: userId,
     window_key: wk,
@@ -369,6 +378,9 @@ export async function creditQuestRewards(
     item_qty: item?.qty ?? 0,
     source,
   })
+  if (ledgerError && ledgerError.code === "23505" && !allowMultiple) {
+    return { ok: false, error: "Reward already claimed", alreadyClaimed: true, coins: 0, xp: 0, item: null }
+  }
 
   return { ok: true, coins: adjusted.coins, xp: adjusted.xp, item, newBalance, leveledUp }
 }

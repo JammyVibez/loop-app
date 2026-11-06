@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { Spinner } from "@/components/ui/skeletons"
 import {
   ArrowRight,
+  Check,
   ChevronRight,
   ClipboardList,
   Coins,
@@ -67,6 +68,8 @@ export interface BoardQuest {
   auto_claim: boolean
   cta_text: string | null
   state: string
+  /** True once the user has accepted (or started) this quest in this window. */
+  accepted?: boolean
   progress: { count: number; required: number; percent: number; completed: boolean; claimed: boolean; reset_label: string }
   mission_progress: { done: number; total: number } | null
 }
@@ -116,6 +119,10 @@ export default function QuestsClient() {
   const [data, setData] = useState<BoardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [claiming, setClaiming] = useState<string | null>(null)
+  const [accepting, setAccepting] = useState<string | null>(null)
+  // Quests accepted in this session, so the button flips immediately instead
+  // of waiting for the board refetch.
+  const [accepted, setAccepted] = useState<Set<string>>(new Set())
   const [justClaimed, setJustClaimed] = useState<string | null>(null)
   const [filter, setFilter] = useState<"all" | SectionKey>("all")
 
@@ -147,6 +154,11 @@ export default function QuestsClient() {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || "Claim failed")
+      if (json.already_claimed) {
+        toast({ title: "Already claimed", description: "This quest's reward is already in your wallet." })
+        load()
+        return
+      }
       setJustClaimed(q.id)
       setTimeout(() => setJustClaimed(null), 2600)
       toast({
@@ -164,6 +176,31 @@ export default function QuestsClient() {
       toast({ title: "Claim failed", description: err.message, variant: "destructive" })
     } finally {
       setClaiming(null)
+    }
+  }
+
+  const accept = async (q: BoardQuest) => {
+    setAccepting(q.id)
+    setAccepted((prev) => new Set(prev).add(q.id))
+    try {
+      const res = await fetch("/api/quests/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({ quest_id: q.id }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error || "Could not accept this quest")
+      toast({ title: "Quest accepted", description: `${q.title} is now tracking your activity.` })
+      load()
+    } catch (err: any) {
+      setAccepted((prev) => {
+        const next = new Set(prev)
+        next.delete(q.id)
+        return next
+      })
+      toast({ title: "Could not accept quest", description: err.message, variant: "destructive" })
+    } finally {
+      setAccepting(null)
     }
   }
 
@@ -472,6 +509,9 @@ export default function QuestsClient() {
                     claiming={claiming === section.quests[0].id}
                     justClaimed={justClaimed === section.quests[0].id}
                     onHide={hideQuest}
+                    onAccept={accept}
+                    accepting={accepting === section.quests[0].id}
+                    accepted={accepted.has(section.quests[0].id)}
                   />
                   {section.quests.slice(1).length > 0 && (
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -483,6 +523,9 @@ export default function QuestsClient() {
                           claiming={claiming === q.id}
                           justClaimed={justClaimed === q.id}
                           onHide={hideQuest}
+                          onAccept={accept}
+                          accepting={accepting === q.id}
+                          accepted={accepted.has(q.id)}
                         />
                       ))}
                     </div>
@@ -498,6 +541,9 @@ export default function QuestsClient() {
                       claiming={claiming === q.id}
                       justClaimed={justClaimed === q.id}
                       onHide={hideQuest}
+                      onAccept={accept}
+                      accepting={accepting === q.id}
+                      accepted={accepted.has(q.id)}
                     />
                   ))}
                 </div>
@@ -532,19 +578,34 @@ function QuestCard({
   claiming,
   justClaimed,
   onHide,
+  onAccept,
+  accepting,
+  accepted,
 }: {
   quest: BoardQuest
   onClaim: (q: BoardQuest) => void
   claiming: boolean
   justClaimed: boolean
   onHide: (id: string) => void
+  onAccept: (q: BoardQuest) => void
+  accepting: boolean
+  accepted: boolean
 }) {
   const a = ACCENTS[quest.accent || ""] || ACCENTS.violet
   const TypeIcon = TYPE_ICON[quest.quest_type] || Target
   const timeLeft = formatTimeRemaining(quest.ends_at)
   const est = estimateLabel(quest.est_minutes)
   const isMission = quest.quest_kind === "mission"
+  const isNative = quest.quest_type === "native"
   const href = `/quests/${quest.id}`
+  const isAccepted =
+    accepted ||
+    isNative &&
+      (Boolean(quest.accepted) ||
+        quest.state === "in_progress" ||
+        quest.state === "claimable" ||
+        quest.state === "claimed")
+  const isClaimed = quest.state === "claimed"
 
   const cta =
     quest.state === "claimable" ? "Claim reward"
@@ -556,7 +617,14 @@ function QuestCard({
   return (
     <article
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-3xl border border-border/70 bg-card transition-all duration-300 hover:-translate-y-1 hover:border-foreground/15 hover:shadow-[0_24px_50px_-30px_rgba(0,0,0,0.55)]",
+        "group relative flex flex-col overflow-hidden rounded-3xl border bg-card transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-30px_rgba(0,0,0,0.55)]",
+        // A finished quest is framed in green, so "done" is readable from the
+        // card itself without opening it.
+        isClaimed
+          ? "border-emerald-500/45 ring-1 ring-emerald-500/25"
+          : quest.state === "claimable"
+            ? "border-emerald-500/35"
+            : "border-border/70 hover:border-foreground/15",
         justClaimed && "quest-complete-burst",
       )}
     >
@@ -678,16 +746,49 @@ function QuestCard({
           {quest.state === "claimable" ? (
             <Button
               size="sm"
-              className="w-full rounded-full bg-emerald-600 hover:bg-emerald-600/90"
+              className="w-full rounded-full bg-emerald-600 text-white hover:bg-emerald-600/90"
               disabled={claiming}
               onClick={() => onClaim(quest)}
             >
               {claiming ? <Spinner className="h-4 w-4" /> : <Trophy className="mr-1.5 h-3.5 w-3.5" />}
               Claim reward
             </Button>
-          ) : quest.state === "claimed" || quest.state === "expired" ? (
+          ) : isClaimed ? (
+            // Green, disabled and labelled: the frame and the button both say
+            // the reward is already in the wallet.
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full rounded-full border-emerald-500/60 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400"
+              disabled
+            >
+              <Check className="mr-1.5 h-3.5 w-3.5" /> Claimed
+            </Button>
+          ) : quest.state === "expired" ? (
             <Button size="sm" variant="outline" className="w-full rounded-full" disabled asChild>
-              <span>{cta}</span>
+              <span>Expired</span>
+            </Button>
+          ) : isNative && isAccepted ? (
+            // Accepted tracking quests have no further button to press: the
+            // work is detected from normal activity. Checked before the
+            // "available" branch so an accepted quest never offers Accept again.
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full rounded-full border-emerald-500/60 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400"
+              disabled
+            >
+              <Check className="mr-1.5 h-3.5 w-3.5" /> Accepted
+            </Button>
+          ) : isNative && quest.state === "available" ? (
+            <Button
+              size="sm"
+              className="w-full rounded-full"
+              disabled={accepting}
+              onClick={() => onAccept(quest)}
+            >
+              {accepting ? <Spinner className="h-4 w-4" /> : <Target className="mr-1.5 h-3.5 w-3.5" />}
+              Accept quest
             </Button>
           ) : (
             <Button
@@ -716,12 +817,18 @@ function FeaturedMissionCard({
   claiming,
   justClaimed,
   onHide,
+  onAccept,
+  accepting,
+  accepted,
 }: {
   quest: BoardQuest
   onClaim: (q: BoardQuest) => void
   claiming: boolean
   justClaimed: boolean
   onHide: (id: string) => void
+  onAccept: (q: BoardQuest) => void
+  accepting: boolean
+  accepted: boolean
 }) {
   const a = ACCENTS[quest.accent || ""] || ACCENTS.violet
   const timeLeft = formatTimeRemaining(quest.ends_at)
@@ -731,7 +838,12 @@ function FeaturedMissionCard({
   return (
     <article
       className={cn(
-        "relative grid overflow-hidden rounded-[30px] border border-border/70 bg-card lg:grid-cols-[1.15fr_1fr]",
+        "relative grid overflow-hidden rounded-[30px] border bg-card lg:grid-cols-[1.15fr_1fr]",
+        quest.state === "claimed"
+          ? "border-emerald-500/45 ring-1 ring-emerald-500/25"
+          : quest.state === "claimable"
+            ? "border-emerald-500/35"
+            : "border-border/70",
         justClaimed && "quest-complete-burst",
       )}
     >
@@ -809,8 +921,25 @@ function FeaturedMissionCard({
               Claim reward
             </Button>
           ) : quest.state === "claimed" ? (
-            <Button variant="outline" className="rounded-full" disabled>
-              Claimed
+            <Button
+              variant="outline"
+              className="rounded-full border-emerald-500/60 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400"
+              disabled
+            >
+              <Check className="mr-1.5 h-4 w-4" /> Claimed
+            </Button>
+          ) : quest.quest_type === "native" && quest.state === "available" ? (
+            <Button className="rounded-full" disabled={accepting} onClick={() => onAccept(quest)}>
+              {accepting ? <Spinner className="h-4 w-4" /> : <Target className="mr-1.5 h-4 w-4" />}
+              Accept quest
+            </Button>
+          ) : quest.quest_type === "native" && (accepted || quest.state === "in_progress") ? (
+            <Button
+              variant="outline"
+              className="rounded-full border-emerald-500/60 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400"
+              disabled
+            >
+              <Check className="mr-1.5 h-4 w-4" /> Accepted
             </Button>
           ) : (
             <Button asChild className="rounded-full">

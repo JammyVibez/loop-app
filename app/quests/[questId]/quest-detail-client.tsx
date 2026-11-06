@@ -67,6 +67,8 @@ interface DetailQuest {
   mission_config: MissionStepConfig[]
   game_config: { kind?: string; min_score?: number; max_attempts?: number }
   state: string
+  /** True once the user accepted the quest (progress row exists for the window). */
+  accepted?: boolean
   progress: { count: number; required: number; percent: number; completed: boolean; claimed: boolean }
   mission_progress: { done: number; total: number } | null
 }
@@ -114,6 +116,11 @@ export default function QuestDetailClient({ questId }: { questId: string }) {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || "Claim failed")
+      if (json.already_claimed) {
+        toast({ title: "Already claimed", description: "This reward is already in your wallet." })
+        load()
+        return
+      }
       const parts = [
         json.coins > 0 ? `+${json.coins} Loop Coins` : null,
         json.xp > 0 ? `+${json.xp} XP` : null,
@@ -130,15 +137,29 @@ export default function QuestDetailClient({ questId }: { questId: string }) {
     }
   }
 
+  const [accepting, setAccepting] = useState(false)
+  const [accepted, setAccepted] = useState(false)
+
   const start = async () => {
+    setAccepting(true)
+    // Flip the button immediately — the tracker takes over from here.
+    setAccepted(true)
     try {
-      await fetch("/api/quests/start", {
+      const res = await fetch("/api/quests/start", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({ quest_id: questId }),
       })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error || "Could not accept this quest")
+      toast({ title: "Quest accepted", description: "Your activity on Loop now counts toward it." })
       load()
-    } catch { /* non-blocking */ }
+    } catch (err: any) {
+      setAccepted(false)
+      toast({ title: "Could not accept quest", description: err.message, variant: "destructive" })
+    } finally {
+      setAccepting(false)
+    }
   }
 
   /* ---------------- Render ---------------- */
@@ -277,13 +298,22 @@ export default function QuestDetailClient({ questId }: { questId: string }) {
           {quest.quest_type === "ad" && <VideoQuest quest={quest} onComplete={load} />}
           {quest.quest_type === "survey" && <SurveyQuest quest={quest} onComplete={load} />}
           {quest.quest_type === "minigame" && <GameQuest quest={quest} onComplete={load} />}
-          {quest.quest_type === "native" && <NativeQuest quest={quest} onStart={start} />}
+          {quest.quest_type === "native" && (
+            <NativeQuest quest={quest} onStart={start} accepting={accepting} accepted={accepted} />
+          )}
         </div>
       )}
 
       {/* Progress summary + claim */}
       {quest.quest_kind !== "mission" && (
-        <div className="rounded-2xl border bg-card p-4">
+        <div
+          className={cn(
+            "rounded-2xl border bg-card p-4",
+            // Finished quests get the green frame from the reference design.
+            quest.state === "claimed" && "border-emerald-500/45 ring-1 ring-emerald-500/25",
+            quest.state === "claimable" && "border-emerald-500/35",
+          )}
+        >
           <div className="mb-1.5 flex items-center justify-between text-xs font-semibold">
             <span className="uppercase tracking-wide text-muted-foreground">Progress</span>
             <span>{quest.progress.count} / {quest.progress.required}</span>
@@ -296,7 +326,12 @@ export default function QuestDetailClient({ questId }: { questId: string }) {
                 Claim reward
               </Button>
             ) : quest.state === "claimed" ? (
-              <Button size="lg" variant="outline" className="w-full rounded-full" disabled>
+              <Button
+                size="lg"
+                variant="outline"
+                className="w-full rounded-full border-emerald-500/60 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400"
+                disabled
+              >
                 <Check className="mr-1.5 h-4 w-4" /> Claimed
               </Button>
             ) : quest.state === "expired" ? (
@@ -310,10 +345,21 @@ export default function QuestDetailClient({ questId }: { questId: string }) {
 
       {/* Mission claim */}
       {quest.quest_kind === "mission" && quest.state === "claimable" && (
-        <Button size="lg" className="w-full rounded-full" disabled={claiming} onClick={claim}>
+        <Button
+          size="lg"
+          className="w-full rounded-full bg-emerald-600 text-white hover:bg-emerald-600/90"
+          disabled={claiming}
+          onClick={claim}
+        >
           {claiming ? <Spinner className="h-4 w-4" /> : <Gift className="mr-1.5 h-4 w-4" />}
           Claim mission reward
         </Button>
+      )}
+      {quest.quest_kind === "mission" && quest.state === "claimed" && (
+        <div className="flex items-center gap-2 rounded-2xl border border-emerald-500/45 bg-emerald-500/5 p-4">
+          <Check className="h-5 w-5 text-emerald-500" />
+          <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Mission completed and claimed</p>
+        </div>
       )}
 
       {/* Sponsor + terms */}
@@ -810,16 +856,43 @@ function Shape({ name, className }: { name: string; className?: string }) {
 /* Native quest — guidance + start                                     */
 /* ------------------------------------------------------------------ */
 
-function NativeQuest({ quest, onStart }: { quest: DetailQuest; onStart: () => void }) {
+function NativeQuest({
+  quest,
+  onStart,
+  accepting,
+  accepted,
+}: {
+  quest: DetailQuest
+  onStart: () => void
+  accepting: boolean
+  accepted: boolean
+}) {
+  const isAccepted =
+    accepted ||
+    Boolean(quest.accepted) ||
+    quest.state === "in_progress" ||
+    quest.state === "claimable" ||
+    quest.state === "claimed"
+
   return (
     <div className="rounded-2xl border bg-card p-4 sm:p-5">
       <p className="mb-1 flex items-center gap-2 text-sm font-bold"><Target className="h-4 w-4 text-emerald-500" /> How to complete</p>
       <p className="text-sm text-muted-foreground">
-        This quest tracks your activity across Loop automatically. {quest.progress.count > 0 ? `${quest.progress.required - quest.progress.count} more to go.` : "Use Loop as usual and progress will appear here."}
+        This quest tracks your activity across Loop automatically. {quest.progress.count > 0 ? `${Math.max(0, quest.progress.required - quest.progress.count)} more to go.` : "Use Loop as usual and progress will appear here."}
       </p>
-      {quest.state === "available" && (
-        <Button className="mt-3 rounded-full" variant="outline" onClick={onStart}>
-          Accept quest <ChevronRight className="ml-1 h-4 w-4" />
+      {isAccepted ? (
+        // Accepted quests have nothing left to press — the work itself counts.
+        <Button
+          className="mt-3 rounded-full border-emerald-500/60 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400"
+          variant="outline"
+          disabled
+        >
+          <Check className="mr-1.5 h-4 w-4" /> Accepted
+        </Button>
+      ) : (
+        <Button className="mt-3 rounded-full" disabled={accepting} onClick={onStart}>
+          {accepting ? <Spinner className="h-4 w-4" /> : <ChevronRight className="mr-1 h-4 w-4" />}
+          Accept quest
         </Button>
       )}
     </div>
