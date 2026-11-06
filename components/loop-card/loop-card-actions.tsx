@@ -66,6 +66,8 @@ interface LoopCardActionsProps {
   onShareImageOpen: () => void
   /** Opens the author's post analytics sheet. */
   onOpenAnalytics?: () => void
+  /** Opens post stats — full analytics for the author, public counts for everyone else. */
+  onOpenStats?: () => void
 }
 
 /**
@@ -107,6 +109,7 @@ export function LoopCardActions({
   onShareSheetOpen,
   onShareImageOpen,
   onOpenAnalytics,
+  onOpenStats,
 }: LoopCardActionsProps) {
   const { user: currentUser } = useAuth()
   const { requireAuth } = useLoginGate()
@@ -276,20 +279,28 @@ export function LoopCardActions({
         </DropdownMenu>
       </div>
 
-      {/* Read-only reach: every viewer sees that a post is being read, and the
-          author gets one tap into the full breakdown. */}
+      {/* Compact stats: reach on the right, actions on the left. Tapping the
+          view count opens analytics for the author and the public stat sheet
+          for everyone else. */}
       <div className="flex shrink-0 items-center gap-1">
         {shouldShowCount(viewsCount) && (
-          <span
-            className="inline-flex items-center gap-1 rounded-full px-1.5 py-1 text-[13px] font-medium tabular-nums text-muted-foreground"
-            title={`${viewsCount.toLocaleString()} views${engagementCount !== null ? ` · ${engagementCount}% engagement` : ""}`}
+          <button
+            type="button"
+            onClick={onOpenStats}
+            className="inline-flex items-center gap-1 rounded-full px-1.5 py-1 text-[13px] font-medium tabular-nums text-muted-foreground transition-colors duration-150 hover:bg-muted/60 hover:text-foreground"
+            title={
+              isAuthor
+                ? `${viewsCount.toLocaleString()} views · open analytics`
+                : `${viewsCount.toLocaleString()} views · engagement ${engagementCount ?? 0}%`
+            }
+            aria-label={isAuthor ? "Open post analytics" : "View post stats"}
           >
             <Eye className="h-4 w-4" aria-hidden />
             {viewsCount >= 1000 ? `${(viewsCount / 1000).toFixed(viewsCount >= 10_000 ? 0 : 1)}K` : viewsCount}
             {isAuthor && engagementCount !== null ? (
               <span className="ml-0.5 text-[11px] text-muted-foreground/80">{engagementCount}%</span>
             ) : null}
-          </span>
+          </button>
         )}
 
       {/* Everything else — one overflow menu instead of five more icons. */}

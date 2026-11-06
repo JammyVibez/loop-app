@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
 import { enforceUserRateLimit } from "@/lib/rate-limit-settings"
+import { recordViewEvent } from "@/lib/post-analytics"
 
 export async function POST(
   request: NextRequest,
@@ -114,6 +115,25 @@ export async function POST(
             title: "Your loop was shared",
             message: "Someone shared your loop",
             data: { loop_id: loopId, user_id: user.id, interaction_type: "share" },
+          })
+        }
+      }
+
+      if (interaction_type === "view") {
+        // Timeline event for author analytics (repeat views included, deduped
+        // per viewer per 30 minutes). Never blocks the interaction response.
+        const { data: loopAuthor } = await supabase
+          .from("loops")
+          .select("author_id")
+          .eq("id", loopId)
+          .maybeSingle()
+        if (loopAuthor?.author_id) {
+          await recordViewEvent({
+            supabase,
+            loopId,
+            viewerId: user.id,
+            authorId: String(loopAuthor.author_id),
+            surface: body.surface,
           })
         }
       }

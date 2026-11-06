@@ -24,6 +24,7 @@ import { LoopCardActions } from "./loop-card/loop-card-actions"
 import { LoopCardBoostBar } from "./loop-card/loop-card-boost-bar"
 import { LoopCardModals } from "./loop-card/loop-card-modals"
 import { PostAnalyticsDialog } from "@/components/analytics/post-analytics-dialog"
+import { PostStatsDialog } from "@/components/analytics/post-stats-dialog"
 import { CreateBranchDialog } from "@/components/create-branch-dialog"
 import {
   QuotedLoopCard,
@@ -42,6 +43,8 @@ interface LoopCardProps {
   onBookmark?: () => void
   isChild?: boolean
   className?: string
+  /** Where this card is rendered, so views can be attributed to a surface. */
+  surface?: "feed" | "profile" | "circle" | "explore" | "search" | "tree" | "other"
 }
 
 export const LoopCard = memo(function LoopCard({
@@ -51,6 +54,7 @@ export const LoopCard = memo(function LoopCard({
   onDeleted,
   onEdited,
   className = "",
+  surface = "feed",
 }: LoopCardProps) {
   const normalized = normalizeLoop(rawLoop)
   const [loop, setLoop] = useState(normalized)
@@ -83,6 +87,7 @@ export const LoopCard = memo(function LoopCard({
   const [shareImageOpen, setShareImageOpen] = useState(false)
   const [shareSheetOpen, setShareSheetOpen] = useState(false)
   const [analyticsOpen, setAnalyticsOpen] = useState(false)
+  const [statsOpen, setStatsOpen] = useState(false)
   const [boostCoinsCurrent, setBoostCoinsCurrent] = useState<number>(
     rawLoop?.boost_coins_current || 0
   )
@@ -94,6 +99,7 @@ export const LoopCard = memo(function LoopCard({
   const { toast } = useToast()
   const { requireAuth, LoginGateDialog } = useLoginGate()
   const activeInteracting = interacting ?? localInteracting
+  const isAuthor = Boolean(currentUser?.id && currentUser.id === rawLoop?.author_id)
 
   useEffect(() => {
     setLoop(normalizeLoop(rawLoop))
@@ -154,7 +160,7 @@ export const LoopCard = memo(function LoopCard({
         void fetch(`/api/loops/${loop.id}/interactions`, {
           method: "POST",
           headers: { "Content-Type": "application/json", ...getAuthHeader() },
-          body: JSON.stringify({ interaction_type: "view" }),
+          body: JSON.stringify({ interaction_type: "view", surface }),
         })
           .then(async (res) => {
             if (!res.ok) return
@@ -681,6 +687,7 @@ export const LoopCard = memo(function LoopCard({
               onShareSheetOpen={() => setShareSheetOpen(true)}
               onShareImageOpen={() => setShareImageOpen(true)}
               onOpenAnalytics={() => setAnalyticsOpen(true)}
+              onOpenStats={() => setStatsOpen(true)}
             />
           </CardContent>
         </Card>
@@ -732,7 +739,25 @@ export const LoopCard = memo(function LoopCard({
         setShareSheetOpen={setShareSheetOpen}
       />
 
-      <PostAnalyticsDialog loopId={loop.id} open={analyticsOpen} onOpenChange={setAnalyticsOpen} />
+      {isAuthor ? (
+        <PostAnalyticsDialog loopId={loop.id} open={analyticsOpen || statsOpen} onOpenChange={(next) => {
+          setAnalyticsOpen(next)
+          setStatsOpen(false)
+        }} />
+      ) : (
+        <PostStatsDialog
+          open={statsOpen}
+          onOpenChange={setStatsOpen}
+          stats={{
+            views: Number(loop.stats.views_count || 0),
+            likes: Number(loop.stats.likes_count || 0),
+            comments: Number(loop.stats.comments_count || 0),
+            branches: Number(loop.stats.branches_count || 0),
+            shares: Number(loop.stats.shares_count || 0),
+            saves: Number((loop.stats as { saves_count?: number }).saves_count || 0),
+          }}
+        />
+      )}
 
       {/* Quote the embedded original directly from its card */}
       {quoteTarget && (
