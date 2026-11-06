@@ -160,14 +160,13 @@ export function Header() {
             </form>
           ) : (
             <form onSubmit={handleSearch} className="hidden md:flex relative w-48 lg:w-72 transition-all">
-              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-8 rounded-full border-border bg-muted/40 pl-8 pr-3 text-xs placeholder:text-muted-foreground focus-visible:ring-sky-500"
-              />
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />                <Input
+                  type="text"
+                  placeholder="Search Loops, people, Circles"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-8 rounded-full border-border bg-muted/40 pl-8 pr-3 text-xs placeholder:text-muted-foreground"
+                />
             </form>
           )}
         </div>
@@ -187,14 +186,16 @@ export function Header() {
             </Button>
           )}
 
-          {/* Loop Coins — the balance users check constantly, kept in the bar. */}
+          {/* Loop Coins — the balance is also the single wallet entry on every
+              device, so Wallet is not repeated in any navigation list. */}
           <Link
             href="/wallet"
             data-tour="wallet"
-            className="hidden items-center gap-1 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary sm:inline-flex"
-            title="Loop Coins wallet"
+            className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/40 px-2 py-1 text-[11px] font-semibold tabular-nums text-foreground transition-colors duration-150 hover:border-primary/40 hover:text-primary sm:px-2.5 sm:text-xs"
+            title="Loop Coins — open wallet"
+            aria-label={`${Number(user.loop_coins || 0).toLocaleString()} Loop Coins — open wallet`}
           >
-            <Coins className="h-3.5 w-3.5 text-amber-500" />
+            <Coins className="h-3.5 w-3.5 text-[hsl(var(--warning))]" />
             {Number(user.loop_coins || 0).toLocaleString()}
           </Link>
 
@@ -213,7 +214,7 @@ export function Header() {
               <button
                 type="button"
                 data-tour="nav-profile"
-                className="relative h-8 w-8 rounded-full border border-border/80 bg-muted/50 p-0 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-sky-500/50"
+                className="relative h-8 w-8 rounded-full border border-border/70 bg-muted/50 p-0 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 <AvatarWithFrame
                   avatarUrl={user.avatar_url}
@@ -246,24 +247,13 @@ export function Header() {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
 
-              <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
-                <Link href={`/profile/${user.username || user.id}`} className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-xs font-medium">Your Profile</span>
-                </Link>
-              </DropdownMenuItem>
-
-              {/* Wallet and Quests already live in the desktop rail and the
-                  coin pill, so they only appear here on phones — where the tab
-                  bar has no room for them and the rail is behind a swipe. */}
-              <div className="sm:hidden">
+              {/* Desktop reaches the profile from the rail's account chip, so
+                  this row is the phone-only path to the same destination. */}
+              <div className="lg:hidden">
                 <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
-                  <Link href="/wallet" className="flex items-center gap-2">
-                    <Coins className="h-4 w-4 text-amber-500" />
-                    <span className="text-xs font-medium">Wallet</span>
-                    <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
-                      {Number(user.loop_coins || 0).toLocaleString()}
-                    </span>
+                  <Link href={`/profile/${user.username || user.id}`} className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs font-medium">Your profile</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="rounded-xl cursor-pointer">

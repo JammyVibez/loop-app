@@ -5,12 +5,11 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { AppLogo } from "@/components/brand/app-logo"
 import { useAuth } from "@/hooks/use-auth"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AvatarWithFrame } from "@/components/ui/avatar-with-frame"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { ChevronDown, Flame, LogOut } from "lucide-react"
+import { ChevronDown, LogOut } from "lucide-react"
 import { AnimatedIconView } from "@/components/icons/animated/animated-icon-view"
 import type { AnimatedIconComponent } from "@/components/icons/animated/animated-icon-view"
 import HomeIcon from "@/components/icons/animated/home-icon"
@@ -38,14 +37,6 @@ import {
   writeSidebarMoreExpanded,
   type SidebarAudience,
 } from "@/lib/sidebar-nav"
-
-interface CircleItem {
-  id: string
-  name: string
-  description?: string
-  member_count?: number
-  avatar_url?: string
-}
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 
@@ -96,7 +87,6 @@ function navItemClasses(href: string, active: boolean) {
 export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
   const { user, signOut } = useAuth()
   const pathname = usePathname()
-  const [trendingCircles, setTrendingCircles] = useState<CircleItem[]>([])
 
   // This component renders twice on small screens (desktop rail + the mobile
   // sheet), so the disclosure needs an id that is unique per instance.
@@ -114,21 +104,6 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
       return !prev
     })
   }
-
-  useEffect(() => {
-    if (!user) return
-
-    fetch("/api/circles?limit=5")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.circles || data.data) {
-          setTrendingCircles(data.circles || data.data || [])
-        }
-      })
-      .catch(() => {})
-
-
-  }, [user])
 
   if (!user) return null
 
@@ -157,11 +132,9 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
         </div>
 
         <ScrollArea className="flex-1 my-2 pr-2 scrollbar-thin">
-          {/* Main Discovery Navigation Links */}
+          {/* The rail is navigation and nothing else: five core destinations,
+              one disclosure, then your account. */}
           <div className="space-y-0.5">
-            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
-              Navigation
-            </p>
             {primaryNav.map((item) => {
               const Icon = NAV_ICONS[item.href]
               // Prefix match: sub-routes like /communities/123 and /loopadmin/quests
@@ -256,44 +229,6 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
                 })}
               </div>
             )}
-          </div>
-
-          {/* Trending Circles Section */}
-          <div className="mt-6 space-y-2">
-            <div className="flex items-center justify-between px-3">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <Flame className="h-3.5 w-3.5 text-amber-500" />
-                Trending Circles
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              {trendingCircles.length === 0 ? (
-                <p className="px-3 text-xs text-muted-foreground italic">No circles found</p>
-              ) : (
-                trendingCircles.slice(0, 4).map((c) => (
-                  <Link
-                    key={c.id}
-                    href={`/communities/${c.id}`}
-                    onClick={onLinkClick}
-                    className="flex items-center justify-between rounded-xl px-3 py-2 text-xs transition-all hover:bg-muted"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={c.avatar_url} />
-                        <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                          {c.name?.charAt(0) || "C"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium text-foreground truncate">{c.name}</span>
-                    </div>
-                    {c.member_count !== undefined && (
-                      <span className="text-[10px] text-muted-foreground">{c.member_count}m</span>
-                    )}
-                  </Link>
-                ))
-              )}
-            </div>
           </div>
 
         </ScrollArea>

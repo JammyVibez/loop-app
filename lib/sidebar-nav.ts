@@ -61,7 +61,7 @@ export const SIDEBAR_NAV: SidebarNavItem[] = [
   { href: "/bookmarks", label: "Saved", group: "secondary" },
   { href: "/collections", label: "Collections", group: "secondary" },
   { href: "/invite", label: "Invite Friends", group: "secondary" },
-  { href: "/wallet", label: "Wallet & Gifts", group: "secondary" },
+  // Wallet deliberately lives only in the header coin chip on every device.
   { href: "/earnings", label: "Creator Studio", group: "secondary" },
   { href: "/developers", label: "Developer Hub", group: "secondary" },
   { href: "/lounge", label: "Pro Lounge", badge: "PRO", audience: "premium", group: "secondary" },
