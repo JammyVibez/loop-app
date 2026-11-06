@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Award, Plus, RefreshCw, Search, Trash2, X, Loader2 } from "lucide-react"
+import { Award, Loader2, Plus, RefreshCw, Search, Trash2, User, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Spinner } from "@/components/ui/skeletons"
 
@@ -299,7 +299,9 @@ export function AwardsAdminPanel() {
               {grantUser ? (
                 <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted px-3 py-2">
                   <div className="flex min-w-0 items-center gap-2">
-                    <span className="text-lg">👤</span>
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-card text-muted-foreground">
+                      <User className="h-4 w-4" />
+                    </span>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{grantUser.display_name || grantUser.username}</p>
                       <p className="truncate text-xs text-muted-foreground">@{grantUser.username}</p>

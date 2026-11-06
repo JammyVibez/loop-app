@@ -969,7 +969,7 @@ export function EnhancedSettings() {
                           method: "POST",
                           headers: { "Content-Type": "application/json", ...getAuthHeader() },
                           body: JSON.stringify({
-                            title: "Loop push works 🎉",
+                            title: "Test notification sent",
                             message: "This is how notifications from Loop will look.",
                             url: "/notifications",
                             push_only: true,

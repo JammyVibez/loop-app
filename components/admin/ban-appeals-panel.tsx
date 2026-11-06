@@ -130,7 +130,9 @@ export function BanAppealsPanel() {
       ) : appeals.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            {status === "pending" ? "No pending appeals. 🎉" : "No appeals with this status."}
+            {status === "pending"
+              ? "No pending appeals — every ban appeal has been reviewed."
+              : "No appeals with this status yet."}
           </CardContent>
         </Card>
       ) : (

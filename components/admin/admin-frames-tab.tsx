@@ -20,6 +20,7 @@ import {
   Frame,
   Crown,
   GripVertical,
+  Music,
   Plus,
   X,
 } from "lucide-react"
@@ -382,8 +383,8 @@ export function AdminFramesTab() {
                           muted
                         />
                       ) : (frame.image_type || "").startsWith("audio/") ? (
-                        <div className="h-full w-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
-                          <span className="text-lg">🎵</span>
+                        <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
+                          <Music className="h-5 w-5" />
                         </div>
                       ) : (
                         <img

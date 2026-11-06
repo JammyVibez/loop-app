@@ -736,7 +736,10 @@ function CoinsTab({ getAuthHeader, toast }: { getAuthHeader: AuthHeaderFn; toast
                 <span className="block truncate text-xs font-semibold">{u.display_name || u.username}</span>
                 <span className="block truncate text-[10px] text-muted-foreground">@{u.username}</span>
               </span>
-              <span className="shrink-0 text-xs font-bold text-yellow-500">{fmtCoins(u.loop_coins)} 🪙</span>
+              <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold tabular-nums text-[hsl(var(--warning))]">
+                <Coins className="h-3.5 w-3.5" />
+                {fmtCoins(u.loop_coins)}
+              </span>
             </button>
           ))}
         </div>

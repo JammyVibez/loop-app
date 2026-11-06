@@ -197,10 +197,10 @@ export function UserInventory() {
   /* ── Not signed in ───────────────────────────────────────────────────── */
   if (!user) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card/60 p-16 text-center backdrop-blur">
+      <div className="flex flex-col items-center justify-center rounded-xl border border-border/70 bg-card p-16 text-center">
         <Lottie animation={LOCK} className="mb-4 h-16 w-16" />
-        <h3 className="text-lg font-semibold text-foreground">Sign in to see your inventory</h3>
-        <p className="mt-1 max-w-xs text-sm text-muted-foreground">Your owned items, themes, and cosmetics will appear here.</p>
+        <h3 className="text-base font-semibold text-foreground">Sign in to see what you own</h3>
+        <p className="mt-1 max-w-xs text-sm text-muted-foreground">Themes, frames, effects and badges you buy with Loop Coins live here.</p>
       </div>
     )
   }
@@ -227,9 +227,9 @@ export function UserInventory() {
   /* ── Error ───────────────────────────────────────────────────────────── */
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card/60 p-12 text-center">
+      <div className="flex flex-col items-center justify-center rounded-xl border border-border/70 bg-card p-12 text-center">
         <p className="mb-3 text-sm text-destructive">{error}</p>
-        <Button onClick={fetchInventory} variant="outline" size="sm" className="rounded-full">Try Again</Button>
+        <Button onClick={fetchInventory} variant="outline" size="sm" className="rounded-lg">Reload inventory</Button>
       </div>
     )
   }
@@ -245,10 +245,10 @@ export function UserInventory() {
     return (
       <article
         className={cn(
-          "group relative flex flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-200",
+          "group relative flex flex-col overflow-hidden rounded-xl border bg-card transition-colors duration-150",
           isActive
-            ? "border-violet-500/50 ring-1 ring-violet-500/20"
-            : "border-border hover:border-foreground/20",
+            ? "border-primary/50 ring-1 ring-primary/15"
+            : "border-border/70 hover:border-border",
         )}
       >
         {/* Rarity top accent */}
@@ -267,7 +267,7 @@ export function UserInventory() {
 
           {/* Active badge */}
           {isActive && (
-            <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full border border-violet-500/40 bg-violet-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-400 backdrop-blur-sm">
+            <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
               <Check className="h-2.5 w-2.5" />
               Active
             </span>
@@ -292,7 +292,7 @@ export function UserInventory() {
                 size="sm"
                 onClick={() => removeItem(item)}
                 disabled={isApplying}
-                className="flex-1 rounded-full border-border/80 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                className="flex-1 rounded-lg border-border/80 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
                 {isApplying ? (
                   <Lottie animation={LOADER} className="h-3.5 w-3.5" />
@@ -308,7 +308,7 @@ export function UserInventory() {
                 size="sm"
                 onClick={() => applyItem(item)}
                 disabled={isApplying}
-                className="flex-1 rounded-full bg-foreground text-background text-xs font-semibold hover:bg-foreground/90"
+                className="flex-1 rounded-lg text-xs font-semibold"
               >
                 {isApplying ? (
                   <Lottie animation={LOADER} className="h-3.5 w-3.5" />
@@ -332,10 +332,10 @@ export function UserInventory() {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl border border-border/60 bg-card/30 p-10 text-center">
         <Lottie animation={EMPTY_BOX} className="mb-3 h-12 w-12" />
-        <p className="text-sm font-medium text-foreground">No {meta.label.toLowerCase()} yet</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{meta.hint}</p>
+        <p className="text-sm font-medium text-foreground">Nothing equipped from {meta.label.toLowerCase()} yet</p>
+        <p className="mt-0.5 max-w-xs text-xs text-muted-foreground">{meta.hint}. Anything you buy appears here and can be equipped in one tap.</p>
         <Link href="/shop">
-          <Button variant="outline" size="sm" className="mt-3 rounded-full text-xs">
+          <Button variant="outline" size="sm" className="mt-3 rounded-lg text-xs">
             <ShoppingBag className="mr-1.5 h-3 w-3" />
             Browse shop
           </Button>
@@ -348,9 +348,9 @@ export function UserInventory() {
   function ActiveStrip() {
     if (activeItems.length === 0) return null
     return (
-      <div className="rounded-2xl border border-border bg-card/60 p-4 backdrop-blur">
+      <div className="rounded-xl border border-border/70 bg-card p-4">
         <div className="mb-3 flex items-center gap-2">
-          <Zap className="h-4 w-4 text-violet-400" />
+          <Zap className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-semibold text-foreground">Currently equipped</span>
           <Badge variant="secondary" className="ml-auto rounded-full px-2 py-0 text-[10px]">{activeItems.length}</Badge>
         </div>
@@ -362,7 +362,7 @@ export function UserInventory() {
                 key={item.id}
                 onClick={() => removeItem(item)}
                 disabled={applying === item.id}
-                className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-xs font-medium text-violet-300 transition-colors hover:border-violet-500/50 hover:bg-violet-500/20 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/50 px-2.5 py-1 text-xs font-medium text-foreground transition-colors duration-150 hover:border-border hover:bg-muted disabled:opacity-50"
               >
                 {meta.icon}
                 <span className="max-w-[120px] truncate">{item.item_name}</span>
@@ -392,7 +392,7 @@ export function UserInventory() {
   return (
     <div className="space-y-5">
       {/* User header + stats */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card/60 p-4 sm:p-5 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 rounded-xl border border-border/70 bg-card p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex items-center gap-3.5">
           <VideoAvatar src={user?.avatar_url} className="h-14 w-14 border-2 border-border shadow-md" fallback={user?.display_name?.charAt(0)} />
           <div>
@@ -402,11 +402,11 @@ export function UserInventory() {
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1.5">
-            <Coins className="h-4 w-4 text-amber-400" />
-            <span className="text-sm font-bold tabular-nums text-foreground">{user?.loop_coins || 0}</span>
+            <Coins className="h-4 w-4 text-[hsl(var(--warning))]" />
+            <span className="loop-stat text-sm font-semibold text-foreground">{Number(user?.loop_coins || 0).toLocaleString()}</span>
           </div>
           <Link href="/shop">
-            <Button size="sm" className="rounded-full bg-foreground text-background text-xs font-semibold hover:bg-foreground/90">
+            <Button size="sm" className="rounded-lg text-xs font-semibold">
               <ShoppingBag className="mr-1.5 h-3.5 w-3.5" />
               Shop
             </Button>
@@ -421,7 +421,7 @@ export function UserInventory() {
           on this page too — an avatar ring nobody can find is not an inventory. */}
       <section className="space-y-3">
         <div className="flex items-center gap-2 px-0.5">
-          <Layers className="h-4 w-4 text-violet-400" />
+          <Layers className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-semibold text-foreground">Profile frames</span>
         </div>
         <ProfileFramesPanel ownedOnly compact avatarUrl={user?.avatar_url} />
@@ -431,10 +431,10 @@ export function UserInventory() {
       {inventory.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-border/60 bg-card/30 py-20 text-center">
           <Lottie animation={EMPTY_BOX} className="mb-4 h-20 w-20" />
-          <h3 className="text-lg font-semibold text-foreground">Your inventory is empty</h3>
-          <p className="mt-1 max-w-xs text-sm text-muted-foreground">Purchase themes, effects, frames, and badges from the shop to start customizing your profile.</p>
+          <h3 className="text-base font-semibold text-foreground">You haven&apos;t bought anything yet</h3>
+          <p className="mt-1 max-w-sm text-sm text-muted-foreground">Themes, card effects, frames and badges are bought with Loop Coins in the shop, then equipped from here.</p>
           <Link href="/shop">
-            <Button className="mt-5 rounded-full bg-foreground text-background text-sm font-semibold hover:bg-foreground/90">
+            <Button className="mt-5 rounded-lg text-sm font-semibold">
               <ShoppingBag className="mr-2 h-4 w-4" />
               Visit Shop
             </Button>
@@ -442,7 +442,7 @@ export function UserInventory() {
         </div>
       ) : (
         <Tabs defaultValue={totalByShelf[0] || "theme"} className="w-full">
-          <TabsList className="grid h-auto w-full grid-cols-3 gap-1 sm:grid-cols-5 bg-card border border-border rounded-2xl p-1.5">
+          <TabsList className="grid h-auto w-full grid-cols-3 gap-1 rounded-xl border border-border/70 bg-card p-1.5 sm:grid-cols-6">
             <TabsTrigger value="all" className="rounded-xl text-xs font-semibold data-[state=active]:bg-foreground data-[state=active]:text-background text-muted-foreground transition-all">
               All <span className="ml-1 text-[10px] opacity-60">{inventory.length}</span>
             </TabsTrigger>

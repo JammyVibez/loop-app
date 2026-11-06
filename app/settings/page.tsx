@@ -4,16 +4,19 @@ import { Suspense } from "react"
 import Link from "next/link"
 import { Header } from "@/components/header"
 import { EnhancedSettings } from "@/components/settings/enhanced-settings"
+import { PageHeader } from "@/components/ui/page-header"
 
 export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Header />
       <main className="container mx-auto max-w-4xl px-4 py-6 sm:py-8">
-        <div className="mb-6 space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Settings</h1>
-          <p className="text-muted-foreground">Manage your profile, theme, notifications, communities, privacy, and more.</p>
-        </div>
+        <PageHeader
+          eyebrow="Your account"
+          title="Settings"
+          description="Profile, appearance, notifications, Circle membership and privacy. Changes save as you make them."
+          className="mb-6"
+        />
         <Suspense fallback={<div className="py-16 text-center text-sm text-muted-foreground">Loading settings…</div>}>
           <EnhancedSettings />
         </Suspense>

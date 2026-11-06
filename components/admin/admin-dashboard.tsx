@@ -403,7 +403,7 @@ export function AdminDashboard() {
   return (
     <div className="flex gap-6">
       {/* Desktop sidebar */}
-      <aside className="sticky top-6 hidden h-[calc(100vh-3rem)] w-60 shrink-0 overflow-y-auto rounded-2xl border bg-card/60 p-4 lg:block">
+      <aside className="sticky top-6 hidden h-[calc(100vh-3rem)] w-60 shrink-0 overflow-y-auto rounded-xl border border-border/70 bg-card p-3 lg:block">
         <SidebarNav section={visibleSection} onNavigate={navigate} groups={visibleGroups} />
       </aside>
 
@@ -431,10 +431,10 @@ export function AdminDashboard() {
           </Sheet>
 
           <div className="min-w-0 flex-1">
-            <h2 className="flex items-center gap-2 truncate text-xl font-bold tracking-tight sm:text-2xl">
+            <h2 className="flex items-center gap-2 truncate text-lg font-semibold tracking-tight sm:text-xl">
               {(() => {
                 const Icon = currentIcon
-                return <Icon className="h-5 w-5 text-primary" />
+                return <Icon className="h-5 w-5 text-muted-foreground" />
               })()}
               {currentLabel}
             </h2>
@@ -445,7 +445,7 @@ export function AdminDashboard() {
 
           <button
             onClick={() => setCommandPaletteOpen(true)}
-            className="hidden items-center gap-2 rounded-full border bg-muted/50 px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted sm:flex"
+            className="hidden items-center gap-2 rounded-lg border border-border/70 bg-muted/40 px-3 py-2 text-sm text-muted-foreground transition-colors duration-150 hover:bg-muted sm:flex"
           >
             <Search className="h-4 w-4" />
             <span>Quick actions…</span>
@@ -463,7 +463,7 @@ export function AdminDashboard() {
             <Search className="h-4 w-4" />
           </Button>
 
-          <Badge variant={live ? "default" : "outline"} className="hidden rounded-full md:inline-flex">
+          <Badge variant={live ? "default" : "outline"} className="hidden md:inline-flex">
             {live ? "Live" : "Connecting…"}
           </Badge>
           <Button variant="outline" size="icon" className="hidden rounded-full sm:inline-flex" onClick={loadUsers} aria-label="Refresh">

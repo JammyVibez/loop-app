@@ -10,6 +10,7 @@ import { PageLoading } from "@/components/loading-states"
 import { Spinner } from "@/components/ui/skeletons"
 import { Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/ui/page-header"
 
 export default function LoopAdminPage() {
   const { user, loading, authResolved } = useAuth()
@@ -51,12 +52,12 @@ export default function LoopAdminPage() {
     <div className="min-h-screen bg-background text-foreground">
       <Header />
       <main className="container mx-auto px-3 py-6 sm:px-4 sm:py-8">
-        <div className="mb-6 space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">App Admin</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage users, verification, premium, quests, and platform settings.
-          </p>
-        </div>
+        <PageHeader
+          eyebrow="Staff"
+          title="Admin"
+          description="Users, verification, moderation, economy and platform settings. Every action here is written to the audit log."
+          className="mb-6"
+        />
         <Suspense
           fallback={
             <div className="flex min-h-[50vh] items-center justify-center">

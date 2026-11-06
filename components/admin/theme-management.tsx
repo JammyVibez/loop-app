@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { confirmDialog } from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/hooks/use-auth";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Edit, Palette, Plus, Trash2 } from "lucide-react";
 import { Spinner } from "@/components/ui/skeletons"
 
 interface Theme {
@@ -234,7 +234,9 @@ export function ThemeManagement() {
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-4xl">🎨</div>
+                  <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                    <Palette className="h-7 w-7" />
+                  </div>
                 )}
                 <div className="absolute right-2 top-2 flex gap-1">
                   {theme.is_premium && (

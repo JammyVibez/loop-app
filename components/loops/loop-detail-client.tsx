@@ -50,6 +50,8 @@ import Link from "next/link"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { useAuth } from "@/hooks/use-auth"
+import { PostAnalyticsPanel } from "@/components/analytics/post-analytics-panel"
+import { Surface } from "@/components/ui/page-header"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase"
 import { absoluteAppUrl, shareContent } from "@/lib/share"
@@ -258,6 +260,17 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
   useEffect(() => {
     if (loopId) void fetchLoop()
   }, [loopId, fetchLoop])
+
+  // Record the open in the post's view timeline (server dedupes repeats, and
+  // ignores the author's own visits).
+  useEffect(() => {
+    if (!loop || !user) return
+    void fetch(`/api/loops/${loop.id}/interactions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeader() },
+      body: JSON.stringify({ interaction_type: "view", surface: "detail" }),
+    }).catch(() => {})
+  }, [loop?.id, user?.id])
 
   // Follow state — fetch once the author is known (skipped for own posts).
   useEffect(() => {
@@ -587,20 +600,20 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
   const postTypePill = (() => {
     switch (loop.postType) {
       case "reel":
-        return { label: "Reel", className: "border-rose-500/30 bg-rose-500/10 text-rose-400" }
+        return { label: "Reel", className: "border-border/70 bg-muted/50 text-foreground" }
       case "poll":
-        return { label: "Poll", className: "border-violet-500/30 bg-violet-500/10 text-violet-400" }
+        return { label: "Poll", className: "border-border/70 bg-muted/50 text-foreground" }
       case "duel":
         return {
           label: loop.duel?.duel_type === "clutch" ? "Clutch Duel" : "Duel",
-          className: "border-amber-500/30 bg-amber-500/10 text-amber-400",
+          className: "border-border/70 bg-muted/50 text-foreground",
         }
       case "moment":
-        return { label: "Moment", className: "border-purple-500/30 bg-purple-500/10 text-purple-400" }
+        return { label: "Moment", className: "border-border/70 bg-muted/50 text-foreground" }
       case "co_loop_invite":
-        return { label: "Co-Loop", className: "border-cyan-500/30 bg-cyan-500/10 text-cyan-400" }
+        return { label: "Co-Loop", className: "border-border/70 bg-muted/50 text-foreground" }
       case "clip":
-        return { label: "Clip", className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" }
+        return { label: "Clip", className: "border-border/70 bg-muted/50 text-foreground" }
       default:
         return null
     }
@@ -624,20 +637,18 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
         Back
       </button>
       {/* Loop Container */}
-      <Card className="relative overflow-hidden rounded-2xl border border-border/40 bg-card shadow-sm">
-        {/* subtle top highlight */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+      <Card className="relative overflow-hidden rounded-xl border border-border/70 bg-card">
 
         <CardHeader className="border-b border-border/30 p-3 sm:p-4">
           {loop.isCoLoop && (              <div className="mb-2 flex items-center justify-between gap-3">
-              <Badge className="flex items-center gap-1 border-cyan-400/30 bg-gradient-to-r from-cyan-500/15 to-indigo-500/15 px-2.5 py-1 text-[10px] font-bold text-cyan-300">
+              <Badge variant="outline" className="flex items-center gap-1 border-border/70 bg-muted/50 px-2 py-0.5 text-[10px] font-semibold text-foreground">
                 <Zap className="h-3 w-3" />
                 Co-Loop Studio Collaboration
               </Badge>
               <button
                 type="button"
                 onClick={() => setRosterOpen(true)}
-                className="flex items-center gap-1 text-[11px] font-semibold text-cyan-400 transition hover:text-cyan-300"
+                className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
               >
                 <Users className="h-3.5 w-3.5" />
                 View {loop.coAuthors.length + 1} co-authors
@@ -1052,7 +1063,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                 <Link
                   key={tag}
                   href={`/explore?q=%23${encodeURIComponent(tag)}`}
-                  className="rounded-full border border-border/60 bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-foreground"
+                  className="rounded-full border border-border/60 bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground transition-colors duration-150 hover:border-border hover:text-foreground"
                 >
                   #{tag}
                 </Link>
@@ -1062,17 +1073,17 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
 
           {/* Interactive Reactions */}
           <div className="flex flex-wrap items-center gap-1 border-t border-border/30 pt-3">
-            <span className="mr-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">React</span>
+            <span className="mr-1 loop-label">React</span>
             {["🔥", "❤️", "🚀", "💡", "👏", "💯"].map((emoji) => (
               <button
                 key={emoji}
                 type="button"
                 onClick={() => handleReaction(emoji)}
                 className={cn(
-                  "flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm transition-all hover:scale-105",
+                  "flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm transition-colors duration-150",
                   activeReaction === emoji
-                    ? "border-violet-500/50 bg-violet-500/15"
-                    : "border-border/60 bg-muted/40 hover:border-violet-500/30 hover:bg-violet-500/10"
+                    ? "border-primary/50 bg-primary/10"
+                    : "border-border/60 bg-muted/40 hover:border-border hover:bg-muted"
                 )}
               >
                 <span>{emoji}</span>
@@ -1157,6 +1168,20 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Analytics — author and staff only. Inline on the post so the numbers
+          sit next to the thing they describe. */}
+      {user &&
+      (user.id === loop.author.id || user.is_admin || user.is_moderator || Boolean(user.staff_role)) ? (
+        <Surface as="section" id="analytics" className="mt-4 scroll-mt-20" padded={false}>
+          <div className="border-b border-border/70 px-4 py-3 sm:px-5">
+            <p className="text-xs text-muted-foreground">
+              Private to you{user.id !== loop.author.id ? " and Loop staff" : ""} — readers never see this section.
+            </p>
+          </div>
+          <PostAnalyticsPanel loopId={loop.id} className="p-4 sm:p-5" />
+        </Surface>
+      ) : null}
 
       {/* Real-time Comments Section */}
       <section id="comments" className="mt-4 scroll-mt-20">

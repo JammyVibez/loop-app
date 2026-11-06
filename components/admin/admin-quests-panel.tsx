@@ -35,6 +35,7 @@ import {
   Megaphone,
   Pencil,
   Plus,
+  Target,
   Trash2,
   UserPlus,
   Zap,
@@ -524,7 +525,9 @@ export function AdminQuestsPanel() {
             const status = q.status || (q.is_active ? "active" : "draft")
             return (
               <div key={q.id} className="flex items-center gap-3 rounded-xl border bg-card p-3">
-                <span className="text-xl">{q.icon === "target" ? "🎯" : q.icon || "🎯"}</span>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40 text-muted-foreground">
+                  <Target className="h-4 w-4" />
+                </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="truncate text-sm font-medium">{q.title}</span>

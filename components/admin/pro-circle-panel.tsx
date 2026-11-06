@@ -120,8 +120,12 @@ export function ProCirclePanel() {
           {circle ? (
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-4">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 text-lg">
-                  {circle.avatar_url ? <img src={circle.avatar_url} alt="" className="h-10 w-10 rounded-xl object-cover" /> : "👑"}
+                <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-border/70 bg-muted/40 text-muted-foreground">
+                  {circle.avatar_url ? (
+                    <img src={circle.avatar_url} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                  ) : (
+                    <Crown className="h-4 w-4" />
+                  )}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{circle.name}</p>
