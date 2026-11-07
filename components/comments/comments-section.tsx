@@ -850,7 +850,7 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
           }
         }}
       >
-        <DialogContent className="flex max-h-[86dvh] w-full gap-0 overflow-hidden p-0 sm:max-w-xl">
+        <DialogContent className="flex max-h-[86dvh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
           <DialogHeader className="border-b border-border/70 px-4 py-3 text-left sm:px-5">
             <DialogTitle className="text-base font-semibold">Replies</DialogTitle>
             <DialogDescription className="sr-only">The full conversation under this comment</DialogDescription>

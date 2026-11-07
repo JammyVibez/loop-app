@@ -640,15 +640,16 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
       <Card className="relative overflow-hidden rounded-xl border border-border/70 bg-card">
 
         <CardHeader className="border-b border-border/30 p-3 sm:p-4">
-          {loop.isCoLoop && (              <div className="mb-2 flex items-center justify-between gap-3">
-              <Badge variant="outline" className="flex items-center gap-1 border-border/70 bg-muted/50 px-2 py-0.5 text-[10px] font-semibold text-foreground">
-                <Zap className="h-3 w-3" />
-                Co-Loop Studio Collaboration
+          {loop.isCoLoop && (
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+              <Badge variant="outline" className="flex min-w-0 items-center gap-1 border-border/70 bg-muted/50 px-2 py-0.5 text-[10px] font-semibold text-foreground">
+                <Zap className="h-3 w-3 shrink-0" />
+                <span className="truncate">Co-Loop Studio Collaboration</span>
               </Badge>
               <button
                 type="button"
                 onClick={() => setRosterOpen(true)}
-                className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                className="flex shrink-0 items-center gap-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
               >
                 <Users className="h-3.5 w-3.5" />
                 View {loop.coAuthors.length + 1} co-authors
@@ -677,12 +678,16 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
             </Link>
           )}
 
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-3.5">
+          {/* The identity block owns the free width (flex-1). Without it the
+              name column had no claim on space and collapsed to one character
+              per line on a phone, which made the whole header hundreds of
+              pixels tall. */}
+          <div className="flex items-start justify-between gap-3 sm:gap-4">
+            <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-3.5">
               {loop.isCoLoop ? (
                 <div
                   onClick={() => setRosterOpen(true)}
-                  className="flex cursor-pointer items-center"
+                  className="flex shrink-0 cursor-pointer items-center"
                   title="Click to view Co-Authors roster"
                 >
                   <div className="relative z-10">
@@ -697,7 +702,11 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                     />
                   </div>
                   {loop.coAuthors.slice(0, 3).map((ca, i) => (
-                    <div key={ca.id || i} className="-ml-3 relative z-[9]" style={{ zIndex: 8 - i }}>
+                    <div
+                      key={ca.id || i}
+                      className="-ml-3 relative z-[9] hidden sm:block"
+                      style={{ zIndex: 8 - i }}
+                    >
                       <VideoAvatar
                         src={ca.avatar_url}
                         videoSrc={(ca as any).video_avatar_url}
@@ -709,7 +718,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                     </div>
                   ))}
                   {loop.coAuthors.length > 3 && (
-                    <div className="-ml-3 relative z-0 flex h-12 w-12 items-center justify-center rounded-full bg-cyan-950 text-xs font-bold text-cyan-300 ring-2 ring-cyan-400/60">
+                    <div className="-ml-3 relative z-0 hidden h-12 w-12 items-center justify-center rounded-full bg-cyan-950 text-xs font-bold text-cyan-300 ring-2 ring-cyan-400/60 sm:flex">
                       +{loop.coAuthors.length - 3}
                     </div>
                   )}
@@ -728,7 +737,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                 </Link>
               )}
 
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                   <Link
                     href={`/profile/${loop.author.username}`}
@@ -751,8 +760,11 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                       PRO
                     </span>
                   )}
+                  {/* Phones show the host and the “View N co-authors” control;
+                      the inline handle list would wrap into a wall of text at
+                      360px and squeeze the name out of the row. */}
                   {loop.isCoLoop && loop.coAuthors.length > 0 && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="hidden text-xs text-muted-foreground sm:inline">
                       ×{" "}
                       {loop.coAuthors.map((ca, i) => (
                         <span key={ca.id || ca.username}>
