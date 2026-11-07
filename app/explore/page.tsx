@@ -18,10 +18,10 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             description="Loops, Trees, Reels and the people making them. Everything public, ranked by what people are actually opening."
           />
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Link
               href="/explore/reels"
-              className="group flex items-center justify-between rounded-xl border border-border/70 bg-card px-4 py-3.5 transition-colors duration-150 hover:border-border hover:bg-muted/30"
+              className="group flex min-w-0 items-center justify-between rounded-xl border border-border/70 bg-card px-4 py-3.5 transition-colors duration-150 hover:border-border hover:bg-muted/30"
             >
               <div className="flex min-w-0 items-center gap-3">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40 text-foreground">
@@ -37,7 +37,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
 
             <Link
               href="/chains"
-              className="group flex items-center justify-between rounded-xl border border-border/70 bg-card px-4 py-3.5 transition-colors duration-150 hover:border-border hover:bg-muted/30"
+              className="group flex min-w-0 items-center justify-between rounded-xl border border-border/70 bg-card px-4 py-3.5 transition-colors duration-150 hover:border-border hover:bg-muted/30"
             >
               <div className="flex min-w-0 items-center gap-3">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40 text-foreground">

@@ -62,8 +62,14 @@ export async function buildLoopAiReply(input: {
   context?: string
   history?: ChatMessage[]
 }): Promise<{ text: string; provider: string } | null> {
-  const question = stripLoopAiMention(input.question).slice(0, 1500)
-  if (!question) return null
+  const stripped = stripLoopAiMention(input.question).slice(0, 1500)
+  // Tagging the assistant on its own ("@loopai", or a post whose only text is
+  // the tag) used to produce an empty prompt and no reply at all. A bare tag
+  // is still a request for attention, so answer it against the thread context
+  // instead of silently ignoring the mention.
+  const question =
+    stripped ||
+    "I tagged you without a question. Reply in one or two short sentences: greet me and say what you can help with in this thread, using the context if there is any."
 
   const active = await getActiveProvider().catch(() => null)
   if (!active) return null

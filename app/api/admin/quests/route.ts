@@ -8,7 +8,7 @@ const QUEST_TYPES = ["ad", "survey", "minigame", "native"]
 const CADENCES = ["daily", "weekly", "seasonal"]
 const REWARD_TYPES = ["coins", "xp", "item", "coins_xp"]
 const VISIBILITIES = ["all", "pro", "organization", "new_users"]
-const NATIVE_ACTIONS = ["create_loop", "create_comment", "join_circle", "win_duel", "send_gift", "daily_checkin"]
+const NATIVE_ACTIONS = ["create_loop", "create_comment", "join_circle", "win_duel", "send_gift", "daily_checkin", "invite_friend"]
 const MINIGAME_KINDS = ["trivia", "reaction"]
 const ACCENTS = ["violet", "amber", "emerald", "cyan", "rose", "sky"]
 

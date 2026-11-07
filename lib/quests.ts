@@ -396,6 +396,7 @@ export const NATIVE_ACTIONS = [
   "win_duel",
   "send_gift",
   "daily_checkin",
+  "invite_friend",
 ] as const
 
 export type NativeAction = (typeof NATIVE_ACTIONS)[number]
@@ -407,4 +408,5 @@ export const NATIVE_ACTION_LABELS: Record<NativeAction, string> = {
   win_duel: "Win a Duel",
   send_gift: "Send a gift",
   daily_checkin: "Daily check-in",
+  invite_friend: "Invite a friend",
 }

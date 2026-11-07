@@ -139,6 +139,26 @@ export async function POST(request: NextRequest) {
       console.error("Signup: failed to create profile row for", profileId, profileUpsertError)
     }
 
+    // Invite-a-friend quests credit the inviter, not the new account. The
+    // attribution comes from the /signup?ref=<username> link (the one
+    // /invite hands out) and never counts a self-referral. Quest failures
+    // must not break signup, so this is best-effort.
+    if (invitedByUsername && invitedByUsername !== cleanUsername) {
+      try {
+        const { data: inviter } = await supabase
+          .from("profiles")
+          .select("id")
+          .ilike("username", invitedByUsername)
+          .maybeSingle()
+        if ((inviter as any)?.id) {
+          const { trackQuestAction } = await import("@/lib/quest-tracker")
+          await trackQuestAction(supabase, (inviter as any).id, "invite_friend")
+        }
+      } catch (questError) {
+        console.error("invite_friend quest track failed (non-fatal):", questError)
+      }
+    }
+
     const token = signUpData.token || signUpData.session?.token || signUpData.session?.id || createdUser.id
 
     const res = NextResponse.json({

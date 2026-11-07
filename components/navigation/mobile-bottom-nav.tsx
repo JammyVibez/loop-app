@@ -134,20 +134,19 @@ export function MobileBottomNav() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  aria-label={item.label}
                   aria-current={active ? "page" : undefined}
-                  className="group relative flex flex-col items-center justify-end gap-1 pb-1.5 text-micro font-semibold touch-manipulation"
+                  className="group relative flex flex-col items-center justify-center text-micro font-semibold touch-manipulation"
                 >
                   <span
                     className={cn(
-                      "loop-tactile -mt-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg ring-4 ring-background transition-transform group-active:translate-y-1",
+                      "loop-tactile flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg ring-4 ring-background transition-transform group-active:translate-y-1",
                       active && "scale-105",
                     )}
                   >
                     <AnimatedIconView component={item.icon} size={24} className="h-6 w-6" />
                   </span>
-                  <span className={cn("max-w-full truncate", active ? "text-primary" : "text-muted-foreground")}>
-                    {item.label}
-                  </span>
+                  <span className="sr-only">{item.label}</span>
                 </Link>
               )
             }
@@ -159,9 +158,10 @@ export function MobileBottomNav() {
                 onClick={(event) => {
                   if (needsAuth && !requireAuth("message")) event.preventDefault()
                 }}
+                aria-label={item.label}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "group relative flex min-h-[2.75rem] min-w-[2.75rem] flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-micro font-medium transition-colors touch-manipulation",
+                  "group relative flex min-h-[2.75rem] min-w-[2.75rem] flex-col items-center justify-center rounded-xl text-micro font-medium transition-colors touch-manipulation",
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -179,7 +179,7 @@ export function MobileBottomNav() {
                     </span>
                   )}
                 </div>
-                <span className="max-w-full truncate">{item.label}</span>
+                <span className="sr-only">{item.label}</span>
               </Link>
             )
           })}

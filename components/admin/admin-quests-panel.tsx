@@ -154,7 +154,18 @@ const NATIVE_ACTIONS = [
   "win_duel",
   "send_gift",
   "daily_checkin",
+  "invite_friend",
 ]
+
+const NATIVE_ACTION_LABELS: Record<string, string> = {
+  create_loop: "Create a post",
+  create_comment: "Comment on a post",
+  join_circle: "Join a Circle",
+  win_duel: "Win a Duel",
+  send_gift: "Send a gift",
+  daily_checkin: "Daily check-in",
+  invite_friend: "Invite a friend",
+}
 
 const CATEGORIES = ["community", "discovery", "watch", "survey", "game", "sponsored", "creator", "seasonal"]
 
@@ -705,7 +716,7 @@ export function AdminQuestsPanel() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {NATIVE_ACTIONS.map((a) => (
-                        <SelectItem key={a} value={a}>{a.replace(/_/g, " ")}</SelectItem>
+                        <SelectItem key={a} value={a}>{NATIVE_ACTION_LABELS[a] || a.replace(/_/g, " ")}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -714,6 +725,13 @@ export function AdminQuestsPanel() {
                   <Label>Times required</Label>
                   <Input type="number" min={1} value={editing.requirement_count ?? 1} onChange={(e) => setEditing((p) => ({ ...p, requirement_count: Number(e.target.value) }))} />
                 </div>
+                {editing.native_action === "invite_friend" && (
+                  <p className="col-span-2 text-[11px] leading-relaxed text-muted-foreground">
+                    Counts once per person who creates an account through this user&rsquo;s invite link
+                    (Settings → Invite friends). Set &ldquo;Times required&rdquo; to the number of friends and the coin
+                    reward below; each friend who signs up adds one step until the quest completes.
+                  </p>
+                )}
               </div>
             )}
             {editing.quest_type === "minigame" && (
