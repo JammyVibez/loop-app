@@ -1165,7 +1165,7 @@ html.loop-reduced-motion *::after {
 .loop-profile-sidebar {
   display: flex;
   flex-direction: column;
-  gap: .75rem;
+  gap: 1rem;
   min-width: 0;
 }
 
@@ -1177,33 +1177,6 @@ html.loop-reduced-motion *::after {
 .loop-profile-layout-main {
   min-width: 0;
   overflow-wrap: anywhere;
-}
-
-/* One refined surface for every profile sidebar block, so the column reads as
-   a deliberate stack of cards instead of loose text separated by gaps. */
-.loop-profile-card {
-  min-width: 0;
-  border: 1px solid hsl(var(--border) / 0.65);
-  border-radius: 20px;
-  background-color: hsl(var(--card) / 0.72);
-  padding: 0.9rem;
-  box-shadow: var(--shadow-low);
-  backdrop-filter: blur(14px);
-}
-
-.loop-profile-card-flush {
-  padding: 0;
-  overflow: hidden;
-}
-
-@media (min-width: 640px) {
-  .loop-profile-card {
-    padding: 1.1rem;
-  }
-
-  .loop-profile-card-flush {
-    padding: 0;
-  }
 }
 
 @media (max-width: 1023px) {

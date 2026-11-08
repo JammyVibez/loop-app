@@ -16,9 +16,11 @@ interface ProfileShareCardProps {
   bio?: string
   avatarUrl?: string
   triggerClassName?: string
+  /** Icon-only trigger, for dense action rows on a profile header. */
+  iconOnly?: boolean
 }
 
-export function ProfileShareCard({ username, displayName, bio, avatarUrl, triggerClassName }: ProfileShareCardProps) {
+export function ProfileShareCard({ username, displayName, bio, avatarUrl, triggerClassName, iconOnly = false }: ProfileShareCardProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
   const cardRef = useRef<HTMLDivElement>(null)
@@ -43,9 +45,14 @@ export function ProfileShareCard({ username, displayName, bio, avatarUrl, trigge
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className={triggerClassName || "border-border bg-muted"}>
-          <Share2 className="mr-2 h-4 w-4" />
-          Share profile
+        <Button
+          variant="outline"
+          aria-label={iconOnly ? "Share profile" : undefined}
+          title={iconOnly ? "Share profile" : undefined}
+          className={triggerClassName || "border-border bg-muted"}
+        >
+          <Share2 className={iconOnly ? "h-4 w-4" : "mr-2 h-4 w-4"} />
+          {iconOnly ? <span className="sr-only">Share profile</span> : "Share profile"}
         </Button>
       </DialogTrigger>
       <DialogContent className="border-border bg-popover text-foreground sm:max-w-md">

@@ -3,7 +3,14 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Calendar, Coins, Edit, Flame, Gift, Heart, Link as LinkIcon, Lock, MapPin, MessageCircle, MoreHorizontal, Plus, Palette, Share2, Wand2, Zap, Trophy, Upload, Users, Package, Building2, Store, } from "lucide-react"
+import { ArrowLeft, Calendar, Coins, Flame, Gift, Heart, Link as LinkIcon, Lock, MapPin, MessageCircle, MoreHorizontal, Plus, Palette, Share2, Wand2, Zap, Trophy, Upload, Users, Package, Building2, Store, } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -53,7 +60,6 @@ import { isRustApiUnavailable, rustApiRequest } from "@/lib/rust-api"
 import { EnhancedMediaViewer } from "@/components/media/enhanced-media-viewer"
 import { ProfileDesigner } from "@/components/profile/profile-designer"
 import { normalizeProfileLayout, PROFILE_SIDEBAR_SECTIONS, type ProfileLayout } from "@/lib/profile-layout"
-import { TactileButton } from "@/components/ui/tactile-button"
 
 interface Achievement {
   id: string
@@ -689,7 +695,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         src={profile.banner_url}
         videoSrc={(profile as any).video_cover_url || null}
         alt="Cover photo"
-        height="h-52 sm:h-72 lg:h-80"
+        height="h-40 sm:h-52 lg:h-60"
         className=""
       />
       {/* Depth + a soft bottom fade so the cover settles into the page instead
@@ -700,7 +706,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-background via-background/65 to-transparent"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-background via-background/45 to-transparent"
       />
       <div
         aria-hidden="true"
@@ -762,7 +768,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       {/* Avatar + actions — stack on mobile; empty overlap must not block cover button */}
       <div className="relative z-10 px-3 pb-3 sm:px-4 lg:px-0 lg:pb-0 loop-profile-sidebar-column" data-profile-section="profile" style={{ gridArea: "profile", order: sectionOrder("profile"), minWidth: 0 }}>
         <div className="lg:sticky lg:top-28 lg:pb-8 loop-profile-sidebar">
-        <div className="-mt-10 flex flex-col gap-3 pointer-events-none sm:-mt-14 sm:flex-row sm:items-end sm:justify-between" data-profile-block="avatar-actions" style={blockStyle("avatar-actions")}>
+        <div className="pointer-events-none -mt-12 flex flex-wrap items-end justify-between gap-2 sm:-mt-16" data-profile-block="avatar-actions" style={blockStyle("avatar-actions")}>
           <div
             className={cn(
               "relative self-start rounded-full pointer-events-auto ring-1 ring-border/60 shadow-xl shadow-black/25",
@@ -812,52 +818,93 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             )}
           </div>
 
-          <div className="pointer-events-auto mb-0 flex w-full flex-wrap justify-stretch gap-1.5 sm:mb-1 sm:w-auto sm:justify-end">
+          <div className="pointer-events-auto mb-0 flex items-center gap-2 sm:mb-1">
             {isOwnProfile ? (
               <>
-                <Link href="/inventory" className="min-w-0 flex-1 sm:flex-none">
-                  <Button variant="outline" className="w-full rounded-full px-3 font-semibold sm:px-4">
-                    <Package className="mr-2 h-4 w-4" /> Inventory
+                <Link href="/settings">
+                  <Button
+                    variant="outline"
+                    className="h-9 rounded-full border-border px-4 text-[13px] font-semibold"
+                  >
+                    Edit profile
                   </Button>
                 </Link>
-                <Link href="/settings" className="min-w-0 flex-1 sm:flex-none">
-                  <Button className="w-full rounded-full px-3 font-semibold shadow-sm sm:px-4">
-                    <Edit className="mr-2 h-4 w-4" /> Edit profile
-                  </Button>
-                </Link>
-                <TactileButton variant="secondary" className="min-w-0 flex-1 rounded-full px-3 sm:flex-none" onClick={() => setDesignerOpen(true)}>
-                  <Palette className="mr-2 h-4 w-4" /> Design
-                </TactileButton>
-                <Link href="/profile-marketplace" className="min-w-0 flex-1 sm:flex-none">
-                  <Button variant="outline" className="w-full rounded-full px-3 font-semibold sm:px-4">
-                    <Store className="mr-2 h-4 w-4" /> Market
-                  </Button>
-                </Link>
-                <div className="w-full sm:w-auto">
-                  <ProfileShareCard
-                    username={profile.username}
-                    displayName={displayName}
-                    bio={stripCircleBioTokens(profile.bio)}
-                    avatarUrl={profile.avatar_url}
-                    triggerClassName="w-full rounded-full border px-3 sm:w-auto"
-                  />
-                </div>
-                {!profile.is_premium && (
-                  <Link href="/premium" className="w-full sm:w-auto">
-                    <Button className="w-full rounded-full px-4 font-semibold">
-                      Get Pro
+                <ProfileShareCard
+                  username={profile.username}
+                  displayName={displayName}
+                  bio={stripCircleBioTokens(profile.bio)}
+                  avatarUrl={profile.avatar_url}
+                  iconOnly
+                  triggerClassName="h-9 w-9 rounded-full border-border p-0"
+                />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9 rounded-full border-border text-muted-foreground"
+                      aria-label="More profile actions"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
                     </Button>
-                  </Link>
-                )}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 rounded-2xl p-1.5">
+                    <DropdownMenuItem className="rounded-xl" onClick={() => setDesignerOpen(true)}>
+                      <Palette className="mr-2 h-4 w-4 text-muted-foreground" />
+                      Design studio
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="rounded-xl">
+                      <Link href="/inventory">
+                        <Package className="mr-2 h-4 w-4 text-muted-foreground" />
+                        Inventory
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="rounded-xl">
+                      <Link href="/profile-marketplace">
+                        <Store className="mr-2 h-4 w-4 text-muted-foreground" />
+                        Design marketplace
+                      </Link>
+                    </DropdownMenuItem>
+                    {!profile.is_premium && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild className="rounded-xl">
+                          <Link href="/premium" className="font-semibold text-amber-600 dark:text-amber-300">
+                            <Zap className="mr-2 h-4 w-4" />
+                            Upgrade to Pro
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             ) : (
               <>
-                <Button variant="outline" size="icon" className="rounded-full" onClick={() => void handleMessage()}>
-                  <MessageCircle className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="icon" className="rounded-full" onClick={() => setShowGiftModal(true)}>
-                  <Gift className="h-4 w-4" />
-                </Button>
+                {/* One segmented control instead of two loose icon circles. */}
+                <div className="flex items-center overflow-hidden rounded-full border border-border">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 rounded-none text-muted-foreground hover:bg-muted hover:text-foreground"
+                    onClick={() => void handleMessage()}
+                    aria-label={`Message ${displayName}`}
+                    title="Message"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                  </Button>
+                  <span className="h-5 w-px bg-border" aria-hidden="true" />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 rounded-none text-muted-foreground hover:bg-muted hover:text-foreground"
+                    onClick={() => setShowGiftModal(true)}
+                    aria-label={`Send ${displayName} a gift`}
+                    title="Send a gift"
+                  >
+                    <Gift className="h-4 w-4" />
+                  </Button>
+                </div>
                 <Button
                   onClick={() => {
                     if (!user) {
@@ -867,7 +914,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                     void handleFollow()
                   }}
                   className={cn(
-                    "flex-1 rounded-full px-5 font-semibold sm:flex-none",
+                    "h-9 min-w-[6.5rem] rounded-full px-5 text-[13px] font-semibold",
                     isFollowing || followRequestPending
                       ? "border border-border bg-transparent text-foreground hover:bg-muted"
                       : "bg-foreground text-background hover:opacity-90",
@@ -886,13 +933,13 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           </div>
         </div>
 
-        <div className="mt-3 space-y-2.5 loop-profile-sidebar-blocks">
-          <div data-profile-block="identity" style={blockStyle("identity")} className="loop-profile-card">
-            <div className="flex flex-wrap items-center gap-2">
+        <div className="loop-profile-sidebar-blocks">
+          <div data-profile-block="identity" style={blockStyle("identity")}>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               {/* The mark needs real air beside the name — a hairline gap still
                   reads as part of the word at these sizes. */}
               <h2
-                className="text-[26px] font-bold leading-tight tracking-[-0.025em] sm:text-[28px]"
+                className="text-[23px] font-bold leading-tight tracking-[-0.02em] sm:text-[26px]"
                 style={fontStyle(cosmetics.font)}
               >
                 {displayName}
@@ -906,26 +953,23 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                 organization_name={profile.organization_name}
                 badge={profileBadge}
                 username={profile.username}
-                showText={true}
                 size="md"
               />
               {profile.is_premium && (
-                <Badge className="rounded-md border border-amber-400/30 bg-amber-400/10 px-1.5 py-0 text-[10px] font-bold uppercase leading-5 tracking-[0.14em] text-amber-600 dark:text-amber-300">
+                <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-600 dark:text-amber-300">
                   Pro
-                </Badge>
-              )}
-            </div>
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
-              <p className="text-sm font-medium text-muted-foreground">@{profile.username}</p>
-              {profile.pronouns && (
-                <span className="rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                  {profile.pronouns}
                 </span>
               )}
             </div>
+            <p className="mt-0.5 text-[15px] text-muted-foreground">
+              @{profile.username}
+              {profile.pronouns ? (
+                <span className="text-muted-foreground/70"> · {profile.pronouns}</span>
+              ) : null}
+            </p>
           </div>
 
-          <div data-profile-block="bio" style={blockStyle("bio")} className="loop-profile-card">
+          <div data-profile-block="bio" style={blockStyle("bio")}>
           {profile.bio ? (
             <RichContent text={profile.bio} className="text-[15px] leading-relaxed text-foreground/90" showPreviewCard={false} />
           ) : (
@@ -936,12 +980,14 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           <BioCommunityTags tags={profile.tagged_circles} bioText={profile.bio} />
           </div>
 
-          <div data-profile-block="details" style={blockStyle("details")} className="loop-profile-card">
-            <p className="loop-label mb-2.5">About</p>
-            <div className="flex flex-wrap gap-1.5 text-xs text-muted-foreground">
+          <div
+            data-profile-block="details"
+            style={blockStyle("details")}
+            className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-muted-foreground"
+          >
             {profile.location && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/40 px-2.5 py-1">
-                <MapPin className="h-3.5 w-3.5" /> {profile.location}
+              <span className="inline-flex items-center gap-1.5">
+                <MapPin className="h-[15px] w-[15px]" /> {profile.location}
               </span>
             )}
             {profile.website && (
@@ -949,72 +995,54 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                 href={profile.website.startsWith("http") ? profile.website : `https://${profile.website}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/40 px-2.5 py-1 transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+                className="inline-flex items-center gap-1.5 text-primary hover:underline"
               >
-                <LinkIcon className="h-3.5 w-3.5" /> {profile.website.replace(/^https?:\/\//, "")}
+                <LinkIcon className="h-[15px] w-[15px]" /> {profile.website.replace(/^https?:\/\//, "")}
               </a>
             )}
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/40 px-2.5 py-1">
-              <Calendar className="h-3.5 w-3.5" /> Joined{" "}
+            <span className="inline-flex items-center gap-1.5">
+              <Calendar className="h-[15px] w-[15px]" /> Joined{" "}
               {new Date(profile.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
             </span>
             {isOwnProfile && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-amber-600 dark:text-amber-300">
-                <Coins className="h-3.5 w-3.5" /> {Number(profile.loop_coins ?? 0).toLocaleString()} coins
+              <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-300">
+                <Coins className="h-[15px] w-[15px]" /> {Number(profile.loop_coins ?? 0).toLocaleString()} coins
               </span>
             )}
             {isOwnProfile && Number(profile.available_earnings || 0) > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-emerald-600 dark:text-emerald-400">
+              <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
                 ${Number(profile.available_earnings || 0).toFixed(2)} earnings
               </span>
             )}
-            </div>
           </div>
 
-          {/* Stat strip — the headline numbers a social profile leads with. */}
-          <div className="loop-profile-card loop-profile-card-flush" data-profile-block="stats" style={blockStyle("stats")}>
-            <div className="grid grid-cols-4 divide-x divide-border/60">
-              {[
-                { label: "Followers", value: profile.followers_count, href: `/profile/${profile.username}/followers` },
-                { label: "Following", value: profile.following_count, href: `/profile/${profile.username}/following` },
-                { label: "Loops", value: profile.loops_count },
-                { label: "Likes", value: profile.likes_received },
-              ].map((stat) => {
-                const body = (
-                  <>
-                    <span className="block text-lg font-bold tabular-nums tracking-tight text-foreground">
-                      {formatCount(stat.value)}
-                    </span>
-                    <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                      {stat.label}
-                    </span>
-                  </>
-                )
-                return stat.href ? (
-                  <Link
-                    key={stat.label}
-                    href={stat.href}
-                    className="px-1.5 py-3 text-center transition-colors hover:bg-muted/40"
-                  >
-                    {body}
-                  </Link>
-                ) : (
-                  <div key={stat.label} className="px-1.5 py-3 text-center">
-                    {body}
-                  </div>
-                )
-              })}
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 px-3 py-2 text-[11px] font-medium text-muted-foreground">
-              <span className="inline-flex items-center gap-3">
-                <span>
-                  <span className="font-semibold text-foreground">{formatCount(profile.branches_count)}</span> Branches
-                </span>
-                <span>
-                  <span className="font-semibold text-foreground">{formatCount(profile.comments_count ?? 0)}</span> Comments
-                </span>
+          {/* Counts read as one line, like a social profile, with the smaller
+              signals tucked underneath instead of in a grid of boxes. */}
+          <div
+            data-profile-block="stats"
+            style={blockStyle("stats")}
+            className="border-t border-border/60 pt-3.5"
+          >
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[13px] text-muted-foreground">
+              <Link href={`/profile/${profile.username}/following`} className="hover:underline">
+                <span className="font-semibold text-foreground">{formatCount(profile.following_count)}</span> Following
+              </Link>
+              <Link href={`/profile/${profile.username}/followers`} className="hover:underline">
+                <span className="font-semibold text-foreground">{formatCount(profile.followers_count)}</span> Followers
+              </Link>
+              <span>
+                <span className="font-semibold text-foreground">{formatCount(profile.loops_count)}</span> Loops
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full border border-border/70 px-2 py-0.5">
+              <span>
+                <span className="font-semibold text-foreground">{formatCount(profile.likes_received)}</span> Likes
+              </span>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-muted-foreground">
+              <span>{formatCount(profile.branches_count)} Branches</span>
+              <span aria-hidden="true" className="text-muted-foreground/40">·</span>
+              <span>{formatCount(profile.comments_count ?? 0)} Comments</span>
+              <span aria-hidden="true" className="text-muted-foreground/40">·</span>
+              <span className="inline-flex items-center gap-1">
                 <Trophy className="h-3 w-3 text-amber-500" /> Level {level}
               </span>
             </div>
@@ -1025,7 +1053,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             {profile.id && <ProfileAwards userId={profile.id} />}
           </div>
 
-          <div className="mt-2 space-y-1.5 loop-profile-card" data-profile-block="progress" style={blockStyle("progress")}>
+          <div className="space-y-1.5" data-profile-block="progress" style={blockStyle("progress")}>
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>
                 {xp.toLocaleString()} XP · next level at {nextXp.toLocaleString()}
