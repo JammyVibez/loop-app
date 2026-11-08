@@ -113,6 +113,7 @@ interface UserProfile {
   active_effects?: any[]
   active_cosmetics?: ActiveCosmetics | null
   theme_preferences?: any
+  custom_profile_css?: string | null
   available_earnings?: number
   total_earnings?: number
 }
@@ -553,7 +554,10 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   const xpProgress = Math.min(100, Math.round(((xp - prevXp) / Math.max(1, nextXp - prevXp)) * 100))
 
   return (
-    <div className="mx-auto w-full max-w-6xl bg-background min-h-screen">
+    <div className="mx-auto w-full max-w-6xl bg-background min-h-screen loop-profile-custom-css">
+      {profile.custom_profile_css ? (
+        <style dangerouslySetInnerHTML={{ __html: profile.custom_profile_css }} />
+      ) : null}
       {/* Profile top bar. It is stretched under the site Header (h-14, so
           top-14 keeps it flush — a mismatch here left a gap of page content
           showing between the two bars) and -mb-14 cancels its own h-14 out of

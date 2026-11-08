@@ -100,6 +100,15 @@ export const PRO_FEATURES = [
     enforced: true,
   },
   {
+    id: "custom_profile_css",
+    title: "Custom Profile CSS",
+    description: "Personalise your public profile with up to 21,000 bytes of scoped CSS",
+    free: "Standard profile styling",
+    pro: "21,000 bytes of custom CSS",
+    icon: "code",
+    enforced: true,
+  },
+  {
     id: "gif_avatar",
     title: "Animated GIF Avatar & Banner",
     description: "Stand out with dynamic animated profile pictures & covers",

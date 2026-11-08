@@ -10,6 +10,7 @@ import { checkBlockStatus } from "@/lib/user-blocks"
 import { buildPublicProfileIdentity, buildRestrictedProfileView, isRestrictedProfileVisibility } from "@/lib/profile-privacy"
 import { filterPrivateContent, getFollowingIds } from "@/lib/privacy"
 import { filterCircleScopedContent } from "@/lib/circle-content-privacy"
+import { sanitizeProfileCustomCss } from "@/lib/profile-custom-css"
 
 export async function GET(request: NextRequest) {
   try {
@@ -278,7 +279,17 @@ export async function GET(request: NextRequest) {
     const { cosmeticsFromInventory } = await import("@/lib/cosmetics")
     const derivedCosmetics = cosmeticsFromInventory(activeItems || [])
 
+    let customProfileCss = ""
+    try {
+      customProfileCss = sanitizeProfileCustomCss(
+        typeof profile.custom_profile_css === "string" ? profile.custom_profile_css : "",
+      )
+    } catch {
+      // Ignore invalid legacy values without breaking the public profile.
+    }
+
     const profileWithSocial = {
+      custom_profile_css: customProfileCss,
       ...buildPublicProfileIdentity(profile as Record<string, any>, isSelf),
       followers_count: followersCount ?? profile.followers_count ?? 0,
       following_count: followingCount ?? profile.following_count ?? 0,

@@ -49,6 +49,7 @@ interface User {
   location?: string
   pronouns?: string | null
   profile_theme?: any
+  custom_profile_css?: string
   privacy_settings?: Record<string, unknown>
   notification_settings?: Record<string, unknown>
   verification_level?: string
@@ -183,6 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       organization_config: profileData.organization_config ?? previous?.organization_config,
       theme_data: profileData.theme_data ?? previous?.theme_data,
       theme_preferences: profileData.theme_preferences ?? previous?.theme_preferences,
+      custom_profile_css: profileData.custom_profile_css ?? previous?.custom_profile_css ?? "",
       interests: profileData.interests ?? previous?.interests ?? [],
       phone: profileData.phone ?? previous?.phone,
       website: profileData.website ?? previous?.website,
@@ -516,6 +518,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const nextAdmin = Boolean(profile.is_admin ?? prev.is_admin)
       const nextOrg = Boolean(profile.is_organization ?? prev.is_organization)
       const nextThemePrefs = (profile.theme_preferences as any) ?? prev.theme_preferences
+      const nextCustomProfileCss = (profile.custom_profile_css as string | undefined) ?? prev.custom_profile_css
       const nextLocation = (profile.location as string | undefined) ?? prev.location
       const nextWebsite = (profile.website as string | undefined) ?? prev.website
       const nextPronouns = (profile.pronouns as string | null | undefined) ?? prev.pronouns ?? null
@@ -552,6 +555,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         nextPronouns === prev.pronouns &&
         nextOnboarding === prev.onboarding_completed &&
         nextThemePrefs === prev.theme_preferences &&
+        nextCustomProfileCss === prev.custom_profile_css &&
         nextPrivacy === prev.privacy_settings &&
         nextNotification === prev.notification_settings &&
         nextPremiumExpiry === prev.premium_expires_at
@@ -577,6 +581,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         organization_name: (profile.organization_name as string | undefined) ?? prev.organization_name,
         organization_badge_url: (profile.organization_badge_url as string | undefined) ?? prev.organization_badge_url,
         theme_preferences: nextThemePrefs,
+        custom_profile_css: nextCustomProfileCss,
         location: nextLocation,
         website: nextWebsite,
         pronouns: nextPronouns,
