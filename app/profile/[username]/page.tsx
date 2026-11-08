@@ -147,8 +147,12 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       }
     : null
 
+  // No `min-h-screen` here: the app shell already owns the viewport height, and
+  // stacking another full-height box under it made the document taller than the
+  // screen. On phones that extra slack let the browser chrome — and every tap
+  // that nudged it — shift the whole page up.
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-500">
+    <div className="bg-background text-foreground transition-colors duration-500">
       <Header />
       <main className="mx-auto w-full max-w-6xl px-0 sm:px-4 sm:py-6">
         {/* Schema.org structured data: ProfilePage + Person */}
