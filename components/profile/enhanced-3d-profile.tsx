@@ -726,7 +726,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       </div>
 
       {/* Desktop: two-column layout — sticky info sidebar + content column. Mobile stays stacked. */}
-      <div className="loop-profile-layout-grid" style={{ display: "grid", gap: "2rem", alignItems: "start", gridTemplateAreas, gridTemplateColumns }}>
+      <div className="loop-profile-layout-grid" style={{ display: "grid", order: Math.min(sectionOrder("profile"), sectionOrder("content")), gap: "2rem", alignItems: "start", gridTemplateAreas, gridTemplateColumns }}>
       {/* Avatar + actions — stack on mobile; empty overlap must not block cover button */}
       <div className="relative z-10 px-3 pb-3 sm:px-4 lg:px-0 lg:pb-0 loop-profile-sidebar-column" data-profile-section="profile" style={{ gridArea: "profile", order: sectionOrder("profile"), minWidth: 0 }}>
         <div className="lg:sticky lg:top-28 lg:pb-8 loop-profile-sidebar">
@@ -984,8 +984,9 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                 style={{ width: `${xpProgress}%` }}
               />
             </div>
+          </div>
 
-            {/* Organization Account Tier & Follower Progress Status */}
+          {/* Organization Account Tier & Follower Progress Status */}
             <div data-profile-block="organization" style={blockStyle("organization")}>
             {profile.is_organization ? (
               <div className="mt-3 space-y-2 rounded-xl border border-border/70 bg-card p-3.5">
@@ -1090,7 +1091,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           </div>
 
           {!isOwnProfile && (
-            <div className="flex flex-wrap items-center gap-2 pt-1">
+            <div className="flex flex-wrap items-center gap-2 pt-1" data-profile-block="safety" style={{ order: PROFILE_SIDEBAR_SECTIONS.length }}>
               <BlockUserButton
                 targetUserId={profile.id}
                 targetUsername={profile.username}
@@ -1182,6 +1183,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             <TabsTrigger
               key={tab.id}
               value={tab.id}
+              data-profile-tab={tab.id}
               className="min-w-[4.5rem] flex-1 rounded-none border-b-2 border-transparent px-2 py-3 text-xs font-semibold text-muted-foreground data-[state=active]:border-sky-500 data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none sm:text-sm"
             >
               {tab.label}

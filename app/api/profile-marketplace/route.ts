@@ -68,7 +68,40 @@ export async function GET(request: NextRequest) {
         .order("purchased_at", { ascending: false })
         .limit(100)
       if (error) throw error
-      return NextResponse.json({ success: true, items: data || [] })
+      const purchases = data || []
+      const listingIds = [...new Set(purchases.map((row) => row.listing_id))]
+      const { data: listings } = listingIds.length
+        ? await supabase.from("profile_design_listings").select("*").in("id", listingIds)
+        : { data: [] as any[] }
+      const listingById = new Map((listings || []).map((listing) => [listing.id, listing]))
+      const creatorIds = [...new Set(purchases.map((row) => row.creator_id))]
+      const { data: creators } = creatorIds.length
+        ? await supabase.from("profiles").select("id, username, display_name, avatar_url, is_verified").in("id", creatorIds)
+        : { data: [] as any[] }
+      const creatorById = new Map((creators || []).map((creator) => [creator.id, creator]))
+      const items = purchases.map((purchase) => {
+        const listing = listingById.get(purchase.listing_id)
+        return {
+          ...listing,
+          id: purchase.listing_id,
+          listing_id: purchase.listing_id,
+          title: purchase.title_snapshot,
+          title_snapshot: purchase.title_snapshot,
+          summary: listing?.summary || "Purchased profile design",
+          description: listing?.description || "",
+          category: listing?.category || "creative",
+          tags: listing?.tags || [],
+          price_coins: purchase.price_coins,
+          purchase_count: listing?.purchase_count || 0,
+          rating_average: listing?.rating_average || 0,
+          rating_count: listing?.rating_count || 0,
+          theme_tokens: purchase.theme_snapshot || listing?.theme_tokens || {},
+          layout_snapshot: purchase.layout_snapshot,
+          css_snapshot: purchase.css_snapshot,
+          creator: creatorById.get(purchase.creator_id) || null,
+        }
+      })
+      return NextResponse.json({ success: true, items })
     }
 
     let builder = supabase
@@ -120,7 +153,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, items, earnings, sales: (sales || []).length })
     }
 
-    return NextResponse.json({ success: true, items })
+    let ownedIds: string[] = []
+    if (user && mode === "explore") {
+      const { data: owned } = await supabase
+        .from("profile_design_purchases")
+        .select("listing_id")
+        .eq("buyer_id", user.id)
+      ownedIds = (owned || []).map((row) => row.listing_id)
+    }
+    return NextResponse.json({ success: true, items, owned_ids: ownedIds })
   } catch (error) {
     console.error("Profile marketplace error:", error)
     return NextResponse.json({ error: "Could not load the profile marketplace." }, { status: 500 })

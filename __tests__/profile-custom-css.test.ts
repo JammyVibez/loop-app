@@ -27,6 +27,12 @@ describe("profile custom CSS", () => {
     expect(css).not.toContain("body .card")
   })
 
+  it("does not scope already-sanitized selectors twice", () => {
+    const once = sanitizeProfileCustomCss(".card { color: red; }")
+    expect(once).toContain(".loop-profile-custom-css .card")
+    expect(sanitizeProfileCustomCss(once)).toBe(once)
+  })
+
   it("namespaces keyframes and keeps animation references connected", () => {
     const css = sanitizeProfileCustomCss("@keyframes fade-in { from { opacity: 0 } to { opacity: 1 } } .card { animation: fade-in 1s ease; }")
     expect(css).toMatch(/@keyframes loop_profile_[a-z0-9]+_fade-in/)
@@ -34,11 +40,22 @@ describe("profile custom CSS", () => {
     expect(css).toContain(".loop-profile-custom-css .card")
   })
 
+  it("does not namespace keyframes again when saved twice", () => {
+    const once = sanitizeProfileCustomCss("@keyframes fade-in { to { opacity: 1 } } .card { animation: fade-in 1s; }")
+    expect(sanitizeProfileCustomCss(once)).toBe(once)
+  })
+
+  it("rejects CSS whose scoped output would exceed the database byte limit", () => {
+    const rules = Array.from({ length: 1_000 }, (_, index) => ".item-" + index + "{color:red}").join("\n")
+    expect(profileCustomCssByteLength(rules)).toBeLessThan(MAX_PROFILE_CUSTOM_CSS_BYTES)
+    expect(() => sanitizeProfileCustomCss(rules)).toThrow(/Scoped custom profile CSS/)
+  })
+
   it.each([
     "@import url(https://example.com/a.css);",
     ".card { background-image: url(https://example.com/image.png); }",
     ".card { background-image: u\\72l(https://example.com/image.png); }",
-    ".card { background-image: " + "u\\" + "\n" + "rl(https://example.com/image.png); }",
+    ".card { background-image: u\\" + "\n" + "rl(https://example.com/image.png); }",
     ".card { background-image: u/**/rl(https://example.com/image.png); }",
     "@font-face { font-family: remote; src: url(https://example.com/font.woff2); }",
     "</style><script>alert(1)</script>",

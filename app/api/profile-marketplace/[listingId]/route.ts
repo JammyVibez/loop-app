@@ -30,7 +30,19 @@ export async function GET(
     if (error || !listing) return NextResponse.json({ error: "Design not found." }, { status: 404 })
 
     const user = await getUserFromRequest(_request)
-    if (listing.status !== "published" && listing.creator_id !== user?.id && !(user && await isStaff(supabase, user.id))) {
+    const isCreator = listing.creator_id === user?.id
+    const isModerator = Boolean(user && await isStaff(supabase, user.id))
+    let isBuyer = false
+    if (user && listing.status !== "published" && !isCreator && !isModerator) {
+      const { data: purchase } = await supabase
+        .from("profile_design_purchases")
+        .select("id")
+        .eq("listing_id", listingId)
+        .eq("buyer_id", user.id)
+        .maybeSingle()
+      isBuyer = Boolean(purchase)
+    }
+    if (listing.status !== "published" && !isCreator && !isModerator && !isBuyer) {
       return NextResponse.json({ error: "Design not found." }, { status: 404 })
     }
 

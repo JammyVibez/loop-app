@@ -31,14 +31,13 @@ import {
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { TactileButton } from "@/components/ui/tactile-button"
+import { MAX_PROFILE_CUSTOM_CSS_BYTES, profileCustomCssByteLength } from "@/lib/profile-custom-css-limits"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import {
   buildProfileLayoutCss,
   DEFAULT_PROFILE_LAYOUT,
   normalizeProfileLayout,
-  PROFILE_PAGE_SECTIONS,
-  PROFILE_SIDEBAR_SECTIONS,
   type ProfileLayout,
 } from "@/lib/profile-layout"
 
@@ -55,6 +54,11 @@ const SECTION_LABELS: Record<string, string> = {
   progress: "Level and progress",
   organization: "Organization",
   cosmetics: "Equipped cosmetics",
+  about: "About",
+  loops: "Loops",
+  branches: "Branches",
+  media: "Media",
+  work: "Creative work",
 }
 
 const SECTION_DESCRIPTIONS: Record<string, string> = {
@@ -70,6 +74,11 @@ const SECTION_DESCRIPTIONS: Record<string, string> = {
   progress: "Experience and next-level progress",
   organization: "Partnership information",
   cosmetics: "Frames, auras, fonts and effects",
+  about: "Profile introduction and activity",
+  loops: "Published loops",
+  branches: "Branches",
+  media: "Photo and video media",
+  work: "Creative work and portfolio",
 }
 
 function moveItem(items: string[], id: string, direction: -1 | 1) {
@@ -122,6 +131,9 @@ export function ProfileDesigner({
   const cssDirty = css !== savedCss
   const pageSections = useMemo(() => layout.sections, [layout.sections])
   const sidebarSections = useMemo(() => layout.sidebar, [layout.sidebar])
+  const tabSections = useMemo(() => layout.tabs, [layout.tabs])
+  const cssBytes = useMemo(() => profileCustomCssByteLength(css), [css])
+  const cssTooLarge = cssBytes > MAX_PROFILE_CUSTOM_CSS_BYTES
   const hidden = new Set(layout.hidden)
 
   useEffect(() => {
@@ -132,7 +144,7 @@ export function ProfileDesigner({
     setTab("layout")
   }, [open, initialLayout, initialCss])
 
-  const updateOrder = (key: "sections" | "sidebar", value: string[]) => {
+  const updateOrder = (key: "sections" | "sidebar" | "tabs", value: string[]) => {
     setLayout((current) => ({ ...current, [key]: value }))
   }
 
@@ -166,7 +178,7 @@ export function ProfileDesigner({
   }
 
   const finish = async () => {
-    if (saving) return
+    if (saving || (isPremium && cssTooLarge)) return
     setSaving(true)
     try {
       const payload: Record<string, unknown> = { profile_layout: layout }
@@ -204,8 +216,7 @@ export function ProfileDesigner({
 
   const renderReorderList = (
     items: string[],
-    key: "sections" | "sidebar",
-    allowed: readonly string[],
+    key: "sections" | "sidebar" | "tabs",
   ) => (
     <Reorder.Group
       axis="y"
@@ -215,7 +226,7 @@ export function ProfileDesigner({
     >
       {items.map((id, index) => {
         const isHidden = hidden.has(id)
-        const canHide = id !== "profile" && id !== "content" && id !== "identity" && id !== "avatar-actions"
+        const canHide = key !== "tabs" && id !== "profile" && id !== "content" && id !== "identity" && id !== "avatar-actions"
         return (
           <Reorder.Item
             key={id}
@@ -308,6 +319,23 @@ export function ProfileDesigner({
 
         <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
           <div className="min-h-0 overflow-y-auto p-3 sm:p-5">
+            <div className="mb-4 rounded-xl border border-border bg-muted/20 p-3 lg:hidden">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Mobile preview</span>
+                <MonitorSmartphone className="h-3.5 w-3.5 text-muted-foreground" />
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {layout.sections.filter((id) => !hidden.has(id)).map((id) => (
+                  <Badge key={id} variant="secondary" className="text-[10px]">{SECTION_LABELS[id] || id}</Badge>
+                ))}
+                {layout.sidebar.filter((id) => !hidden.has(id)).map((id) => (
+                  <Badge key={id} variant="outline" className="text-[10px]">{SECTION_LABELS[id] || id}</Badge>
+                ))}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1 border-t border-border/70 pt-2">
+                {tabSections.map((id) => <span key={id} className="rounded-md bg-background px-2 py-1 text-[9px] capitalize">{id}</span>)}
+              </div>
+            </div>
             <AnimatePresence mode="wait">
               {tab === "layout" ? (
                 <motion.div
@@ -326,7 +354,7 @@ export function ProfileDesigner({
                       </div>
                       <Badge variant="outline">{pageSections.length} sections</Badge>
                     </div>
-                    {renderReorderList(pageSections, "sections", PROFILE_PAGE_SECTIONS)}
+                    {renderReorderList(pageSections, "sections")}
                   </div>
                   <div className="border-t border-border/70 pt-5">
                     <div className="mb-3 flex items-end justify-between gap-3">
@@ -336,7 +364,17 @@ export function ProfileDesigner({
                       </div>
                       <Badge variant="outline">{sidebarSections.length} blocks</Badge>
                     </div>
-                    {renderReorderList(sidebarSections, "sidebar", PROFILE_SIDEBAR_SECTIONS)}
+                    {renderReorderList(sidebarSections, "sidebar")}
+                  </div>
+                  <div className="border-t border-border/70 pt-5">
+                    <div className="mb-3 flex items-end justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-bold">Profile tabs</h3>
+                        <p className="mt-1 text-xs text-muted-foreground">Arrange the views visitors see on your profile.</p>
+                      </div>
+                      <Badge variant="outline">{tabSections.length} tabs</Badge>
+                    </div>
+                    {renderReorderList(tabSections, "tabs")}
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 pt-4">
                     <Button type="button" variant="ghost" size="sm" className="rounded-full" onClick={restoreDefaults}>
@@ -381,13 +419,19 @@ export function ProfileDesigner({
                     )}
                   </div>
                   {isPremium ? (
-                    <Textarea
-                      value={css}
-                      onChange={(event) => setCss(event.target.value)}
-                      spellCheck={false}
-                      className="min-h-[180px] resize-y font-mono text-xs leading-5"
-                      placeholder="Add optional profile-only CSS…"
-                    />
+                    <>
+                      <Textarea
+                        value={css}
+                        onChange={(event) => setCss(event.target.value)}
+                        spellCheck={false}
+                        className="min-h-[180px] resize-y font-mono text-xs leading-5"
+                        placeholder="Add optional profile-only CSS…"
+                      />
+                      <div className="flex justify-between gap-3 text-[11px]">
+                        <span className={cssTooLarge ? "text-destructive" : "text-muted-foreground"}>{cssBytes.toLocaleString()} / {MAX_PROFILE_CUSTOM_CSS_BYTES.toLocaleString()} bytes</span>
+                        {cssTooLarge ? <span className="text-destructive">Reduce CSS before finishing.</span> : <span className="text-muted-foreground">UTF-8 byte limit</span>}
+                      </div>
+                    </>
                   ) : (
                     <p className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
                       Custom CSS is a Pro feature. You can still save the visual arrangement without writing code.
@@ -443,7 +487,7 @@ export function ProfileDesigner({
             <Button type="button" variant="ghost" className="rounded-full" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <TactileButton onClick={() => void finish()} disabled={saving}>
+            <TactileButton onClick={() => void finish()} disabled={saving || (isPremium && cssTooLarge)}>
               <Save className="mr-1.5 h-4 w-4" /> {saving ? "Saving…" : "Finish"}
               <Check className="ml-1.5 h-3.5 w-3.5" />
             </TactileButton>

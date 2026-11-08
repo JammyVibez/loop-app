@@ -1,14 +1,12 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import {
   ArrowRight,
   Check,
-  Crown,
   Filter,
   Layers3,
-  Lock,
   Palette,
   Search,
   ShieldCheck,
@@ -28,7 +26,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { TactileButton } from "@/components/ui/tactile-button"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { normalizeProfileLayout, type ProfileLayout } from "@/lib/profile-layout"
+import { normalizeProfileLayout } from "@/lib/profile-layout"
 
 type Listing = {
   id: string
@@ -43,6 +41,9 @@ type Listing = {
   rating_average: number
   rating_count: number
   status: string
+  featured?: boolean
+  design_layout?: unknown
+  design_css?: string
   moderation_note?: string | null
   theme_tokens?: Record<string, string>
   creator?: { id: string; username: string; display_name: string; avatar_url?: string; is_verified?: boolean } | null
@@ -115,6 +116,10 @@ export function ProfileMarketplace({
   const [sales, setSales] = useState(0)
   const [reviewRating, setReviewRating] = useState(5)
   const [reviewText, setReviewText] = useState("")
+  const [reviews, setReviews] = useState<Array<{ id: string; buyer_id: string; rating: number; review: string; created_at: string }>>([])
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingDesign, setEditingDesign] = useState<Listing | null>(null)
   const [listingForm, setListingForm] = useState({
     title: "",
     summary: "",
@@ -125,7 +130,7 @@ export function ProfileMarketplace({
     cover_url: "",
   })
 
-  const ownedIds = useMemo(() => new Set(items.filter((item) => item.listing_id).map((item) => item.listing_id as string)), [items])
+  const [ownedIds, setOwnedIds] = useState<Set<string>>(new Set())
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -141,11 +146,18 @@ export function ProfileMarketplace({
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || "Marketplace unavailable.")
       setItems(Array.isArray(data.items) ? data.items : [])
+      const owned = Array.isArray(data.owned_ids)
+        ? data.owned_ids
+        : mode === "purchased"
+          ? (Array.isArray(data.items) ? data.items.map((item: Listing) => item.listing_id || item.id) : [])
+          : []
+      setOwnedIds(new Set<string>(owned.filter((id: unknown): id is string => typeof id === "string")))
       setEarnings(Number(data.earnings || 0))
       setSales(Number(data.sales || 0))
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Marketplace unavailable.")
       setItems([])
+      setOwnedIds(new Set())
     } finally {
       setLoading(false)
     }
@@ -154,6 +166,41 @@ export function ProfileMarketplace({
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (!selected) {
+      setReviews([])
+      return
+    }
+    let cancelled = false
+    setReviewsLoading(true)
+    const id = selected.listing_id || selected.id
+    fetch("/api/profile-marketplace/" + id, {
+      headers: user ? getAuthHeader() : undefined,
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(data.error || "Could not load reviews.")
+        if (!cancelled) setReviews(Array.isArray(data.listing?.reviews) ? data.listing.reviews : [])
+      })
+      .catch(() => {
+        if (!cancelled) setReviews([])
+      })
+      .finally(() => {
+        if (!cancelled) setReviewsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [selected?.id, selected?.listing_id, user?.id, getAuthHeader])
+
+  useEffect(() => {
+    if (!createOpen) {
+      setEditingId(null)
+      setEditingDesign(null)
+    }
+  }, [createOpen])
 
   const buy = async (item: Listing) => {
     if (!user) {
@@ -203,15 +250,16 @@ export function ProfileMarketplace({
     if (!user) return
     setSubmitting(true)
     try {
-      const response = await fetch("/api/profile-marketplace", {
-        method: "POST",
+      const editing = Boolean(editingId)
+      const response = await fetch(editing ? "/api/profile-marketplace/" + editingId : "/api/profile-marketplace", {
+        method: editing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({
           ...listingForm,
           price_coins: Number(listingForm.price_coins),
           tags: listingForm.tags.split(",").map((tag) => tag.trim()).filter(Boolean),
-          design_layout: normalizeProfileLayout(currentLayout),
-          design_css: [currentCss, designCss].filter(Boolean).join("\n\n"),
+          design_layout: editingDesign?.design_layout || normalizeProfileLayout(currentLayout),
+          design_css: editingDesign?.design_css || [currentCss, designCss].filter(Boolean).join("\n\n"),
           theme_tokens: themeTokens,
         }),
       })
@@ -219,7 +267,8 @@ export function ProfileMarketplace({
       if (!response.ok) throw new Error(data.error || "Could not submit this design.")
       setCreateOpen(false)
       setMode("mine")
-      toast({ title: "Submitted for review", description: "Your design will appear in the marketplace after moderation." })
+      setListingForm({ title: "", summary: "", description: "", category: "creative", price_coins: "500", tags: "", cover_url: "" })
+      toast({ title: editing ? "Changes resubmitted" : "Submitted for review", description: "Your design will appear in the marketplace after moderation." })
       await load()
     } catch (error) {
       toast({ title: "Submission failed", description: error instanceof Error ? error.message : "Check the details and try again.", variant: "destructive" })
@@ -228,13 +277,35 @@ export function ProfileMarketplace({
     }
   }
 
-  const moderate = async (item: Listing, status: "published" | "rejected") => {
+  const editListing = (item: Listing) => {
+    setEditingId(item.id)
+    setEditingDesign(item)
+    setListingForm({
+      title: item.title,
+      summary: item.summary || "",
+      description: item.description || "",
+      category: item.category || "creative",
+      price_coins: String(item.price_coins || 0),
+      tags: (item.tags || []).join(", "),
+      cover_url: item.cover_url || "",
+    })
+    setCreateOpen(true)
+  }
+
+  const openNewListing = () => {
+    setEditingId(null)
+    setEditingDesign(null)
+    setListingForm({ title: "", summary: "", description: "", category: "creative", price_coins: "500", tags: "", cover_url: "" })
+    setCreateOpen(true)
+  }
+
+  const moderate = async (item: Listing, status: "published" | "rejected", featured = false) => {
     setModerating(item.id)
     try {
       const response = await fetch("/api/profile-marketplace/" + item.id, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, featured }),
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || "Could not moderate listing.")
@@ -250,7 +321,7 @@ export function ProfileMarketplace({
   const sendReview = async () => {
     if (!selected) return
     try {
-      const response = await fetch("/api/profile-marketplace/" + selected.id + "/reviews", {
+      const response = await fetch("/api/profile-marketplace/" + (selected.listing_id || selected.id) + "/reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({ rating: reviewRating, review: reviewText }),
@@ -282,7 +353,7 @@ export function ProfileMarketplace({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <TactileButton onClick={() => setCreateOpen(true)} disabled={!user}>
+            <TactileButton onClick={openNewListing} disabled={!user}>
               <Upload className="mr-2 h-4 w-4" /> Publish a design
             </TactileButton>
             <Button asChild variant="outline" className="rounded-full">
@@ -434,7 +505,13 @@ export function ProfileMarketplace({
                       ) : mode === "review" ? (
                         <div className="flex gap-1">
                           <Button size="sm" variant="outline" className="rounded-full" disabled={moderating === item.id} onClick={() => void moderate(item, "rejected")}>Reject</Button>
+                          <Button size="sm" variant="outline" className="rounded-full" disabled={moderating === item.id} onClick={() => void moderate(item, "published", true)}>Feature</Button>
                           <TactileButton size="sm" disabled={moderating === item.id} onClick={() => void moderate(item, "published")}>Approve</TactileButton>
+                        </div>
+                      ) : mode === "mine" && ["pending", "rejected", "draft"].includes(item.status) ? (
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="outline" className="rounded-full" onClick={() => setSelected(item)}>Details</Button>
+                          <TactileButton size="sm" onClick={() => editListing(item)}>Edit</TactileButton>
                         </div>
                       ) : (
                         <Button size="sm" variant="outline" className="rounded-full" onClick={() => setSelected(item)}>
@@ -470,13 +547,40 @@ export function ProfileMarketplace({
                   <p className="text-xs text-muted-foreground">{money(selected.purchase_count)} purchases · {Number(selected.rating_average || 0).toFixed(1)} / 5 rating</p>
                 </div>
               </div>
+              <section className="space-y-2 border-b border-border pb-4">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-bold">Buyer reviews</h3>
+                  <span className="text-[10px] text-muted-foreground">{reviews.length} reviews</span>
+                </div>
+                {reviewsLoading ? (
+                  <p className="text-xs text-muted-foreground">Loading reviews…</p>
+                ) : reviews.length ? (
+                  <div className="max-h-36 space-y-2 overflow-y-auto">
+                    {reviews.map((review) => (
+                      <div key={review.id} className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex gap-0.5">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star key={star} className={star <= review.rating ? "h-3 w-3 fill-amber-400 text-amber-400" : "h-3 w-3 text-muted-foreground"} />
+                            ))}
+                          </div>
+                          <span className="text-[10px] text-muted-foreground">{new Date(review.created_at).toLocaleDateString()}</span>
+                        </div>
+                        {review.review ? <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{review.review}</p> : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No reviews yet. Purchased members can leave the first one.</p>
+                )}
+              </section>
               {ownedIds.has(selected.id) ? (
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <TactileButton className="flex-1" onClick={() => { void apply(selected); setSelected(null) }} disabled={applying === selected.id}>Apply design</TactileButton>
-                  <Button variant="outline" className="rounded-full" onClick={() => { setReviewRating(5); setReviewText("") }}>Close</Button>
+                  <Button variant="outline" className="rounded-full" onClick={() => setSelected(null)}>Close</Button>
                 </div>
               ) : (
-                <TactileButton block={true} onClick={() => void buy(selected)} disabled={purchasing === selected.id}>
+                <TactileButton className="w-full" onClick={() => void buy(selected)} disabled={purchasing === selected.id}>
                   <Wallet className="mr-2 h-4 w-4" /> {purchasing === selected.id ? "Purchasing…" : "Unlock design"}
                 </TactileButton>
               )}
@@ -502,7 +606,7 @@ export function ProfileMarketplace({
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-h-[92dvh] w-[calc(100vw-24px)] max-w-xl overflow-y-auto rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Publish a profile design</DialogTitle>
+            <DialogTitle>{editingId ? "Edit your profile design" : "Publish a profile design"}</DialogTitle>
             <DialogDescription>Your current layout and profile CSS become the design package. Submissions are reviewed before going live.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -542,7 +646,7 @@ export function ProfileMarketplace({
               <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-500" />
               Creators receive 85% of each paid sale as Loop Coins. The platform keeps 15% for marketplace operations.
             </div>
-            <TactileButton block onClick={() => void submitListing()} disabled={submitting}>
+            <TactileButton className="w-full" onClick={() => void submitListing()} disabled={submitting}>
               <Upload className="mr-2 h-4 w-4" /> {submitting ? "Submitting…" : "Submit for review"}
             </TactileButton>
           </div>

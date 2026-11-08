@@ -1153,9 +1153,7 @@ html.loop-reduced-motion *::after {
 }
 
 .loop-profile-sidebar-blocks {
-  display: flex;
-  flex-direction: column;
-  gap: .75rem;
+  display: contents;
   min-width: 0;
 }
 
@@ -1173,7 +1171,6 @@ html.loop-reduced-motion *::after {
 
   .loop-profile-sidebar-column,
   .loop-profile-layout-main {
-    order: initial !important;
     width: 100%;
     min-width: 0;
     flex: 1 1 100%;

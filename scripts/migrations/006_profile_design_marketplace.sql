@@ -150,7 +150,7 @@ BEGIN
     RAISE EXCEPTION 'INSUFFICIENT_LOOP_COINS';
   END IF;
 
-  creator_share := floor(design.price_coins * 0.85)::integer;
+  creator_share := CASE WHEN design.price_coins = 0 THEN 0 ELSE GREATEST(1, floor(design.price_coins * 0.85)::integer) END;
   platform_share := design.price_coins - creator_share;
 
   UPDATE public.profiles

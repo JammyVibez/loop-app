@@ -36,14 +36,16 @@ describe("profile layout", () => {
     expect(() => validateProfileLayout([])).toThrow(/object/)
   })
 
-  it("exports only known, scoped selectors for layout sections", () => {
+  it("exports order and visibility rules for each layout region", () => {
     const css = buildProfileLayoutCss({
       sections: ["content", "cover", "profile"],
       sidebar: ["bio", "stats"],
+      tabs: ["media", "loops"],
       hidden: ["cover"],
     })
-    expect(css).toContain('.loop-profile-layout-canvas > [data-profile-section="content"] { order: 0; }')
-    expect(css).toContain('.loop-profile-sidebar > [data-profile-block="bio"] { order: 0; }')
+    expect(css).toContain('.loop-profile-layout-grid > [data-profile-section="content"] { order: 0 !important; }')
+    expect(css).toContain('.loop-profile-sidebar-blocks > [data-profile-block="bio"] { order: 0 !important; }')
+    expect(css).toContain('.loop-profile-layout-main [data-profile-tab="media"] { order: 0 !important; }')
     expect(css).toContain('[data-profile-section="cover"], [data-profile-block="cover"] { display: none !important; }')
     expect(css).not.toContain("html")
     expect(css).not.toContain("body")

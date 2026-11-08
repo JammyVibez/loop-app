@@ -135,7 +135,8 @@ export function sanitizeProfileCustomCss(input: string): string {
     if (name === "keyframes" || name === "-webkit-keyframes") {
       const match = /^([-_a-zA-Z][\w-]*)([\s\S]*)$/.exec(atRule.params.trim())
       if (!match) throw new Error("Each @keyframes rule needs a simple animation name.")
-      const scopedName = keyframePrefix + "_" + match[1]
+      const alreadyScoped = /^loop_profile_[a-z0-9]+_/i.test(match[1])
+      const scopedName = alreadyScoped ? match[1] : keyframePrefix + "_" + match[1]
       keyframeNames.set(match[1], scopedName)
       atRule.params = scopedName + match[2]
       return
