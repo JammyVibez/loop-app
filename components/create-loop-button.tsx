@@ -18,9 +18,17 @@ import { useLoginGate } from "@/hooks/use-login-gate"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { parseJsonResponse } from "@/lib/parse-json-response"
 import { cn } from "@/lib/utils"
+import { PostMediaEditor } from "@/components/ui/post-media-editor"
+import {
+  buildEditedVideoUrl,
+  isEditableImageFile,
+  isVideoFile,
+  mediaFileKey,
+  videoEditIsNoop,
+  type VideoEdit,
+} from "@/lib/media-edit"
 import {
   Code,
-  Crop,
   Eye,
   EyeOff,
   FileText,
@@ -31,6 +39,7 @@ import {
   Music,
   Plus,
   Save,
+  SlidersHorizontal,
   Square,
   Upload,
   Video,
@@ -53,6 +62,76 @@ interface CreateLoopButtonProps {
 
 type MediaType = "text" | "image" | "video" | "audio" | "code" | "poll" | "moment"
 
+/**
+ * One picked file. The object URL is created once per file instead of on every
+ * render (which used to leak a new blob URL on each keystroke in the textarea).
+ */
+function SelectedMediaTile({
+  file,
+  trim,
+  onEdit,
+  onRemove,
+}: {
+  file: File
+  trim?: VideoEdit
+  onEdit: () => void
+  onRemove: () => void
+}) {
+  const [url, setUrl] = useState<string | null>(null)
+  const video = isVideoFile(file)
+  const editable = isEditableImageFile(file) || video
+  const trimmed = Boolean(trim && !videoEditIsNoop(trim))
+
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(file)
+    setUrl(objectUrl)
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [file])
+
+  return (
+    <div className="group relative overflow-hidden rounded-xl border border-border bg-muted">
+      {video ? (
+        <video src={url ?? undefined} muted playsInline preload="metadata" className="h-28 w-full bg-black object-cover" />
+      ) : file.type.startsWith("image/") ? (
+        <img src={url ?? undefined} alt={file.name} className="h-28 w-full object-cover" />
+      ) : (
+        <div className="flex h-28 items-center justify-center truncate p-2 text-center text-xs text-muted-foreground">
+          {file.name}
+        </div>
+      )}
+
+      {trimmed ? (
+        <span className="absolute left-1.5 top-1.5 rounded-full bg-violet-600/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+          Trimmed
+        </span>
+      ) : null}
+
+      <div className="absolute inset-x-1.5 bottom-1.5 flex items-center justify-between gap-1.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+        {editable ? (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="inline-flex items-center gap-1 rounded-full bg-black/75 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-sm transition-colors hover:bg-violet-600"
+          >
+            <SlidersHorizontal className="h-3 w-3" />
+            Edit
+          </button>
+        ) : (
+          <span />
+        )}
+        <button
+          type="button"
+          onClick={onRemove}
+          className="rounded-full bg-black/75 p-1.5 text-white backdrop-blur-sm transition-colors hover:bg-rose-600"
+          title="Remove file"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = false }: CreateLoopButtonProps) {
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
@@ -74,9 +153,13 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
   const [uploadStatus, setUploadStatus] = useState<string | null>(null)
   const [showPreview, setShowPreview] = useState(false)
   const [suggestions, setSuggestions] = useState<string[]>([])
-  const [cropScale, setCropScale] = useState(1)
   const [discardOpen, setDiscardOpen] = useState(false)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  // Files queued for the pre-post editor. Images come back re-encoded; videos
+  // come back as a trim/mute config that is written into the delivery URL.
+  const [editQueue, setEditQueue] = useState<File[]>([])
+  const [editIndex, setEditIndex] = useState(0)
+  const [videoEdits, setVideoEdits] = useState<Record<string, VideoEdit>>({})
+  const editingFile = editQueue[editIndex] ?? null
   const recorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const [recording, setRecording] = useState(false)
@@ -142,28 +225,38 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
 
   const clearDraft = () => localStorage.removeItem(DRAFT_KEY)
 
-  const applyCropToImage = async (file: File) => {
-    if (!file.type.startsWith("image/") || cropScale === 1) return file
-    const img = document.createElement("img")
-    const objectUrl = URL.createObjectURL(file)
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve()
-      img.onerror = () => reject(new Error("Could not load image"))
-      img.src = objectUrl
-    })
-    const canvas = canvasRef.current || document.createElement("canvas")
-    const size = Math.min(img.width, img.height) / cropScale
-    const sx = (img.width - size) / 2
-    const sy = (img.height - size) / 2
-    canvas.width = Math.min(1080, size)
-    canvas.height = Math.min(1080, size)
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return file
-    ctx.drawImage(img, sx, sy, size, size, 0, 0, canvas.width, canvas.height)
-    URL.revokeObjectURL(objectUrl)
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92))
-    if (!blob) return file
-    return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" })
+  /** Move to the next picked file, or leave the editor once the queue is done. */
+  const finishEditing = () => {
+    if (editIndex + 1 < editQueue.length) setEditIndex(editIndex + 1)
+    else {
+      setEditQueue([])
+      setEditIndex(0)
+    }
+  }
+
+  const startEditing = (files: File[]) => {
+    if (!files.length) return
+    setEditQueue(files)
+    setEditIndex(0)
+  }
+
+  const replaceMediaFile = (original: File, edited: File) => {
+    setMediaFiles((prev) =>
+      prev.map((file) => (mediaFileKey(file) === mediaFileKey(original) ? edited : file)),
+    )
+    finishEditing()
+  }
+
+  const saveVideoEdit = (original: File, edit: VideoEdit) => {
+    setVideoEdits((prev) => ({ ...prev, [mediaFileKey(original)]: edit }))
+    finishEditing()
+  }
+
+  /** Publish URL for a file: images are already edited; videos get trim/mute. */
+  const publishUrl = (file: File, uploadedUrl: string) => {
+    if (!isVideoFile(file)) return uploadedUrl
+    const edit = videoEdits[mediaFileKey(file)]
+    return edit ? buildEditedVideoUrl(uploadedUrl, edit) : uploadedUrl
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -178,7 +271,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
       if (mediaType === "moment") {
         // Create Moment post directly
         if (mediaFiles.length > 0) {
-          const prepared = await applyCropToImage(mediaFiles[0])
+          const prepared = mediaFiles[0]
           setUploadStatus("Uploading...")
           const uploaded = await uploadMediaFile(prepared, {
             type: prepared.type.startsWith("video") ? "video" : "image",
@@ -195,7 +288,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
               ...getAuthHeader(),
             },
             body: JSON.stringify({
-              media_url: uploaded.url,
+              media_url: publishUrl(prepared, uploaded.url),
               media_type: prepared.type.startsWith("video") ? "video" : "image",
               content: content,
               hours: 24,
@@ -231,13 +324,12 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
         const authHeaders = { Authorization: `Bearer ${authToken}`, ...getAuthHeader() }
         const uploadResults = await Promise.all(
           mediaFiles.map(async (file) => {
-            const prepared = await applyCropToImage(file)
-            const uploaded = await uploadMediaFile(prepared, {
-              type: prepared.type.startsWith("video")
+            const uploaded = await uploadMediaFile(file, {
+              type: file.type.startsWith("video")
                 ? "video"
-                : prepared.type.startsWith("audio")
+                : file.type.startsWith("audio")
                   ? "audio"
-                  : prepared.type.startsWith("image")
+                  : file.type.startsWith("image")
                     ? "image"
                     : "file",
               folder: "loops",
@@ -245,7 +337,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
             })
             uploadedCount += 1
             setUploadStatus(mediaFiles.length > 1 ? `Uploading ${uploadedCount}/${mediaFiles.length}...` : "Uploading...")
-            return uploaded
+            return { ...uploaded, url: publishUrl(file, uploaded.url) }
           }),
         )
         setUploadStatus("Publishing...")
@@ -335,7 +427,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
       setCodeTitle("")
       setCodeLanguage("javascript")
       setShowPreview(false)
-      setCropScale(1)
+      setVideoEdits({})
       setIsSpoiler(false)
       setIsOpen(false)
       clearDraft()
@@ -354,8 +446,9 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
   const handleSelectedFiles = (selected: File[]) => {
     if (!selected.length) return
     const maxFiles = getMaxFiles()
-    const combined = [...mediaFiles, ...selected].slice(0, maxFiles)
-    if (mediaFiles.length + selected.length > maxFiles) {
+    const accepted = selected.slice(0, Math.max(0, maxFiles - mediaFiles.length))
+    const combined = [...mediaFiles, ...accepted]
+    if (accepted.length < selected.length) {
       toast({
         title: "File limit reached",
         description: `Up to ${maxFiles} files allowed ${user?.is_premium ? "(Pro)" : "(Upgrade to Pro for up to 10 files)"}.`,
@@ -367,6 +460,10 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
     else if (first.type.startsWith("video/")) setMediaType("video")
     else if (first.type.startsWith("audio/")) setMediaType("audio")
     else setMediaType("code")
+
+    // Every photo and clip gets its turn in the editor before publishing.
+    const editable = accepted.filter((file) => isEditableImageFile(file) || isVideoFile(file))
+    startEditing(editable)
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -471,7 +568,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
   return (
     <>
       {LoginGateDialog}
-    <Card className="overflow-hidden border-border/70 bg-card/70 shadow-sm">
+    <Card className="overflow-hidden rounded-3xl border-border/60 bg-card/80 shadow-[0_24px_70px_-45px_rgba(0,0,0,0.7)]">
       <CardContent className="space-y-5 p-4 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
@@ -526,7 +623,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
               ))}
             </div>
             {previewUrl && mediaType === "image" && (
-              <img src={previewUrl} alt="preview" className="max-h-72 w-full rounded-xl object-cover" style={{ transform: `scale(${cropScale})` }} />
+              <img src={previewUrl} alt="preview" className="max-h-72 w-full rounded-xl object-cover" />
             )}
             {previewUrl && mediaType === "video" && <video src={previewUrl} controls className="max-h-72 w-full rounded-xl" />}
             {previewUrl && mediaType === "audio" && <audio src={previewUrl} controls className="w-full" />}
@@ -773,14 +870,15 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                 <>
                   <MagneticDropZone onFiles={handleSelectedFiles}>
                     <label className="group flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border border-dashed border-border/80 bg-muted/20 p-5 text-center transition-colors hover:border-primary/40 hover:bg-muted/50">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-background shadow-sm ring-1 ring-border/70">
-                        <Upload className="h-4 w-4 text-violet-500" />
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-background shadow-sm ring-1 ring-border/70 transition-colors group-hover:ring-violet-400/50">
+                        <Upload className="h-4 w-4 text-violet-400" />
                       </span>
                       <span className="text-[13px] font-semibold text-foreground">
                         Drop media or click to upload
                       </span>
                       <span className="text-[11px] text-muted-foreground">
-                        Images, video, or audio · up to {getMaxFiles()} file{getMaxFiles() > 1 ? "s" : ""}
+                        Photos and clips open the editor before they post · up to {getMaxFiles()} file
+                        {getMaxFiles() > 1 ? "s" : ""}
                         {user?.is_premium ? " · Pro" : ""}
                       </span>
                       <input
@@ -809,7 +907,10 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                   {mediaFiles.length > 0 && (
                     <div className="mt-3 space-y-3">
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{mediaFiles.length} of {getMaxFiles()} files selected</span>
+                        <span>
+                          {mediaFiles.length} of {getMaxFiles()} selected
+                          <span className="ml-1.5 text-muted-foreground/70">· hover a tile to edit</span>
+                        </span>
                         {mediaFiles.length < getMaxFiles() && (
                           <label className="cursor-pointer text-violet-400 font-semibold hover:underline">
                             + Add more files
@@ -825,32 +926,13 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                       </div>
                       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
                         {mediaFiles.map((file, idx) => (
-                          <div key={idx} className="relative group rounded-xl overflow-hidden border border-border bg-muted p-1">
-                            {file.type.startsWith("image/") ? (
-                              <img
-                                src={URL.createObjectURL(file)}
-                                alt={file.name}
-                                className="h-28 w-full object-cover rounded-lg"
-                              />
-                            ) : file.type.startsWith("video/") ? (
-                              <video
-                                src={URL.createObjectURL(file)}
-                                className="h-28 w-full object-cover rounded-lg"
-                              />
-                            ) : (
-                              <div className="flex h-28 items-center justify-center bg-muted text-xs text-muted-foreground p-2 text-center truncate rounded-lg">
-                                {file.name}
-                              </div>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => removeFile(idx)}
-                              className="absolute top-2 right-2 rounded-full bg-black/80 p-1.5 text-white hover:bg-rose-600 transition-colors shadow-md"
-                              title="Remove file"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
+                          <SelectedMediaTile
+                            key={`${mediaFileKey(file)}-${idx}`}
+                            file={file}
+                            trim={videoEdits[mediaFileKey(file)]}
+                            onEdit={() => startEditing([file])}
+                            onRemove={() => removeFile(idx)}
+                          />
                         ))}
                       </div>
                     </div>
@@ -903,7 +985,6 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
             </div>
           </form>
         )}
-        <canvas ref={canvasRef} className="hidden" />
       </CardContent>
 
       <ConfirmDialog
@@ -934,6 +1015,15 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
           if (onLoopCreated) onLoopCreated()
           else router.refresh()
         }}
+      />
+
+      <PostMediaEditor
+        file={editingFile}
+        open={Boolean(editingFile)}
+        initialVideoEdit={editingFile ? videoEdits[mediaFileKey(editingFile)] : null}
+        onClose={finishEditing}
+        onApplyImage={(edited, original) => replaceMediaFile(original, edited)}
+        onApplyVideo={(edit, original) => saveVideoEdit(original, edit)}
       />
     </Card>
     </>

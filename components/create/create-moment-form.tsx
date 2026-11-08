@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useRef, useState } from "react"
-import { Clock, ImagePlus, Send, Trash2, Zap } from "lucide-react"
+import { Clock, ImagePlus, Send, SlidersHorizontal, Trash2, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/hooks/use-auth"
@@ -9,6 +9,15 @@ import { useToast } from "@/hooks/use-toast"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { cn } from "@/lib/utils"
 import { Spinner } from "@/components/ui/skeletons"
+import { PostMediaEditor } from "@/components/ui/post-media-editor"
+import {
+  DEFAULT_VIDEO_EDIT,
+  buildEditedVideoUrl,
+  isEditableImageFile,
+  isVideoFile,
+  videoEditIsNoop,
+  type VideoEdit,
+} from "@/lib/media-edit"
 
 interface CreateMomentFormProps {
   onMomentCreated?: () => void
@@ -21,6 +30,8 @@ export function CreateMomentForm({ onMomentCreated }: CreateMomentFormProps) {
   const [hours, setHours] = useState<24 | 48>(24)
   const [mediaFile, setMediaFile] = useState<File | null>(null)
   const [mediaPreview, setMediaPreview] = useState<string | null>(null)
+  const [videoEdit, setVideoEdit] = useState<VideoEdit>(DEFAULT_VIDEO_EDIT)
+  const [editorOpen, setEditorOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [creating, setCreating] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -30,9 +41,13 @@ export function CreateMomentForm({ onMomentCreated }: CreateMomentFormProps) {
       toast({ title: "File too large", description: "Moments support files up to 100 MB.", variant: "destructive" })
       return
     }
+    if (mediaPreview) URL.revokeObjectURL(mediaPreview)
     setMediaFile(file)
     setMediaPreview(URL.createObjectURL(file))
-  }, [toast])
+    setVideoEdit(DEFAULT_VIDEO_EDIT)
+    // Photos and clips open the same pre-post editor as the composer.
+    if (isEditableImageFile(file) || isVideoFile(file)) setEditorOpen(true)
+  }, [mediaPreview, toast])
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,9 +59,20 @@ export function CreateMomentForm({ onMomentCreated }: CreateMomentFormProps) {
 
   const removeMedia = useCallback(() => {
     setMediaFile(null)
+    setVideoEdit(DEFAULT_VIDEO_EDIT)
     if (mediaPreview) URL.revokeObjectURL(mediaPreview)
     setMediaPreview(null)
   }, [mediaPreview])
+
+  const applyEditedImage = useCallback(
+    (edited: File) => {
+      if (mediaPreview) URL.revokeObjectURL(mediaPreview)
+      setMediaFile(edited)
+      setMediaPreview(URL.createObjectURL(edited))
+      setEditorOpen(false)
+    },
+    [mediaPreview],
+  )
 
   const createMoment = useCallback(async () => {
     if (creating) return
@@ -60,14 +86,14 @@ export function CreateMomentForm({ onMomentCreated }: CreateMomentFormProps) {
       let uploadedType = "image"
       if (mediaFile) {
         setUploading(true)
-        const isVid = /\.(mp4|webm|ogg|mov)(\?|$)/i.test(mediaFile.name)
+        const isVid = isVideoFile(mediaFile)
         uploadedType = isVid ? "video" : "image"
         const result = await uploadMediaFile(mediaFile, {
           type: uploadedType as "image" | "video",
           folder: "moments",
           authHeaders: getAuthHeader(),
         })
-        uploadedUrl = result.url
+        uploadedUrl = isVid ? buildEditedVideoUrl(result.url, videoEdit) : result.url
         setUploading(false)
       }
 
@@ -90,6 +116,7 @@ export function CreateMomentForm({ onMomentCreated }: CreateMomentFormProps) {
       toast({ title: "Moment posted!", description: `Visible for ${hours}h — then it vanishes forever.` })
       setCaption("")
       setMediaFile(null)
+      setVideoEdit(DEFAULT_VIDEO_EDIT)
       if (mediaPreview) URL.revokeObjectURL(mediaPreview)
       setMediaPreview(null)
       onMomentCreated?.()
@@ -99,9 +126,10 @@ export function CreateMomentForm({ onMomentCreated }: CreateMomentFormProps) {
       setCreating(false)
       setUploading(false)
     }
-  }, [creating, mediaFile, caption, hours, getAuthHeader, toast, mediaPreview, onMomentCreated])
+  }, [creating, mediaFile, caption, hours, getAuthHeader, toast, mediaPreview, onMomentCreated, videoEdit])
 
-  const isVideo = mediaPreview && /\.(mp4|webm|ogg|mov)(\?|$)/i.test(mediaFile?.name || "")
+  const isVideo = isVideoFile(mediaFile)
+  const trimmed = isVideo && !videoEditIsNoop(videoEdit)
 
   return (
     <div className="space-y-4">
@@ -118,14 +146,31 @@ export function CreateMomentForm({ onMomentCreated }: CreateMomentFormProps) {
           ) : (
             <img src={mediaPreview} alt="Moment preview" className="max-h-64 w-full object-cover" />
           )}
-          <Button
-            variant="destructive"
-            size="icon"
-            className="absolute right-2 top-2 h-7 w-7 rounded-full"
-            onClick={removeMedia}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          <div className="absolute right-2 top-2 flex gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 rounded-full border-white/30 bg-black/60 px-2.5 text-[11px] text-white backdrop-blur-sm hover:bg-violet-600 hover:text-white"
+              onClick={() => setEditorOpen(true)}
+              disabled={!mediaFile || (!isEditableImageFile(mediaFile) && !isVideoFile(mediaFile))}
+            >
+              <SlidersHorizontal className="mr-1 h-3 w-3" />
+              Edit
+            </Button>
+            <Button
+              variant="destructive"
+              size="icon"
+              className="h-7 w-7 rounded-full"
+              onClick={removeMedia}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          {trimmed ? (
+            <span className="absolute left-2 top-2 rounded-full bg-violet-600/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+              Trimmed
+            </span>
+          ) : null}
         </div>
       )}
 
@@ -204,6 +249,18 @@ export function CreateMomentForm({ onMomentCreated }: CreateMomentFormProps) {
           {uploading ? "Uploading…" : creating ? "Posting…" : "Post moment"}
         </Button>
       </div>
+
+      <PostMediaEditor
+        file={mediaFile}
+        open={editorOpen}
+        initialVideoEdit={videoEdit}
+        onClose={() => setEditorOpen(false)}
+        onApplyImage={(edited) => applyEditedImage(edited)}
+        onApplyVideo={(edit) => {
+          setVideoEdit(edit)
+          setEditorOpen(false)
+        }}
+      />
     </div>
   )
 }

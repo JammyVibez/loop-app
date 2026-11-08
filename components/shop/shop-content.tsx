@@ -144,11 +144,13 @@ function SectionHeader({
   aside?: ReactNode
 }) {
   return (
-    <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-      <div className="flex min-w-0 items-center gap-2">
-        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-        {hint ? <span className="truncate text-xs text-muted-foreground">{hint}</span> : null}
+    <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border/60 pb-2.5">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border/70 bg-white/[0.03]">
+          <Icon className="h-3.5 w-3.5 text-amber-300" />
+        </span>
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-foreground">{title}</h2>
+        {hint ? <span className="truncate text-[11px] text-muted-foreground">{hint}</span> : null}
       </div>
       {aside}
     </header>
@@ -404,6 +406,8 @@ export function ShopContent() {
         coins={user ? user.loop_coins || 0 : null}
         ownedCount={status === "ready" ? ownedIds.size : null}
         availableCount={status === "ready" ? items.length : null}
+        featured={spotlight}
+        onPreview={setPreview}
         onBrowseCoins={() => setCategory("coins")}
         onBrowseAll={() => {
           clearFilters()
@@ -417,36 +421,105 @@ export function ShopContent() {
         <ShopGridSkeleton count={8} className={ITEM_GRID} />
       ) : (
         <>
-          {/* Category rail */}
-          <nav className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div className="flex w-max items-center gap-1.5 rounded-full border border-border bg-card p-1">
-              {CATEGORIES.filter((def) => !def.hideWhenEmpty || (counts.get(def.id) || 0) > 0).map((def) => {
-                const Icon = def.icon
-                const active = def.id === category
-                return (
-                  <button
-                    key={def.id}
-                    type="button"
-                    onClick={() => setCategory(def.id)}
-                    className={cn(
-                      "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold transition-colors",
-                      active
-                        ? "bg-foreground text-background"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {def.label}
-                    {counts.has(def.id) ? (
-                      <span className={cn("tabular-nums", active ? "opacity-60" : "opacity-50")}>
-                        {counts.get(def.id)}
-                      </span>
-                    ) : null}
-                  </button>
-                )
-              })}
-            </div>
-          </nav>
+          <div className="grid gap-5 lg:grid-cols-[218px_minmax(0,1fr)] lg:gap-7">
+            {/* Category rail — a real navigation column on desktop, a swipeable
+                row of chips on phones. */}
+            <aside className="hidden lg:block">
+              <div className="sticky top-20 space-y-3">
+                <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/60">
+                  <p className="px-3.5 pb-1.5 pt-3 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                    Browse the vault
+                  </p>
+                  <div className="p-1.5">
+                    {CATEGORIES.filter((def) => !def.hideWhenEmpty || (counts.get(def.id) || 0) > 0).map((def) => {
+                      const Icon = def.icon
+                      const active = def.id === category
+                      return (
+                        <button
+                          key={def.id}
+                          type="button"
+                          onClick={() => setCategory(def.id)}
+                          className={cn(
+                            "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[12.5px] font-medium transition-colors",
+                            active
+                              ? "bg-white/[0.07] text-foreground"
+                              : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground",
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors",
+                              active ? "border-amber-300/40 bg-amber-300/10 text-amber-200" : "border-border/70 text-muted-foreground",
+                            )}
+                          >
+                            <Icon className="h-3.5 w-3.5" />
+                          </span>
+                          <span className="min-w-0 flex-1 truncate">{def.label}</span>
+                          {counts.has(def.id) ? (
+                            <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/70">
+                              {counts.get(def.id)}
+                            </span>
+                          ) : null}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border/70 bg-gradient-to-b from-amber-300/[0.07] to-card/60 p-3.5">
+                  <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                    <Coins className="h-3 w-3 text-amber-300" />
+                    Your balance
+                  </p>
+                  <p className="mt-1.5 text-2xl font-semibold tabular-nums text-foreground">
+                    {user ? (user.loop_coins || 0).toLocaleString() : "—"}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    {user ? "Spend it before it burns a hole." : "Sign in to collect."}
+                  </p>
+                  {user ? (
+                    <Button size="sm" className="mt-2.5 w-full rounded-full bg-amber-300 text-[11px] font-bold text-[#1a1305] hover:bg-amber-200" onClick={() => setCategory("coins")}>
+                      Top up
+                    </Button>
+                  ) : (
+                    <Button asChild size="sm" className="mt-2.5 w-full rounded-full">
+                      <Link href="/login">Sign in</Link>
+                    </Button>
+                  )}
+                </div>
+
+                <Button asChild variant="ghost" size="sm" className="w-full justify-start rounded-xl text-[11px] text-muted-foreground hover:text-foreground">
+                  <Link href="/quests">
+                    <Wand2 className="mr-2 h-3.5 w-3.5 text-amber-300" />
+                    Earn coins in Quests
+                  </Link>
+                </Button>
+              </div>
+            </aside>
+
+            <div className="min-w-0 space-y-5">
+              <nav className="-mx-4 overflow-x-auto px-4 lg:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex w-max items-center gap-1.5 rounded-full border border-border/70 bg-card/70 p-1">
+                  {CATEGORIES.filter((def) => !def.hideWhenEmpty || (counts.get(def.id) || 0) > 0).map((def) => {
+                    const Icon = def.icon
+                    const active = def.id === category
+                    return (
+                      <button
+                        key={def.id}
+                        type="button"
+                        onClick={() => setCategory(def.id)}
+                        className={cn(
+                          "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
+                          active ? "bg-amber-300 text-[#1a1305]" : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                        {def.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </nav>
 
           {activeCategory.custom ? (
             <section className="space-y-4">
@@ -477,13 +550,13 @@ export function ShopContent() {
                 <section className="space-y-3">
                   <SectionHeader
                     icon={Sparkle}
-                    title="Spotlight"
-                    hint="the rarest things here"
+                    title="Featured drops"
+                    hint="rarest first"
                     aside={<Lottie animation={SPARKLES} className="h-6 w-6" />}
                   />
-                  <div className="-mx-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <div className="-mx-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
                     <div className="flex w-max gap-3 sm:gap-4">
-                      {spotlight.map((item) => card(item, "w-[248px] shrink-0"))}
+                      {spotlight.map((item) => card(item, "w-[250px] shrink-0 sm:w-[272px]"))}
                     </div>
                   </div>
                 </section>
@@ -494,7 +567,7 @@ export function ShopContent() {
                 loose rows of mismatched pills floating over the grid; they now
                 live in one bordered surface with a clear order.
               */}
-              <section className="rounded-2xl border border-border bg-card p-3">
+              <section className="rounded-2xl border border-border/70 bg-card/60 p-3 backdrop-blur-sm">
                 <div className="flex items-center gap-2">
                   <div className="relative min-w-0 flex-1">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -502,25 +575,25 @@ export function ShopContent() {
                       value={search}
                       onChange={(event) => setSearch(event.target.value)}
                       placeholder="Search themes, frames, effects…"
-                      className="h-9 rounded-full pl-9 text-sm"
+                      className="h-9 rounded-full border-border/70 bg-white/[0.03] pl-9 text-sm"
                     />
                   </div>
 
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-9 shrink-0 rounded-full md:hidden"
+                    className="h-9 shrink-0 rounded-full border-border/70 md:hidden"
                     onClick={() => setFiltersOpen((open) => !open)}
                   >
                     <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
                     Filters
-                    {isFiltered ? <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-primary" /> : null}
+                    {isFiltered ? <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-amber-300" /> : null}
                   </Button>
                 </div>
 
                 <div
                   className={cn(
-                    "mt-3 flex-wrap items-center gap-2 border-t border-border pt-3",
+                    "mt-3 flex-wrap items-center gap-2 border-t border-border/60 pt-3",
                     filtersOpen ? "flex" : "hidden md:flex",
                   )}
                 >
@@ -568,8 +641,8 @@ export function ShopContent() {
                     ) : null}
                 </div>
 
-                <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-border pt-3 text-xs text-muted-foreground">
-                  <span className="font-medium tabular-nums text-foreground">
+                <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
+                  <span className="font-semibold tabular-nums text-foreground">
                     {gridItems.length} {gridItems.length === 1 ? "item" : "items"}
                   </span>
                   <span aria-hidden>·</span>
@@ -629,12 +702,14 @@ export function ShopContent() {
               )}
             </>
           )}
+            </div>
+          </div>
 
           {/* One quiet line for anyone who does not know how any of this works. */}
-          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-gradient-to-r from-white/[0.04] to-transparent p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background">
-                <Wand2 className="h-4 w-4 text-violet-500" />
+              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-300/30 bg-amber-300/10">
+                <Wand2 className="h-4 w-4 text-amber-300" />
               </span>
               <div>
                 <p className="text-sm font-medium text-foreground">How it works</p>

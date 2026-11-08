@@ -60,7 +60,7 @@ export function ShopGridSkeleton({
           key={index}
           className="flex animate-pulse flex-col overflow-hidden rounded-2xl border border-border bg-card"
         >
-          <div className="aspect-[4/3] w-full border-b border-border bg-muted/40" />
+          <div className="aspect-[5/4] w-full border-b border-border bg-muted/40" />
           <div className="flex flex-1 flex-col gap-2.5 p-3.5">
             <div className="h-3.5 w-3/5 rounded-full bg-muted" />
             <div className="h-2.5 w-full rounded-full bg-muted/70" />
