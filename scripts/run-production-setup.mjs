@@ -46,6 +46,9 @@ const files = [
   "scripts/wallet-and-events-schema.sql",
   "scripts/achievements-system.sql",
   "scripts/achievements-integrity.sql",
+  // Profile custom CSS and design layout columns precede marketplace snapshots.
+  "scripts/migrations/005_profile_custom_css.sql",
+  "scripts/migrations/006_profile_design_marketplace.sql",
   // Install the Stripe transaction references and refund ledger before the
   // atomic Stripe/coin grant functions depend on those wallet columns.
   "scripts/coin-packs-refunds-schema.sql",
@@ -290,7 +293,7 @@ for (const [table, label] of [
 for (const file of files) {
   // Verification owns private identity evidence and the admin review function;
   // never report setup success when any part of this security migration fails.
-  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/discovery-preferences.sql", "scripts/wallet-and-events-schema.sql", "scripts/user-blocks-schema.sql", "scripts/trending-hashtags-function.sql", "scripts/moderation-integrity.sql", "scripts/account-status-appeals-schema.sql", "scripts/circle-membership-lifecycle.sql", "scripts/co-loop-atomic-lifecycle.sql", "scripts/co-loop-invitation-expiry.sql", "scripts/circle-owner-transfer.sql", "scripts/circle-event-rsvp-lifecycle.sql", "backend/migrations/0001_collections.sql", "backend/migrations/0009_collection_invitation_expiry.sql", "backend/migrations/0010_user_legal_acceptances.sql", "scripts/premium-subscriptions-migration.sql", "scripts/creator-earnings-lifecycle.sql", "scripts/coin-packs-refunds-schema.sql", "scripts/premium-coin-purchase.sql", "scripts/achievements-system.sql", "scripts/achievements-integrity.sql"].includes(file) })
+  applyFile(file, { strict: ["scripts/verification-lifecycle.sql", "scripts/discovery-preferences.sql", "scripts/wallet-and-events-schema.sql", "scripts/user-blocks-schema.sql", "scripts/trending-hashtags-function.sql", "scripts/moderation-integrity.sql", "scripts/account-status-appeals-schema.sql", "scripts/circle-membership-lifecycle.sql", "scripts/co-loop-atomic-lifecycle.sql", "scripts/co-loop-invitation-expiry.sql", "scripts/circle-owner-transfer.sql", "scripts/circle-event-rsvp-lifecycle.sql", "backend/migrations/0001_collections.sql", "backend/migrations/0009_collection_invitation_expiry.sql", "backend/migrations/0010_user_legal_acceptances.sql", "scripts/premium-subscriptions-migration.sql", "scripts/creator-earnings-lifecycle.sql", "scripts/coin-packs-refunds-schema.sql", "scripts/premium-coin-purchase.sql", "scripts/achievements-system.sql", "scripts/achievements-integrity.sql", "scripts/migrations/005_profile_custom_css.sql", "scripts/migrations/006_profile_design_marketplace.sql"].includes(file) })
 }
 
 if (process.argv.includes("--with-seed")) {

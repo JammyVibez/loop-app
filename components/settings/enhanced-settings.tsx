@@ -62,6 +62,7 @@ import { ImageCropDialog } from "@/components/ui/image-crop-dialog"
 import { AccountSwitcher } from "@/components/accounts/account-switcher"
 import { useDataSaver } from "@/hooks/use-data-saver"
 import { cn } from "@/lib/utils"
+import { CustomProfileCssEditor } from "@/components/profile/custom-profile-css-editor"
 
 const PRONOUN_CHOICES = ["she/her", "he/him", "they/them", "she/they", "he/they", "any/all"]
 
@@ -842,6 +843,8 @@ export function EnhancedSettings() {
               </div>
             </CardContent>
           </Card>
+
+          <CustomProfileCssEditor initialCss={user.custom_profile_css || ""} />
         </TabsContent>
 
         <TabsContent value="appearance" className="space-y-4">

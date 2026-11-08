@@ -69,6 +69,10 @@ export function PremiumUpgrade() {
 
   useEffect(() => {
     const url = new URL(window.location.href)
+    const requestedPlan = url.searchParams.get("plan")
+    if (requestedPlan === "monthly" || requestedPlan === "annual") {
+      setSelectedPlan(requestedPlan)
+    }
     const checkout = url.searchParams.get("checkout")
     if (checkout === "success") {
       setCheckoutSessionId(url.searchParams.get("session_id"))

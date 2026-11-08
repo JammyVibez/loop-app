@@ -1134,3 +1134,77 @@ html.loop-reduced-motion *::after {
     animation: none !important;
   }
 }
+
+
+/* Profile Design Studio — page, sidebar and content layout. */
+.loop-profile-layout-canvas {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.loop-profile-layout-cover {
+  width: 100%;
+  min-width: 0;
+}
+
+.loop-profile-layout-grid {
+  display: grid;
+  align-items: start;
+  gap: 2rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.loop-profile-sidebar-column,
+.loop-profile-layout-main {
+  min-width: 0;
+}
+
+.loop-profile-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  min-width: 0;
+}
+
+.loop-profile-sidebar-blocks {
+  display: contents;
+  min-width: 0;
+}
+
+.loop-profile-layout-main {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1023px) {
+  .loop-profile-layout-grid {
+    display: flex !important;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .loop-profile-sidebar-column,
+  .loop-profile-layout-main {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+
+  .loop-profile-sidebar {
+    position: static;
+    top: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loop-profile-design-motion,
+  .loop-profile-layout-grid,
+  .loop-profile-sidebar,
+  .loop-profile-sidebar-blocks {
+    animation: none !important;
+    transition: none !important;
+  }
+}

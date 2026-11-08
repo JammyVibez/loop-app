@@ -4,6 +4,8 @@ import { ECONOMY_DEFAULTS } from "@/lib/economy"
 import { sanitizeTaggedCircles } from "@/lib/circle-limits"
 import { getUserFromRequest } from "@/lib/server-auth"
 import { isProUser } from "@/lib/pro-features"
+import { sanitizeProfileCustomCss } from "@/lib/profile-custom-css"
+import { validateProfileLayout } from "@/lib/profile-layout"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
@@ -46,6 +48,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json({ error: "Invalid profile update." }, { status: 400 })
+    }
 
     // Animated GIF avatars/covers are a Pro-only perk. Enforce server-side so
     // non-Pro users can't set (or keep) a GIF by calling the API directly.
@@ -55,6 +60,37 @@ export async function POST(request: NextRequest) {
       .eq("id", user.id)
       .maybeSingle()
     const viewerIsPro = isProUser(profileRow as any)
+    let validatedCustomProfileCss: string | undefined
+    let validatedProfileLayout: ReturnType<typeof validateProfileLayout> | undefined
+    if (Object.prototype.hasOwnProperty.call(body, "profile_layout")) {
+      try {
+        validatedProfileLayout = validateProfileLayout(body.profile_layout)
+      } catch (error) {
+        return NextResponse.json(
+          { error: error instanceof Error ? error.message : "Invalid profile layout." },
+          { status: 400 },
+        )
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(body, "custom_profile_css")) {
+      if (!viewerIsPro) {
+        return NextResponse.json(
+          { error: "Custom profile CSS is a Loop Pro feature.", pro_required: true },
+          { status: 403 },
+        )
+      }
+      if (typeof body.custom_profile_css !== "string") {
+        return NextResponse.json({ error: "Custom profile CSS must be a string." }, { status: 400 })
+      }
+      try {
+        validatedCustomProfileCss = sanitizeProfileCustomCss(body.custom_profile_css)
+      } catch (error) {
+        return NextResponse.json(
+          { error: error instanceof Error ? error.message : "Invalid custom profile CSS." },
+          { status: 400 },
+        )
+      }
+    }
     const looksLikeGif = (url?: unknown) =>
       typeof url === "string" && /\.gif(\?|#|$)/i.test(url.trim())
     const avatarIsGif = looksLikeGif(body.avatar_url)
@@ -216,6 +252,8 @@ export async function POST(request: NextRequest) {
       privacy_settings,
       notification_settings,
       tagged_circles: sanitizedTags,
+      profile_layout: validatedProfileLayout,
+      custom_profile_css: validatedCustomProfileCss,
       onboarding_completed: typeof onboarding_completed === "boolean" ? onboarding_completed : undefined,
       has_seen_feature_tour:
         typeof has_seen_feature_tour === "boolean" ? has_seen_feature_tour : undefined,

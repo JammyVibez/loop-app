@@ -10,6 +10,8 @@ import { checkBlockStatus } from "@/lib/user-blocks"
 import { buildPublicProfileIdentity, buildRestrictedProfileView, isRestrictedProfileVisibility } from "@/lib/profile-privacy"
 import { filterPrivateContent, getFollowingIds } from "@/lib/privacy"
 import { filterCircleScopedContent } from "@/lib/circle-content-privacy"
+import { sanitizeProfileCustomCss } from "@/lib/profile-custom-css"
+import { normalizeProfileLayout } from "@/lib/profile-layout"
 
 export async function GET(request: NextRequest) {
   try {
@@ -278,7 +280,28 @@ export async function GET(request: NextRequest) {
     const { cosmeticsFromInventory } = await import("@/lib/cosmetics")
     const derivedCosmetics = cosmeticsFromInventory(activeItems || [])
 
+    let customProfileCss = ""
+    try {
+      customProfileCss = sanitizeProfileCustomCss(
+        typeof profile.custom_profile_css === "string" ? profile.custom_profile_css : "",
+      )
+    } catch {
+      // Ignore invalid legacy values without breaking the public profile.
+    }
+
+    let profileDesignCss = ""
+    try {
+      profileDesignCss = sanitizeProfileCustomCss(
+        typeof profile.profile_design_css === "string" ? profile.profile_design_css : "",
+      )
+    } catch {
+      // Invalid legacy design CSS is ignored without failing the profile.
+    }
+
     const profileWithSocial = {
+      custom_profile_css: customProfileCss,
+      profile_design_css: profileDesignCss,
+      profile_layout: normalizeProfileLayout(profile.profile_layout),
       ...buildPublicProfileIdentity(profile as Record<string, any>, isSelf),
       followers_count: followersCount ?? profile.followers_count ?? 0,
       following_count: followingCount ?? profile.following_count ?? 0,
