@@ -84,6 +84,8 @@ const DEFAULT_FILES = [
   // Discord-style community comments: emoji reactions on replies, stored on
   // the comment row so a thread load needs no extra query.
   "scripts/community-comment-reactions.sql",
+  // Staff-managed Channels library, audio-only rooms and threaded discussions.
+  "scripts/channels-library-schema.sql",
 ]
 
 // Allow a targeted run: node apply-pending-schema.mjs scripts/foo.sql …

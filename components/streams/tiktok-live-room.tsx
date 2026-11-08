@@ -109,6 +109,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
 
   const isOwner = Boolean(user?.id && stream?.streamer_id === user.id)
   const isLive = stream?.status === "live"
+  const audioOnly = stream?.stream_type === "audio"
 
   useEffect(() => {
     if (user?.id) peerIdRef.current = user.id
@@ -327,7 +328,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({ streamId, action: "start" }),
       }).catch(() => {})
-      toast({ title: "You're LIVE", description: "Viewers can watch in real time." })
+      toast({ title: "Your audio room is live", description: "Listeners can join the conversation." })
     } catch (error: any) {
       toast({
         title: "Could not go live",
@@ -467,7 +468,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
     return (
       <div className="flex h-[100dvh] items-center justify-center bg-black text-white">
         <Spinner className="mr-2 h-6 w-6 text-rose-500" />
-        Loading live room…
+        Loading audio room…
       </div>
     )
   }
@@ -476,9 +477,9 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
     return (
       <div className="flex h-[100dvh] flex-col items-center justify-center gap-4 bg-black px-6 text-center text-white">
         <Radio className="h-12 w-12 text-white/40" />
-        <p>This livestream is unavailable.</p>
+        <p>This audio room is unavailable.</p>
         <Link href="/streams">
-          <Button className="rounded-full bg-rose-500 hover:bg-rose-400">Back to Live</Button>
+          <Button className="rounded-full bg-rose-500 hover:bg-rose-400">Back to Audio Rooms</Button>
         </Link>
       </div>
     )
@@ -495,6 +496,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
             url={mediaUrl || ""}
             userName={user?.display_name || user?.username || "Viewer"}
             isOwner={isOwner}
+            audioOnly={audioOnly}
             onMicChange={setMicOn}
             onCamChange={setCamOn}
             onRemoteAvailable={setHasRemote}
@@ -511,6 +513,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
             token={hmsToken || ""}
             userName={user?.display_name || user?.username || "Viewer"}
             isOwner={isOwner}
+            audioOnly={audioOnly}
             onMicChange={setMicOn}
             onCamChange={setCamOn}
             onRemoteAvailable={setHasRemote}
@@ -533,9 +536,9 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
             {stream.thumbnail_url ? (
               <ProxyImg src={stream.thumbnail_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30" />
             ) : null}
-            <Radio className="relative z-10 h-14 w-14 text-rose-500/80" />
+            {audioOnly ? <Mic className="relative z-10 h-14 w-14 text-rose-500/80" /> : <Radio className="relative z-10 h-14 w-14 text-rose-500/80" />}
             <p className="relative z-10 text-sm text-white/70">
-              {stream.status === "ended" ? "This live has ended" : "Waiting for host to go live…"}
+              {stream.status === "ended" ? "This audio room has ended" : "Waiting for the host to start the audio room…"}
             </p>
           </div>
         )}
@@ -545,8 +548,8 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
               <p className="text-base font-semibold">{stream.title}</p>
               <p className="mt-1 text-xs text-white/70">
                 {hasLocalPreview
-                  ? "Camera preview ready — go live when you are"
-                  : "Allow camera & mic to preview"}
+                  ? "Microphone ready — start your audio room when you are"
+                  : "Allow microphone access to start your audio room"}
               </p>
             </div>
             <Button
@@ -554,8 +557,8 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
               onClick={handleGoLive}
               className="h-12 rounded-full bg-rose-500 px-8 text-base font-bold hover:bg-rose-400"
             >
-              {busy ? <Spinner className="mr-2 h-4 w-4" /> : <Radio className="mr-2 h-4 w-4" />}
-              Go LIVE
+              {busy ? <Spinner className="mr-2 h-4 w-4" /> : <Mic className="mr-2 h-4 w-4" />}
+              Start audio room
             </Button>
           </div>
         )}
@@ -603,7 +606,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
           {isLive ? (
             <span className="inline-flex items-center gap-1 rounded-md bg-rose-500 px-2 py-1 text-[11px] font-black tracking-wide">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
-              LIVE
+              AUDIO LIVE
             </span>
           ) : (
             <span className="rounded-md bg-white/15 px-2 py-1 text-[11px] font-semibold uppercase">
@@ -616,10 +619,15 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
           </span>
           {isOwner && isLive && (
             <span className="hidden items-center gap-1 rounded-md bg-violet-500/90 px-2 py-1 text-[11px] font-bold sm:inline-flex">
-              <Zap className="h-3 w-3" /> Live SFU
+              <Zap className="h-3 w-3" /> Audio room
             </span>
           )}
-          {mediaMode === "screen" && (
+          {audioOnly ? (
+            <span className="hidden items-center gap-1 rounded-md bg-rose-500/80 px-2 py-1 text-[11px] font-bold sm:inline-flex">
+              <Mic className="h-3.5 w-3.5" /> AUDIO
+            </span>
+          ) : null}
+          {!audioOnly && mediaMode === "screen" && (
             <span className="hidden items-center gap-1 rounded-md bg-sky-500/90 px-2 py-1 text-[11px] font-bold sm:inline-flex">
               <MonitorUp className="h-3.5 w-3.5" /> Screen
             </span>
@@ -633,7 +641,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
               disabled={busy}
               onClick={handleEndLive}
               className="rounded-full bg-rose-600/90 p-2"
-              aria-label="End live"
+              aria-label="End audio room"
             >
               <X className="h-4 w-4" />
             </button>
@@ -695,15 +703,19 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
             <IconBtn active={micOn} onClick={toggleMic} label="Mic">
               {micOn ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
             </IconBtn>
-            <IconBtn active={camOn} onClick={toggleCam} label="Camera">
-              {camOn ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
-            </IconBtn>
-            <IconBtn onClick={flipCamera} label="Flip">
-              <SwitchCamera className="h-4 w-4" />
-            </IconBtn>
-            <IconBtn active={mediaMode === "screen"} onClick={handleScreenShare} label="Share screen">
-              <MonitorUp className="h-4 w-4" />
-            </IconBtn>
+            {!audioOnly ? (
+              <>
+                <IconBtn active={camOn} onClick={toggleCam} label="Camera">
+                  {camOn ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
+                </IconBtn>
+                <IconBtn onClick={flipCamera} label="Flip">
+                  <SwitchCamera className="h-4 w-4" />
+                </IconBtn>
+                <IconBtn active={mediaMode === "screen"} onClick={handleScreenShare} label="Share screen">
+                  <MonitorUp className="h-4 w-4" />
+                </IconBtn>
+              </>
+            ) : null}
           </div>
         )}
 
@@ -760,12 +772,12 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
               {emoji}
             </button>
           ))}
-          {isOwner && isLive && (
+          {isOwner && isLive ? (
             <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-[11px] text-white/80">
               <Zap className="h-3 w-3 text-amber-300" />
-              Host controls on
+              Audio host
             </span>
-          )}
+          ) : null}
         </div>
       </div>
 

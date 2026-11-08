@@ -38,6 +38,8 @@ export async function GET(request: NextRequest) {
 
     query = query.range(offset, offset + limit - 1)
 
+    query = query.eq("stream_type", "audio")
+
     if (category) {
       query = query.eq('category', category)
     }
@@ -124,6 +126,7 @@ export async function POST(request: NextRequest) {
         rtmp_url: rtmpUrl,
         hls_url: hlsUrl,
         status: 'preparing',
+        stream_type: 'audio',
         chat_enabled: true,
         gifts_enabled: true
       })

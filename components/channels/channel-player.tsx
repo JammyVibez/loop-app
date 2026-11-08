@@ -14,13 +14,11 @@ export function ChannelPlayer({
   src,
   title,
   poster,
-  live = false,
   className,
 }: {
   src: string | null
   title: string
   poster?: string | null
-  live?: boolean
   className?: string
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -114,13 +112,6 @@ export function ChannelPlayer({
         onLoadedData={() => setStarted(true)}
         onPlaying={() => setStarted(true)}
       />
-
-      {live ? (
-        <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-md bg-rose-500 px-2 py-1 text-[11px] font-black tracking-wide text-white shadow-lg">
-          <span className="h-1.5 w-1.5 rounded-full bg-white" />
-          LIVE
-        </span>
-      ) : null}
 
       {!src && !error ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white/45">

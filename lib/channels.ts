@@ -1,32 +1,26 @@
 /**
  * Channel guide data model.
  *
- * The UltraSrc API is the source of truth for live TV, Asian drama and novel
- * data, but its upstream providers change shape more often than this app ships.
- * Everything here is therefore read defensively: unknown payloads are mapped to
- * one small, stable model at the edge (`/api/channels`), and the UI only ever
- * deals with these types.
+ * Movies and shows are first-party (`lib/channels-library.ts`), while American
+ * dramas and novels still come from the UltraSrc API, whose upstream providers
+ * change shape more often than this app ships. Everything from UltraSrc is
+ * therefore read defensively: unknown payloads are mapped to one small, stable
+ * model at the edge (`/api/channels`), and the UI only ever deals with these
+ * types.
  *
  * This module is intentionally free of server imports so both the route handler
  * and client components can use it.
  */
 
-export type ChannelTab = "all" | "live" | "drama" | "novel"
+export type ChannelTab = "all" | "movies" | "series" | "drama" | "novel"
 
 export const CHANNEL_TABS: { id: ChannelTab; label: string }[] = [
   { id: "all", label: "All" },
-  { id: "live", label: "Live TV" },
+  { id: "movies", label: "Movies" },
+  { id: "series", label: "Shows" },
   { id: "drama", label: "Dramas" },
   { id: "novel", label: "Novels" },
 ]
-
-export interface LiveChannel {
-  id: string
-  name: string
-  group: string
-  logo: string | null
-  number: string | null
-}
 
 export interface DramaProvider {
   id: string
@@ -131,37 +125,6 @@ export function toAbsolute(url: string | null | undefined, baseUrl?: string): st
   } catch {
     return null
   }
-}
-
-export function normalizeChannels(payload: unknown): LiveChannel[] {
-  const seen = new Set<string>()
-  const channels: LiveChannel[] = []
-
-  for (const entry of firstList(payload, ["channels", "results", "data", "items"])) {
-    if (!isRecord(entry)) continue
-    const name = pickText(entry, ["name", "title", "channelName", "channel_name"])
-    const id =
-      pickText(entry, ["id", "channelId", "channel_id", "slug", "code", "tvgId"]) ?? name
-    if (!id || !name || seen.has(id)) continue
-    seen.add(id)
-    channels.push({
-      id,
-      name,
-      group: pickText(entry, ["group", "groupTitle", "category", "country", "tvgGroup"]) ?? "Live TV",
-      logo: pickText(entry, [
-        "logo",
-        "tvgLogo",
-        "tvg-logo",
-        "icon",
-        "image",
-        "thumbnail",
-        "logoUrl",
-      ]),
-      number: pickText(entry, ["number", "channelNumber", "channel_number", "chno", "tvgChno", "lcn"]),
-    })
-  }
-
-  return channels
 }
 
 export function normalizeDramaProviders(payload: unknown): DramaProvider[] {

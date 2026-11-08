@@ -10,6 +10,7 @@ import { uploadMediaFile } from "@/lib/client-media-upload"
 import { ProxyImg } from "@/components/ui/proxy-img"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { safeResponseJson } from "@/lib/safe-response-json"
 
 type Author = {
   id: string
@@ -99,8 +100,8 @@ export function ChallengeDetailClient({
         fetch(entriesUrl, { headers, cache: "no-store" }),
       ])
       const [challengeJson, entriesJson] = await Promise.all([
-        challengeResponse.json(),
-        entriesResponse.json(),
+        safeResponseJson<Record<string, any>>(challengeResponse),
+        safeResponseJson<Record<string, any>>(entriesResponse),
       ])
       if (!challengeResponse.ok) {
         throw new Error(challengeJson.error || "This Drop is unavailable")
@@ -157,7 +158,7 @@ export function ChallengeDetailClient({
           }),
         },
       )
-      const result = await response.json()
+      const result = await safeResponseJson<Record<string, any>>(response)
       if (!response.ok) throw new Error(result.error || "Could not submit your entry")
 
       setContent("")
@@ -188,7 +189,7 @@ export function ChallengeDetailClient({
           body: JSON.stringify({ action: "vote", entry_id: entry.id }),
         },
       )
-      const result = await response.json()
+      const result = await safeResponseJson<Record<string, any>>(response)
       if (!response.ok) throw new Error(result.error || "Could not save your vote")
       setEntries((current) => current.map((item) =>
         item.id === entry.id

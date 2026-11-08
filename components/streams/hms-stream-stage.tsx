@@ -13,7 +13,7 @@ import {
   selectIsLocalVideoEnabled,
   selectDominantSpeaker,
 } from "@100mslive/react-sdk"
-import { } from "lucide-react"
+import { Mic } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { unlockAudio } from "@/lib/audio-unlock"
 import { Spinner } from "@/components/ui/skeletons"
@@ -30,6 +30,7 @@ interface HmsStreamStageProps {
   token: string
   userName: string
   isOwner: boolean
+  audioOnly?: boolean
   /** Called with the current mic-on state whenever it changes. */
   onMicChange?: (on: boolean) => void
   /** Called with the current cam-on state whenever it changes. */
@@ -60,7 +61,7 @@ export const HmsStreamStage = forwardRef<HmsStreamStageHandle, HmsStreamStagePro
 
 const HmsStreamStageInner = forwardRef<HmsStreamStageHandle, HmsStreamStageProps>(
   function HmsStreamStageInner(
-    { token, userName, isOwner, onMicChange, onCamChange, onRemoteAvailable, onJoined, onError, remoteMuted },
+    { token, userName, isOwner, audioOnly = false, onMicChange, onCamChange, onRemoteAvailable, onJoined, onError, remoteMuted },
     ref,
   ) {
     const hmsActions = useHMSActions()
@@ -80,6 +81,7 @@ const HmsStreamStageInner = forwardRef<HmsStreamStageHandle, HmsStreamStageProps
       const join = async () => {
         try {
           await hmsActions.join({ userName, authToken: token })
+          if (isOwner && audioOnly) await hmsActions.setLocalVideoEnabled(false).catch(() => {})
           if (!cancelled) {
             setJoined(true)
             onJoined?.()
@@ -190,8 +192,9 @@ const HmsStreamStageInner = forwardRef<HmsStreamStageHandle, HmsStreamStageProps
       <StageVideo
         peerId={stagePeer?.id}
         showSelf={isOwner}
-        showScreen={showScreenShare}
+        showScreen={showScreenShare && !audioOnly}
         screenPeerId={localPeer?.id}
+        audioOnly={audioOnly}
         remoteMuted={Boolean(remoteMuted)}
       />
     )
@@ -203,12 +206,14 @@ function StageVideo({
   showSelf,
   showScreen,
   screenPeerId,
+  audioOnly,
   remoteMuted,
 }: {
   peerId?: string
   showSelf: boolean
   showScreen: boolean
   screenPeerId?: string
+  audioOnly: boolean
   remoteMuted: boolean
 }) {
   const peers = useHMSStore(selectPeers)
@@ -218,6 +223,18 @@ function StageVideo({
   const { videoRef: screenRef } = useVideo({ trackId: screenShare?.auxiliaryTracks?.[0], attach: Boolean(showScreen) })
 
   const hasVideo = Boolean(peer?.videoTrack)
+
+  if (audioOnly) {
+    return (
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-gradient-to-br from-zinc-950 via-[#11131a] to-rose-950/60 text-white">
+        <Mic className="h-16 w-16 text-rose-200" />
+        <div className="text-center">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-rose-200/70">Audio room</p>
+          <p className="mt-1 text-sm text-white/55">Listen live, chat and send gifts</p>
+        </div>
+      </div>
+    )
+  }
 
   if (showScreen && screenShare) {
     return <video ref={screenRef} autoPlay muted={screenShare.isLocal} playsInline className="h-full w-full object-cover" />

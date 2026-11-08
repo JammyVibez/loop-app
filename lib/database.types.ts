@@ -506,6 +506,7 @@ export interface Database {
           rtmp_url: string | null
           hls_url: string | null
           status: 'preparing' | 'live' | 'ended' | 'paused'
+          stream_type: 'audio'
           viewer_count: number
           max_viewers: number
           category: string | null
@@ -529,6 +530,7 @@ export interface Database {
           rtmp_url?: string | null
           hls_url?: string | null
           status?: 'preparing' | 'live' | 'ended' | 'paused'
+          stream_type?: 'audio'
           viewer_count?: number
           max_viewers?: number
           category?: string | null
@@ -552,6 +554,7 @@ export interface Database {
           rtmp_url?: string | null
           hls_url?: string | null
           status?: 'preparing' | 'live' | 'ended' | 'paused'
+          stream_type?: 'audio'
           viewer_count?: number
           max_viewers?: number
           category?: string | null
@@ -867,6 +870,129 @@ export interface Database {
           user_id?: string
           reel_id?: string
           interaction_type?: 'like' | 'view' | 'share' | 'save'
+          created_at?: string
+        }
+      }
+      channel_titles: {
+        Row: {
+          id: string
+          kind: 'movie' | 'series'
+          title: string
+          synopsis: string | null
+          poster_url: string | null
+          backdrop_url: string | null
+          video_url: string | null
+          year: number | null
+          country: string | null
+          language: string | null
+          genres: string[]
+          runtime_minutes: number | null
+          featured: boolean
+          published: boolean
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          kind: 'movie' | 'series'
+          title: string
+          synopsis?: string | null
+          poster_url?: string | null
+          backdrop_url?: string | null
+          video_url?: string | null
+          year?: number | null
+          country?: string | null
+          language?: string | null
+          genres?: string[]
+          runtime_minutes?: number | null
+          featured?: boolean
+          published?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          kind?: 'movie' | 'series'
+          title?: string
+          synopsis?: string | null
+          poster_url?: string | null
+          backdrop_url?: string | null
+          video_url?: string | null
+          year?: number | null
+          country?: string | null
+          language?: string | null
+          genres?: string[]
+          runtime_minutes?: number | null
+          featured?: boolean
+          published?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      channel_comments: {
+        Row: {
+          id: string
+          title_id: string
+          author_id: string
+          parent_comment_id: string | null
+          content: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title_id: string
+          author_id: string
+          parent_comment_id?: string | null
+          content: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title_id?: string
+          author_id?: string
+          parent_comment_id?: string | null
+          content?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      channel_episodes: {
+        Row: {
+          id: string
+          title_id: string
+          season: number
+          episode: number
+          name: string | null
+          synopsis: string | null
+          video_url: string
+          duration_seconds: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          title_id: string
+          season?: number
+          episode?: number
+          name?: string | null
+          synopsis?: string | null
+          video_url: string
+          duration_seconds?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          title_id?: string
+          season?: number
+          episode?: number
+          name?: string | null
+          synopsis?: string | null
+          video_url?: string
+          duration_seconds?: number | null
           created_at?: string
         }
       }

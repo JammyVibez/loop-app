@@ -21,6 +21,7 @@ interface LivekitStreamStageProps {
   url: string
   userName: string
   isOwner: boolean
+  audioOnly?: boolean
   onMicChange?: (on: boolean) => void
   onCamChange?: (on: boolean) => void
   onRemoteAvailable?: (available: boolean) => void
@@ -45,7 +46,7 @@ interface StageTileInfo {
  */
 export const LivekitStreamStage = forwardRef<LivekitStreamStageHandle, LivekitStreamStageProps>(
   function LivekitStreamStage(
-    { token, url, userName, isOwner, onMicChange, onCamChange, onRemoteAvailable, onJoined, onError, remoteMuted },
+    { token, url, userName, isOwner, audioOnly = false, onMicChange, onCamChange, onRemoteAvailable, onJoined, onError, remoteMuted },
     ref,
   ) {
     const roomRef = useRef<Room | null>(null)
@@ -123,7 +124,7 @@ export const LivekitStreamStage = forwardRef<LivekitStreamStageHandle, LivekitSt
           // The token decides publish permissions — hosts publish cam+mic,
           // viewers get subscribe-only tokens (their publish calls no-op).
           if (isOwner) {
-            await room.localParticipant.setCameraEnabled(true).catch(() => {})
+            await room.localParticipant.setCameraEnabled(!audioOnly).catch(() => {})
             await room.localParticipant.setMicrophoneEnabled(true).catch(() => {})
           }
           if (cancelled) return
@@ -144,7 +145,7 @@ export const LivekitStreamStage = forwardRef<LivekitStreamStageHandle, LivekitSt
         cancelled = true
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [token, url, isOwner])
+    }, [token, url, isOwner, audioOnly])
 
     // Unlock audio playback on the first user gesture (autoplay policy).
     useEffect(() => {
@@ -255,7 +256,8 @@ export const LivekitStreamStage = forwardRef<LivekitStreamStageHandle, LivekitSt
     return (
       <StageVideo
         tile={stageTile}
-        showScreen={showScreen && isOwner}
+        showScreen={showScreen && isOwner && !audioOnly}
+        audioOnly={audioOnly}
         remoteMuted={Boolean(remoteMuted)}
       />
     )
@@ -279,14 +281,32 @@ function useVideoTrackAttach(track?: TrackPublication) {
 function StageVideo({
   tile,
   showScreen,
+  audioOnly,
   remoteMuted,
 }: {
   tile?: StageTileInfo | null
   showScreen: boolean
+  audioOnly: boolean
   remoteMuted: boolean
 }) {
   const videoRef = useVideoTrackAttach(tile?.videoTrack)
   const hasVideo = Boolean(tile?.videoTrack?.videoTrack)
+
+  if (audioOnly) {
+    return (
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-gradient-to-br from-zinc-950 via-[#11131a] to-rose-950/60 text-white">
+        <span className="flex h-24 w-24 items-center justify-center rounded-full border border-rose-300/20 bg-rose-400/10 text-rose-200 shadow-[0_0_80px_rgba(251,113,133,0.15)]">
+          <svg viewBox="0 0 48 48" aria-hidden="true" className="h-12 w-12 fill-current">
+            <path d="M24 4a4 4 0 0 0-4 4v16a4 4 0 0 0 8 0V8a4 4 0 0 0-4-4Zm-13 19a2 2 0 0 0-4 0 17 17 0 0 0 15 16.9V44h-6a2 2 0 0 0 0 4h16a2 2 0 0 0 0-4h-6v-4.1A17 17 0 0 0 41 23a2 2 0 0 0-4 0 13 13 0 0 1-26 0Z" />
+          </svg>
+        </span>
+        <div className="text-center">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-rose-200/70">Audio room</p>
+          <p className="mt-1 text-sm text-white/55">Listen live, chat and send gifts</p>
+        </div>
+      </div>
+    )
+  }
 
   if (showScreen && tile?.videoTrack?.source === Track.Source.ScreenShare) {
     return <video ref={videoRef} autoPlay muted={tile.isLocal} playsInline className="h-full w-full object-cover" />

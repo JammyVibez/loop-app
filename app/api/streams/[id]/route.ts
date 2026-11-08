@@ -64,7 +64,7 @@ export async function PUT(
     // Check if user owns this stream
     const { data: stream } = await supabase
       .from('live_streams')
-      .select('streamer_id, started_at')
+      .select('streamer_id, started_at, stream_type')
       .eq('id', streamId)
       .single()
 
@@ -74,6 +74,9 @@ export async function PUT(
 
     const body = await request.json()
     const { title, description, status, category, tags, chat_enabled, gifts_enabled } = body
+    if (status === "live" && stream.stream_type !== "audio") {
+      return NextResponse.json({ error: "Only audio rooms are supported now." }, { status: 400 })
+    }
 
     const updates: any = {}
     if (title !== undefined) updates.title = title

@@ -26,20 +26,23 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const { data: stream, error: fetchError } = await supabase
       .from("live_streams")
-      .select("id, streamer_id, title, hms_room_id, hms_room_name")
+      .select("id, streamer_id, title, stream_type, hms_room_id, hms_room_name")
       .eq("id", id)
       .maybeSingle()
 
     if (fetchError || !stream) return NextResponse.json({ error: "Stream not found" }, { status: 404 })
+    if (stream.stream_type !== "audio") {
+      return NextResponse.json({ error: "Only audio rooms are supported." }, { status: 404 })
+    }
     if (stream.streamer_id !== user.id) {
-      return NextResponse.json({ error: "Only the stream owner can get a host token" }, { status: 403 })
+      return NextResponse.json({ error: "Only the audio room host can get a host token" }, { status: 403 })
     }
 
     // Reuse the stream's room if one exists, otherwise create + persist it.
     let roomId = stream.hms_room_id as string | null
     let roomName = stream.hms_room_name as string | null
     if (!roomId) {
-      roomName = provider === "100ms" ? hmsRoomName("live") : livekitRoomName("live")
+      roomName = provider === "100ms" ? hmsRoomName(`audio-${id}`) : livekitRoomName(`audio-${id}`)
       if (provider === "100ms") {
         const room = await createHmsRoom(roomName, stream.title || "Loop livestream")
         roomId = room.id
@@ -89,13 +92,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const { data: stream, error } = await supabase
       .from("live_streams")
-      .select("id, status, hms_room_id, hms_room_name, provider")
+      .select("id, status, stream_type, hms_room_id, hms_room_name, provider")
       .eq("id", id)
       .maybeSingle()
 
     if (error || !stream) return NextResponse.json({ error: "Stream not found" }, { status: 404 })
+    if (stream.stream_type !== "audio") {
+      return NextResponse.json({ error: "Only audio rooms are available." }, { status: 404 })
+    }
     if (!stream.hms_room_id) {
-      return NextResponse.json({ error: "This stream has no media room yet" }, { status: 404 })
+      return NextResponse.json({ error: "This audio room has no media room yet" }, { status: 404 })
     }
 
     const provider: RealtimeProvider | null = (stream?.provider as RealtimeProvider) || getRealtimeProvider()

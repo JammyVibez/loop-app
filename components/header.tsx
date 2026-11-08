@@ -201,16 +201,6 @@ export function Header() {
             {Number(user.loop_coins || 0).toLocaleString()}
           </Link>
 
-          {/* Desktop primary action: the rail has Create too, but the bar is
-              where laptop users reach for it after scrolling the feed. */}
-          <Link
-            href="/create"
-            className="hidden h-9 items-center gap-1.5 rounded-full bg-foreground px-3.5 text-xs font-semibold text-background transition-opacity hover:opacity-90 lg:inline-flex"
-          >
-            <Plus className="h-4 w-4" />
-            New
-          </Link>
-
           {/* Notifications — a compact dropdown on desktop, a full-height
               slide-over center on phones and tablets (the tab bar has no bell). */}
           <span data-tour="notifications" className="inline-flex">
@@ -226,7 +216,7 @@ export function Header() {
               <button
                 type="button"
                 data-tour="nav-profile"
-                className="relative h-10 w-10 rounded-full border border-border/70 bg-muted/50 p-0 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                className="relative flex h-10 w-10 shrink-0 flex-none touch-manipulation items-center justify-center rounded-full border border-border/70 bg-muted/50 p-0 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 <AvatarWithFrame
                   avatarUrl={user.avatar_url}
@@ -237,7 +227,7 @@ export function Header() {
                 />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 p-1.5 rounded-2xl">
+            <DropdownMenuContent align="end" side="bottom" sideOffset={8} collisionPadding={12} className="w-56 rounded-2xl p-1.5">
               <DropdownMenuLabel className="font-normal p-2">
                 <div className="flex flex-col space-y-1">
                   <div className="flex items-center gap-1.5">
@@ -263,7 +253,7 @@ export function Header() {
                   this row is the phone-only path to the same destination. */}
               <div className="lg:hidden">
                 <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
-                  <Link href={`/profile/${user.username || user.id}`} className="flex items-center gap-2">
+                  <Link href={`/profile/${user.username || user.id}`} scroll={false} className="flex items-center gap-2">
                     <User className="h-4 w-4 text-muted-foreground" />
                     <span className="text-xs font-medium">Your profile</span>
                   </Link>

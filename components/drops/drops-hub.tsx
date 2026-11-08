@@ -15,6 +15,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ProxyImg } from "@/components/ui/proxy-img"
 import { AnimatedIconView } from "@/components/icons/animated/animated-icon-view"
 import FlameIcon from "@/components/icons/animated/flame-icon"
+import { safeResponseJson } from "@/lib/safe-response-json"
 
 type DropKind = "event" | "challenge"
 type DropFilter = "all" | "live" | "upcoming" | "event" | "challenge"
@@ -275,7 +276,7 @@ export function DropsHub() {
       cache: "no-store",
     })
       .then(async (response) => {
-        const data = await response.json()
+        const data = await safeResponseJson<Record<string, any>>(response)
         if (!response.ok) throw new Error(data.error || "Could not load your Circles")
         if (cancelled) return
         const circles = (Array.isArray(data.communities) ? data.communities : [])
@@ -327,7 +328,7 @@ export function DropsHub() {
           ends_at: endsAt.toISOString(),
         }),
       })
-      const data = await response.json()
+      const data = await safeResponseJson<Record<string, any>>(response)
       if (!response.ok) throw new Error(data.error || "Could not create Drop")
       setDropTitle("")
       setDropDescription("")

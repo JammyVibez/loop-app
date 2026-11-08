@@ -8,7 +8,7 @@ import { AdminDashboard } from "@/components/admin/admin-dashboard"
 import { useAuth } from "@/hooks/use-auth"
 import { PageLoading } from "@/components/loading-states"
 import { Spinner } from "@/components/ui/skeletons"
-import { Shield } from "lucide-react"
+import { Film, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/ui/page-header"
 
@@ -57,6 +57,14 @@ export default function LoopAdminPage() {
           title="Admin"
           description="Users, verification, moderation, economy and platform settings. Every action here is written to the audit log."
           className="mb-6"
+          actions={
+            <Button asChild variant="outline">
+              <Link href="/loopadmin/channels">
+                <Film className="mr-1.5 h-4 w-4" />
+                Channels library
+              </Link>
+            </Button>
+          }
         />
         <Suspense
           fallback={

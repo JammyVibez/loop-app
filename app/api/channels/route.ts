@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
-  normalizeChannels,
   normalizeDramaProviders,
   normalizeNovelChapter,
   normalizeNovelDetails,
   normalizeNovels,
   normalizeResolvedStream,
 } from "@/lib/channels"
-import { HLS_PROXY_PREFIX, toProxiedPath } from "@/lib/channels-hls"
+import { toProxiedPath } from "@/lib/channels-hls"
 
 /**
  * Server-side bridge to the UltraSrc API.
@@ -60,16 +59,6 @@ function requireParam(value: string | null, name: string): string {
     throw new ChannelApiError(`Invalid ${name}`, 400)
   }
   return trimmed
-}
-
-function field(payload: unknown, keys: string[]): string | null {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null
-  const record = payload as Record<string, unknown>
-  for (const key of keys) {
-    const value = record[key]
-    if (typeof value === "string" && value.trim()) return value.trim()
-  }
-  return null
 }
 
 function messageFrom(payload: unknown, fallback: string): string {
@@ -140,54 +129,11 @@ export async function GET(request: NextRequest) {
   }
 
   const params = request.nextUrl.searchParams
-  const kind = params.get("kind") ?? "live"
+  const kind = params.get("kind") ?? ""
   const src = params.get("src")
 
   try {
     switch (kind) {
-      case "live": {
-        const payload = await readUpstream(
-          "/api/v1/live/channels",
-          { src, group: params.get("group") },
-          300,
-        )
-        const channels = normalizeChannels(payload)
-        return NextResponse.json({
-          ok: true,
-          configured: true,
-          data: { channels, total: channels.length },
-        })
-      }
-
-      case "live-search": {
-        const q = requireParam(params.get("q"), "q")
-        const payload = await readUpstream("/api/v1/live/search", { q, src }, 300)
-        const channels = normalizeChannels(payload)
-        return NextResponse.json({
-          ok: true,
-          configured: true,
-          data: { channels, total: channels.length },
-        })
-      }
-
-      case "live-watch": {
-        const id = requireParam(params.get("id"), "channel id")
-        const payload = await readUpstream(`/api/v1/live/watch/${encodePath(id)}`, { src }, 0)
-        const stream = normalizeResolvedStream(payload, origin)
-        return NextResponse.json({
-          ok: true,
-          configured: true,
-          data: {
-            ...stream,
-            title: stream.title ?? id,
-            group: field(payload, ["group", "category", "country"]),
-            // Live playback always goes through the app's own origin: the API
-            // may be loopback-only, and its manifests point at that origin.
-            playbackUrl: `${HLS_PROXY_PREFIX}/api/v1/live/play/${encodePath(id)}.m3u8`,
-          },
-        })
-      }
-
       case "dramas": {
         const payload = await readUpstream("/api/v1/drama/providers", {}, 86400)
         return NextResponse.json({

@@ -14,7 +14,7 @@ export default function CreateStreamPage() {
   if (!user) {
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-4 px-4 text-center">
-        <p className="text-muted-foreground">Sign in to go live.</p>
+        <p className="text-muted-foreground">Sign in to start an audio room.</p>
         <Link href="/login">
           <Button className="rounded-full">Log in</Button>
         </Link>
@@ -29,16 +29,16 @@ export default function CreateStreamPage() {
           href="/streams"
           className="mb-6 inline-flex items-center text-sm text-white/60 hover:text-white"
         >
-          <ArrowLeft className="mr-1 h-4 w-4" /> Back to Livestream
+          <ArrowLeft className="mr-1 h-4 w-4" /> Back to Audio Rooms
         </Link>
 
         <div className="mb-6">
           <h1 className="flex items-center gap-2 text-2xl font-black">
             <Radio className="h-6 w-6 text-rose-500" />
-            Go Live
+            Start an Audio Room
           </h1>
           <p className="mt-2 text-sm text-white/60">
-            TikTok-style livestream — real-time video, chat, reactions, and gifts.
+            Audio-first rooms with live conversation, listener chat, reactions, and gifts.
           </p>
         </div>
 

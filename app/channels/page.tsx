@@ -2,9 +2,9 @@ import type { Metadata } from "next"
 import { ChannelsBrowser } from "@/components/channels/channels-browser"
 
 export const metadata: Metadata = {
-  title: "Channels — Live TV, dramas & novels",
+  title: "Channels — Movies, shows, dramas & novels",
   description:
-    "A channel guide for live TV, Asian dramas and web novels, streamed through UltraSrc.",
+    "Watch movies and shows added by the Loop team, Asian dramas and web novels, all in one channel guide.",
 }
 
 export default function ChannelsPage() {

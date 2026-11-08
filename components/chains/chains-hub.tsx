@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ArrowRight, Compass, GitBranch, Plus, Sparkles, Users } from "lucide-react"
+import { safeResponseJson } from "@/lib/safe-response-json"
 
 type Chain = {
   id: string
@@ -89,7 +90,7 @@ export function ChainsHub() {
         headers: getAuthHeader(),
         cache: "no-store",
       })
-      const data = await response.json()
+      const data = await safeResponseJson<Record<string, any>>(response)
       if (!response.ok) throw new Error(data.message || data.error || "Could not load Chains")
       setChains(Array.isArray(data.chains) ? data.chains : [])
       setHasMore(Boolean(data.has_more))
@@ -120,7 +121,7 @@ export function ChainsHub() {
       cache: "no-store",
     })
       .then(async (response) => {
-        const result = await response.json()
+        const result = await safeResponseJson<Record<string, any>>(response)
         if (!response.ok) throw new Error(result.error || "Could not load your Circles")
         if (!cancelled) {
           const memberships = Array.isArray(result.communities)
@@ -153,7 +154,7 @@ export function ChainsHub() {
         headers: getAuthHeader(),
         cache: "no-store",
       })
-      const data = await response.json()
+      const data = await safeResponseJson<Record<string, any>>(response)
       if (!response.ok) throw new Error(data.message || data.error || "Could not load more Chains")
       const next: Chain[] = Array.isArray(data.chains) ? data.chains : []
       setChains((current) => {
@@ -192,7 +193,7 @@ export function ChainsHub() {
           visibility: selectedCircleId ? "circle" : "public",
         }),
       })
-      const data = await response.json()
+      const data = await safeResponseJson<Record<string, any>>(response)
       if (!response.ok) throw new Error(data.message || data.error || "Could not create Chain")
       router.push("/chains/" + data.id)
       router.refresh()

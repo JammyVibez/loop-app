@@ -15,6 +15,7 @@ export const dynamic = "force-dynamic"
  */
 
 type Row = {
+  kind: "event" | "challenge"
   source: string
   id: string
   title: string
@@ -68,6 +69,7 @@ export async function GET(request: NextRequest) {
       `
       SELECT * FROM (
         SELECT
+          'event'::text AS kind,
           'global'::text AS source,
           event.id::text AS id,
           event.title,
@@ -80,7 +82,7 @@ export async function GET(request: NextRequest) {
           COALESCE(event.reward_coins, 0) AS reward_coins,
           NULL::text AS circle_id,
           NULL::text AS circle_name,
-          '/drops'::text AS action_url,
+          '/events/' || event.id::text AS action_url,
           event.created_at
         FROM global_events AS event
         WHERE event.is_active = true
@@ -88,6 +90,7 @@ export async function GET(request: NextRequest) {
         UNION ALL
 
         SELECT
+          'event'::text AS kind,
           'circle'::text AS source,
           circle_event.id::text AS id,
           circle_event.title,
@@ -103,18 +106,52 @@ export async function GET(request: NextRequest) {
           '/communities/' || circle_event.circle_id::text AS action_url,
           circle_event.created_at
         FROM circle_events AS circle_event
-        LEFT JOIN circles AS circle ON circle.id::text = circle_event.circle_id::text
+        JOIN circles AS circle ON circle.id::text = circle_event.circle_id::text
+        WHERE circle.owner_id = $1::uuid OR EXISTS (
+          SELECT 1 FROM circle_members member
+          WHERE member.circle_id = circle.id AND member.user_id = $1::uuid
+            AND member.status IN ('active', 'approved')
+        )
+
+        UNION ALL
+
+        SELECT
+          'challenge'::text AS kind,
+          'circle_challenge'::text AS source,
+          challenge.id::text AS id,
+          challenge.title,
+          challenge.description,
+          COALESCE(challenge.challenge_type, 'Community') AS category,
+          challenge.starts_at,
+          COALESCE(challenge.ends_at, challenge.created_at + interval '7 days') AS ends_at,
+          NULL::text AS image_url,
+          (SELECT COUNT(DISTINCT entry.user_id)::integer
+           FROM community_challenge_entries entry WHERE entry.challenge_id = challenge.id) AS participants_count,
+          COALESCE(challenge.reward_coins, 0) AS reward_coins,
+          circle.id::text AS circle_id,
+          circle.name AS circle_name,
+          '/communities/' || circle.id::text || '/challenges/' || challenge.id::text AS action_url,
+          challenge.created_at
+        FROM circle_challenges challenge
+        JOIN circles circle ON circle.id = challenge.circle_id
+        WHERE challenge.status = 'active'
+          AND (circle.owner_id = $1::uuid OR EXISTS (
+            SELECT 1 FROM circle_members member
+            WHERE member.circle_id = circle.id AND member.user_id = $1::uuid
+              AND member.status IN ('active', 'approved')
+          ))
       ) AS drops
       ORDER BY COALESCE(starts_at, created_at) DESC
       LIMIT 500
       `,
+      [user.id],
     )
 
     let items = rows.map((row) => {
       const status = statusFor(row.starts_at, row.ends_at)
       return {
         id: row.id,
-        kind: "event" as const,
+        kind: row.kind,
         source: row.source,
         title: row.title,
         description: row.description || "",
@@ -169,7 +206,7 @@ export async function GET(request: NextRequest) {
         offset,
         has_more: offset + page.length < total,
         live_count: items.filter((item) => item.is_live).length,
-        challenge_count: 0,
+        challenge_count: items.filter((item) => item.kind === "challenge").length,
         event_count: items.filter((item) => item.kind === "event").length,
       },
       { headers: { "Cache-Control": "no-store" } },

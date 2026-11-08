@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { MonitorUp, Radio, Video } from "lucide-react"
+import { Mic } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
@@ -41,6 +41,7 @@ export function CreateStreamForm({ onStreamCreated }: CreateStreamFormProps) {
           title: form.title.trim(),
           description: form.description.trim(),
           category: form.category,
+          stream_type: "audio",
           tags: form.tags
             .split(",")
             .map((t) => t.trim())
@@ -50,10 +51,10 @@ export function CreateStreamForm({ onStreamCreated }: CreateStreamFormProps) {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Failed to create stream")
       const streamId = data.data?.stream?.id || null
-      toast({ title: "Studio ready", description: "Turn on your camera and go live." })
+      toast({ title: "Audio studio ready", description: "Check your microphone and start your audio room." })
       onStreamCreated?.(streamId)
     } catch (error: any) {
-      toast({ title: "Couldn't create live", description: error.message, variant: "destructive" })
+      toast({ title: "Couldn't create audio room", description: error.message, variant: "destructive" })
     } finally {
       setSaving(false)
     }
@@ -62,21 +63,13 @@ export function CreateStreamForm({ onStreamCreated }: CreateStreamFormProps) {
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
-        Browser WebRTC live — camera, screen share, chat, and gifts. Best for small-to-medium audiences
-        (mesh peer-to-peer, ~25 concurrent viewers).
+        Start an audio-first live room with real-time conversation, listener chat, reactions and Loop gifts.
       </p>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-border/60 bg-muted/30 p-4">
-          <Video className="mb-2 h-5 w-5 text-rose-500" />
-          <p className="text-sm font-semibold">Camera Live</p>
-          <p className="mt-1 text-xs text-muted-foreground">Broadcast from your phone or webcam in real time.</p>
-        </div>
-        <div className="rounded-2xl border border-border/60 bg-muted/30 p-4">
-          <MonitorUp className="mb-2 h-5 w-5 text-sky-500" />
-          <p className="text-sm font-semibold">Share Screen</p>
-          <p className="mt-1 text-xs text-muted-foreground">Switch to screen share for viewers instantly.</p>
-        </div>
+      <div className="rounded-2xl border border-border/60 bg-muted/30 p-4">
+        <Mic className="mb-2 h-5 w-5 text-rose-500" />
+        <p className="text-sm font-semibold">Audio stage</p>
+        <p className="mt-1 text-xs text-muted-foreground">Your microphone is live; listeners join to talk in chat, react and send gifts.</p>
       </div>
 
       <div className="space-y-4 rounded-3xl border border-border/60 bg-card/60 p-5">
@@ -129,8 +122,8 @@ export function CreateStreamForm({ onStreamCreated }: CreateStreamFormProps) {
           onClick={handleCreate}
           className="h-12 w-full rounded-full bg-rose-500 text-base font-bold hover:bg-rose-400"
         >
-          {saving ? <Spinner className="mr-2 h-4 w-4" /> : <Radio className="mr-2 h-4 w-4" />}
-          Open Live Studio
+          {saving ? <Spinner className="mr-2 h-4 w-4" /> : <Mic className="mr-2 h-4 w-4" />}
+          Open Audio Studio
         </Button>
       </div>
     </div>

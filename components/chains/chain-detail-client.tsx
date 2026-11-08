@@ -12,6 +12,7 @@ import { ProxyImg } from "@/components/ui/proxy-img"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { AddChainToCollectionButton } from "@/components/collections/add-chain-to-collection-button"
 import { ArrowLeft, ArrowUpRight, Download, GitBranch, Lock, MessageCircle, Send, Pencil, Pause, Play, CheckCircle2, Archive, Search, UserPlus, Trash2 } from "lucide-react"
+import { safeResponseJson } from "@/lib/safe-response-json"
 
 type Chain = {
   id: string
@@ -150,7 +151,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
         headers: getAuthHeader(),
         cache: "no-store",
       })
-      const next = await response.json()
+      const next = await safeResponseJson<ChainResponse & { message?: string; error?: string }>(response)
       if (!response.ok) throw new Error(next.message || next.error || "This Chain is unavailable")
       setData(next)
     } catch (cause) {
@@ -181,7 +182,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
           headers: getAuthHeader(),
           cache: "no-store",
         })
-        const result = await response.json()
+        const result = await safeResponseJson<Record<string, any>>(response)
         if (!response.ok) throw new Error(result.error || "Could not search for members")
         const existing = new Set((data.members || []).map((member) => member.user_id))
         const candidates = Array.isArray(result.users)
@@ -215,7 +216,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
         headers: getAuthHeader(),
         cache: "no-store",
       })
-      const next = await response.json()
+      const next = await safeResponseJson<ChainResponse & { message?: string; error?: string }>(response)
       if (!response.ok) throw new Error(next.message || next.error || "Could not load more contributions")
       setData((current) => {
         if (!current) return next
@@ -245,7 +246,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
           "/api/v1/chains/" + encodeURIComponent(chainId) + "?" + params.toString(),
           { headers: getAuthHeader(), cache: "no-store" },
         )
-        const page = await response.json()
+        const page = await safeResponseJson<Record<string, any>>(response)
         if (!response.ok) throw new Error(page.message || page.error || "Could not export this Chain")
         const batch = Array.isArray(page.contributions) ? page.contributions as Contribution[] : []
         if (batch.length === 0) break
@@ -335,7 +336,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify(patch),
       })
-      const next = await response.json()
+      const next = await safeResponseJson<Chain & { message?: string; error?: string }>(response)
       if (!response.ok) throw new Error(next.message || next.error || "Could not update this Chain")
       setData((current) => current ? { ...current, chain: next } : current)
       setEditingChain(false)
@@ -358,7 +359,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
           body: JSON.stringify({ role }),
         },
       )
-      const result = await response.json()
+      const result = await safeResponseJson<Record<string, any>>(response)
       if (!response.ok) throw new Error(result.message || result.error || "Could not update Chain membership")
       setMemberSearch("")
       setMemberSearchResults([])
@@ -380,7 +381,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
         "/api/v1/chains/" + encodeURIComponent(chainId) + "/members/" + encodeURIComponent(member.user_id),
         { method: "DELETE", headers: getAuthHeader() },
       )
-      const result = response.status === 204 ? null : await response.json()
+      const result = response.status === 204 ? null : await safeResponseJson<Record<string, any>>(response)
       if (!response.ok) throw new Error(result?.message || result?.error || "Could not remove this Chain member")
       await load()
     } catch (cause) {
@@ -416,7 +417,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({}),
       })
-      const result = await response.json()
+      const result = await safeResponseJson<Record<string, any>>(response)
       if (!response.ok) throw new Error(result.message || result.error || "Could not remix this Chain")
       router.push("/chains/" + encodeURIComponent(result.id))
     } catch (cause) {
@@ -461,7 +462,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
           }),
         },
       )
-      const result = await response.json()
+      const result = await safeResponseJson<Record<string, any>>(response)
       if (!response.ok) throw new Error(result.message || result.error || "Could not update contribution")
       setEditingContributionId(null)
       await load()
@@ -486,7 +487,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
           encodeURIComponent(contributionId) + "/revisions",
         { headers: getAuthHeader(), cache: "no-store" },
       )
-      const revisions = await response.json()
+      const revisions = await safeResponseJson<Record<string, any>>(response)
       if (!response.ok) throw new Error(revisions.message || revisions.error || "Could not load revision history")
       setRevisionHistory((current) => ({ ...current, [contributionId]: Array.isArray(revisions) ? revisions : [] }))
     } catch (cause) {
@@ -515,7 +516,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
           headers: getAuthHeader(),
         },
       )
-      const result = await response.json()
+      const result = await safeResponseJson<Record<string, any>>(response)
       if (!response.ok) throw new Error(result.message || result.error || "Could not restore this revision")
 
       await load()
@@ -598,7 +599,7 @@ export function ChainDetailClient({ chainId }: { chainId: string }) {
           payload,
         }),
       })
-      const result = await response.json()
+      const result = await safeResponseJson<Record<string, any>>(response)
       if (!response.ok) throw new Error(result.message || result.error || "Could not add contribution")
       setTitle("")
       setContent("")

@@ -241,7 +241,7 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
 
       {/* Footer User Profile & Logout */}
       <div className="mt-2 flex shrink-0 items-center justify-between rounded-2xl border border-border/60 bg-muted/30 p-2">
-        <Link href={`/profile/${user.username || user.id}`} onClick={onLinkClick} className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-80 transition-opacity">
+        <Link href={`/profile/${user.username || user.id}`} scroll={false} onClick={onLinkClick} className="flex min-w-0 flex-1 items-center gap-2.5 transition-opacity hover:opacity-80">
           <AvatarWithFrame
             avatarUrl={user.avatar_url || user.user_metadata?.avatar_url}
             videoAvatarUrl={(user as any).video_avatar_url || null}
