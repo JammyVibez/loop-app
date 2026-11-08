@@ -20,6 +20,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { ProfileShareCard } from "@/components/profile/profile-share-card"
 import { ProfileThemeAudio } from "@/components/profile/profile-theme-audio"
 import { ProfileAtmosphereDialog } from "@/components/profile/profile-atmosphere"
+import { ProfileBackground } from "@/components/profile/profile-background"
 import { readProfileAtmosphere, readProfileThemePreferences } from "@/lib/profile-theme"
 import { ProfileSkeleton } from "@/components/loading-states"
 import { EmptyState as PageEmptyState } from "@/components/ui/empty-state"
@@ -626,28 +627,10 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       {profile.custom_profile_css ? (
         <style dangerouslySetInnerHTML={{ __html: profile.custom_profile_css }} />
       ) : null}
-      {/* A purchased theme paints its artwork behind the whole profile, then
-          smokes the lower half so names and text always keep their contrast. */}
-      {profileTheme.backgroundUrl ? (
-        <div
-          aria-hidden="true"
-          data-profile-background=""
-          className="loop-profile-background pointer-events-none absolute inset-0 overflow-hidden"
-        >
-          <div
-            data-profile-background-image=""
-            className="absolute inset-0 bg-cover bg-top bg-no-repeat"
-            style={{ backgroundImage: `url("${profileTheme.backgroundUrl}")` }}
-          />
-          {/* Only enough smoke for contrast: the artwork is the point of the
-              theme, so the panel below keeps it visible rather than hiding it
-              behind an opaque page background. */}
-          <div
-            data-profile-background-scrim=""
-            className="absolute inset-0 bg-gradient-to-b from-background/10 via-background/40 to-background/85"
-          />
-        </div>
-      ) : null}
+      {/* A purchased theme paints its artwork behind the whole profile — a
+          picture, a GIF or a short looping video — then smokes the lower half
+          so names and text always keep their contrast. */}
+      {profileTheme.backgroundUrl ? <ProfileBackground url={profileTheme.backgroundUrl} /> : null}
       {/* Profile top bar. The site header is h-16 (64px), so top-16 pins this
           flush against it — top-14 tucked the strip 8px underneath the header,
           which looked like the page twitching as it scrolled. -mb-14 cancels

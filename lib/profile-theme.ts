@@ -9,6 +9,7 @@
 
 export type ProfileThemeAssets = {
   css: string
+  /** Painted behind the profile. An image, an animated GIF or a short video. */
   backgroundUrl: string | null
   audioUrl: string | null
   audioTitle: string | null
@@ -27,6 +28,7 @@ export type ProfilePostView = (typeof PROFILE_POST_VIEWS)[number]
  * turns it off, so a purchased theme is heard by default.
  */
 export type ProfileAtmosphere = {
+  /** An image, an animated GIF or a short looping video. */
   backgroundUrl: string | null
   audioUrl: string | null
   audioTitle: string | null
@@ -48,6 +50,18 @@ const EMPTY: ProfileThemeAssets = {
   audioTitle: null,
   audioEnabled: true,
   audioAutoplay: true,
+}
+
+/**
+ * Backgrounds can be a picture, an animated GIF or a short looping video, so
+ * every reader treats the URL as media rather than assuming an image. A
+ * Cloudinary video URL is recognised by its delivery path as well as by its
+ * extension, because an admin can paste a transformed URL without one.
+ */
+export function isVideoProfileBackground(value: string | null | undefined): boolean {
+  if (!value) return false
+  if (/\/video\/upload\//i.test(value)) return true
+  return /\.(?:mp4|webm|mov|m4v|ogv)(?:[?#]|$)/i.test(value)
 }
 
 /** An https URL, or a site-relative path served from `public/`. */

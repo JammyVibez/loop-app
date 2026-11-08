@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { ImageIcon, LayoutGrid, List, Loader2, Music2, Newspaper, Save, Trash2, Upload } from "lucide-react"
+import { Film, ImageIcon, LayoutGrid, List, Loader2, Music2, Newspaper, Save, Trash2, Upload } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { cn } from "@/lib/utils"
-import type { ProfileAtmosphere, ProfilePostView } from "@/lib/profile-theme"
+import { isVideoProfileBackground, type ProfileAtmosphere, type ProfilePostView } from "@/lib/profile-theme"
 
 const POST_VIEW_OPTIONS: Array<{ id: ProfilePostView; label: string; hint: string; icon: typeof LayoutGrid }> = [
   { id: "grid", label: "Grid", hint: "Square tiles, visual", icon: LayoutGrid },
@@ -26,9 +26,10 @@ const POST_VIEW_OPTIONS: Array<{ id: ProfilePostView; label: string; hint: strin
 ]
 
 /**
- * Owner controls for the profile's atmosphere: the background picture, the
- * soundtrack, whether visitors hear it automatically, and how posts are laid
- * out for them. Saved as `theme_preferences` on the owner's profile.
+ * Owner controls for the profile's atmosphere: the background media (picture,
+ * GIF or short video), the soundtrack, whether visitors hear it automatically,
+ * and how posts are laid out for them. Saved as `theme_preferences` on the
+ * owner's profile, so equipping a theme and editing it share one record.
  */
 export function ProfileAtmosphereDialog({
   open,
@@ -68,8 +69,11 @@ export function ProfileAtmosphereDialog({
   const upload = async (file: File, kind: "background" | "audio") => {
     setUploading(kind)
     try {
+      // A background is a picture, a GIF or a short video, so the upload type
+      // follows the file instead of forcing everything through the image path.
+      const backgroundType = file.type.startsWith("video/") || isVideoProfileBackground(file.name) ? "video" : "image"
       const result = await uploadMediaFile(file, {
-        type: kind === "audio" ? "audio" : "image",
+        type: kind === "audio" ? "audio" : backgroundType,
         folder: "profile-atmosphere",
         authHeaders: getAuthHeader(),
       })
@@ -141,7 +145,7 @@ export function ProfileAtmosphereDialog({
               Profile atmosphere
             </DialogTitle>
             <DialogDescription>
-              Set the background, soundtrack and default post layout for everyone who visits your profile.
+              Set the background media, soundtrack and default post layout for everyone who visits your profile.
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -151,13 +155,13 @@ export function ProfileAtmosphereDialog({
           <section className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <Label className="flex items-center gap-1.5 text-sm">
-                <ImageIcon className="h-4 w-4 text-muted-foreground" /> Background picture
+                <ImageIcon className="h-4 w-4 text-muted-foreground" /> Background media
               </Label>
               <div className="flex items-center gap-1">
                 <input
                   ref={backgroundInputRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/*,video/*"
                   className="hidden"
                   onChange={(event) => {
                     const file = event.target.files?.[0]
@@ -192,11 +196,24 @@ export function ProfileAtmosphereDialog({
             </div>
             <div className="relative h-28 overflow-hidden rounded-xl border border-dashed border-border bg-muted/30">
               {background ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={background} alt="Profile background preview" className="h-full w-full object-cover" />
+                isVideoProfileBackground(background) ? (
+                  // eslint-disable-next-line jsx-a11y/media-has-caption
+                  <video
+                    key={background}
+                    src={background}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={background} alt="Profile background preview" className="h-full w-full object-cover" />
+                )
               ) : (
                 <div className="flex h-full flex-col items-center justify-center gap-1 text-[11px] text-muted-foreground">
-                  <ImageIcon className="h-5 w-5" />
+                  <Film className="h-5 w-5" />
                   Painted behind your whole profile
                 </div>
               )}
@@ -204,9 +221,13 @@ export function ProfileAtmosphereDialog({
             <Input
               value={background}
               onChange={(event) => setBackground(event.target.value)}
-              placeholder="…or paste an image URL"
+              placeholder="…or paste an image, GIF or video URL"
               className="h-9 text-xs"
             />
+            <p className="text-[10px] leading-relaxed text-muted-foreground">
+              A still image, an animated GIF or a short looping video. Video plays muted, like the home page
+              backdrop, and holds its first frame for visitors who reduce motion.
+            </p>
           </section>
 
           {/* Soundtrack */}

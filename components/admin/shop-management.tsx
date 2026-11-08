@@ -559,8 +559,8 @@ export function ShopManagement() {
 
               <MediaField
                 label="Profile background"
-                hint="the picture painted behind their profile"
-                accept="image/*"
+                hint="image, GIF or short video behind their profile"
+                accept="image/*,video/*"
                 value={typeof themeData.profile_background_url === "string" ? themeData.profile_background_url : ""}
                 onChange={(url) => setThemeData({ profile_background_url: url })}
               />

@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Hidden Leaf village at dusk with a swirling leaf crest">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0a1020"/>
+      <stop offset="0.55" stop-color="#131f38"/>
+      <stop offset="1" stop-color="#0a1020"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffe8c9" stop-opacity="0.75"/>
+      <stop offset="0.55" stop-color="#ff9a4d" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#ff9a4d" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="flame" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#ff9a4d"/>
+      <stop offset="0.6" stop-color="#ff9a4d"/>
+      <stop offset="1" stop-color="#63d29a"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0f3b57" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#0a1020"/>
+    </linearGradient>
+    <linearGradient id="ribbon" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff9a4d" stop-opacity="0.35"/>
+      <stop offset="0.5" stop-color="#63d29a" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#ff9a4d" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="ribbon2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#63d29a" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#ff9a4d" stop-opacity="0.16"/>
+    </linearGradient>
+    <linearGradient id="crystal" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff9a4d"/>
+      <stop offset="0.5" stop-color="#ffe8c9"/>
+      <stop offset="1" stop-color="#63d29a"/>
+    </linearGradient>
+    <pattern id="checker" width="28" height="28" patternUnits="userSpaceOnUse">
+      <rect width="14" height="14" fill="#63d29a" fill-opacity="0.55"/>
+      <rect x="14" y="14" width="14" height="14" fill="#63d29a" fill-opacity="0.55"/>
+    </pattern>
+  </defs>
+
+  <!-- Dusk sky and distant Hokage rock -->
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  <circle cx="1180" cy="300" r="210" fill="url(#glow)" opacity="0.55"/>
+  <circle cx="1180" cy="300" r="120" fill="#ffb066" opacity="0.45"/>
+  <g fill="#0d1830" opacity="0.95">
+    <path d="M0 640 L150 520 L260 596 L380 470 L520 604 L640 540 L760 630 L1600 610 L1600 900 L0 900 Z"/>
+  </g>
+  <g fill="#0a1224">
+    <path d="M0 700 L180 610 L320 690 L470 600 L620 706 L800 640 L980 720 L1160 660 L1340 730 L1600 680 L1600 900 L0 900 Z"/>
+  </g>
+  <!-- Village roofs -->
+  <g fill="#13203a" stroke="#ff9a4d" stroke-opacity="0.16">
+    <rect x="120" y="742" width="150" height="70" rx="6"/>
+    <rect x="320" y="768" width="120" height="44" rx="6"/>
+    <rect x="520" y="746" width="170" height="66" rx="6"/>
+    <rect x="760" y="776" width="130" height="36" rx="6"/>
+    <rect x="960" y="752" width="150" height="60" rx="6"/>
+    <rect x="1180" y="778" width="120" height="34" rx="6"/>
+  </g>
+  <!-- Leaf crest: a spiral of leaves -->
+  <g transform="translate(330 250)" opacity="0.92">
+    <circle r="150" fill="none" stroke="#ff9a4d" stroke-opacity="0.22" stroke-width="3"/>
+    <g fill="#ff9a4d" fill-opacity="0.55">
+      <path d="M0 -150 C40 -110 40 -60 0 -24 C-40 -60 -40 -110 0 -150 Z" transform="rotate(18)"/>
+      <path d="M0 -120 C32 -88 32 -48 0 -20 C-32 -48 -32 -88 0 -120 Z" transform="rotate(96) scale(0.82)"/>
+      <path d="M0 -120 C32 -88 32 -48 0 -20 C-32 -48 -32 -88 0 -120 Z" transform="rotate(168) scale(0.72)" fill="#63d29a" fill-opacity="0.5"/>
+      <path d="M0 -120 C32 -88 32 -48 0 -20 C-32 -48 -32 -88 0 -120 Z" transform="rotate(240) scale(0.62)"/>
+    </g>
+    <g stroke="#ffe8c9" stroke-opacity="0.5" stroke-width="4" fill="none">
+      <path d="M0 10 C-34 42 -30 92 0 120 C30 92 34 42 0 10 Z"/>
+      <path d="M0 10 L0 120"/>
+    </g>
+  </g>
+  <!-- Floating leaves -->
+  <g fill="#63d29a" fill-opacity="0.35">
+    <ellipse cx="720" cy="240" rx="26" ry="12" transform="rotate(-24 720 240)"/>
+    <ellipse cx="980" cy="420" rx="20" ry="9" transform="rotate(32 980 420)"/>
+    <ellipse cx="1360" cy="220" rx="24" ry="11" transform="rotate(-12 1360 220)"/>
+    <ellipse cx="560" cy="520" rx="18" ry="8" transform="rotate(44 560 520)"/>
+  </g>
+</svg>

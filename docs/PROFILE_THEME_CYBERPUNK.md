@@ -19,9 +19,9 @@ profile limit.
 1. Open **Settings → Profile → Custom profile CSS**.
 2. Paste the whole of `docs/profile-theme-cyberpunk.css`.
 3. Save, then open your public profile. The CSS is scoped to the profile root on the server.
-4. To add the image/audio, use **your profile → ⋯ → Profile atmosphere** (background
-   picture, soundtrack, post-card default). Those settings are separate from the CSS and
-   always win over the theme CSS for layout, never for colours.
+4. To add the background/audio, use **your profile → ⋯ → Profile atmosphere** (background
+   image, GIF or short video, soundtrack, post-card default). Those settings are separate
+   from the CSS and always win over the theme CSS for layout, never for colours.
 
 Custom profile CSS requires Loop Pro, and the API checks Pro entitlement as well as the byte
 limit.
@@ -31,8 +31,8 @@ limit.
 1. Open **Admin → Themes & Effects**.
 2. Fill **Name**, **Price**, **Rarity**, and keep **Category = Theme**.
 3. In the amber **Profile theme** panel:
-   - **Profile background** — upload the artwork (a 1600×900 image works well; the page
-     crops it with `bg-cover` and anchors it to the top).
+   - **Profile background** — upload the artwork (a 1600×900 image or short looping MP4/WebM
+     works well; the page crops it and anchors it to the top, and video plays muted).
    - **Soundtrack** — upload or paste an audio file, and set the **Soundtrack title** that
      the sound pill shows.
    - **Sound on by default** / **Starts automatically** — the two playback defaults the
@@ -40,7 +40,7 @@ limit.
    - **Profile CSS** — paste the stylesheet.
 4. **Create theme.**
 
-To change the soundtrack of a theme that already exists, use the **Sound** button on its row
+To change the soundtrack, background or CSS of a theme that already exists, use **Edit theme** on its row
 in **Admin → Themes & Effects → Live catalog** (or the Profile theme panel when editing it
 in **Shop management**). That edits only the audio fields, leaving art, CSS, price and the
 copies buyers already own untouched. Existing owners re-equip the theme (or update their
@@ -197,7 +197,7 @@ The owner-side settings live in `profiles.theme_preferences` and are edited from
 
 | Key | Effect |
 | --- | --- |
-| `profile_background` | The picture painted behind the page. Safe https or `/public` path. |
+| `profile_background` | The media painted behind the page: image, GIF or short video. Safe https or `/public` path. |
 | `profile_audio` | The loop played by the sound pill. |
 | `profile_audio_title` | Label shown on the pill. |
 | `profile_audio_enabled` | `false` = no soundtrack for anyone; the pill reads “Soundtrack off”. |
@@ -259,8 +259,8 @@ app's own look.
    body copy, hashtags, media rounding and action icons all picked up the theme.
 4. Open a post with an image, a poll and a long text body — those are the three layouts that
    expose contrast problems first.
-5. Add a background picture in **Profile atmosphere** and check the scrim still keeps the bio
-   readable.
+5. Add a background picture — then a GIF and a short video — in **Profile atmosphere** and
+   check the scrim still keeps the bio readable in each case.
 6. Toggle the soundtrack off and on, and reload to confirm the visitor mute persists.
 7. Check `prefers-reduced-motion`: the sweep and scanline must stop, the hover lift must not
    jump.

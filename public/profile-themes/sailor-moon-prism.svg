@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Silver crystal moon over a pastel prismatic night sky">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0a0718"/>
+      <stop offset="0.55" stop-color="#17102e"/>
+      <stop offset="1" stop-color="#0a0718"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fff1f9" stop-opacity="0.75"/>
+      <stop offset="0.55" stop-color="#ff8fc7" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#ff8fc7" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="flame" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#ff8fc7"/>
+      <stop offset="0.6" stop-color="#ff9a4d"/>
+      <stop offset="1" stop-color="#9fd8ff"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0f3b57" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#0a0718"/>
+    </linearGradient>
+    <linearGradient id="ribbon" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff8fc7" stop-opacity="0.35"/>
+      <stop offset="0.5" stop-color="#9fd8ff" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#ff8fc7" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="ribbon2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9fd8ff" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#ff8fc7" stop-opacity="0.16"/>
+    </linearGradient>
+    <linearGradient id="crystal" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff8fc7"/>
+      <stop offset="0.5" stop-color="#fff1f9"/>
+      <stop offset="1" stop-color="#9fd8ff"/>
+    </linearGradient>
+    <pattern id="checker" width="28" height="28" patternUnits="userSpaceOnUse">
+      <rect width="14" height="14" fill="#9fd8ff" fill-opacity="0.55"/>
+      <rect x="14" y="14" width="14" height="14" fill="#9fd8ff" fill-opacity="0.55"/>
+    </pattern>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  <!-- Prismatic ribbons -->
+  <g opacity="0.5">
+    <path d="M0 180 C300 60 520 320 820 200 C1080 96 1320 260 1600 150 L1600 0 L0 0 Z" fill="url(#ribbon)"/>
+    <path d="M0 760 C280 640 560 860 860 720 C1140 600 1360 780 1600 680 L1600 900 L0 900 Z" fill="url(#ribbon2)" opacity="0.6"/>
+  </g>
+  <!-- Crescent moon -->
+  <g transform="translate(1120 320)">
+    <circle r="210" fill="url(#glow)" opacity="0.6"/>
+    <circle r="130" fill="#fff1f9" opacity="0.92"/>
+    <circle cx="58" cy="-34" r="118" fill="#0a0718" opacity="0.96"/>
+    <circle r="150" fill="none" stroke="#9fd8ff" stroke-opacity="0.35" stroke-width="3"/>
+  </g>
+  <!-- Silver crystal -->
+  <g transform="translate(360 320)" opacity="0.92">
+    <path d="M0 -150 L86 -30 L0 150 L-86 -30 Z" fill="url(#crystal)" opacity="0.8"/>
+    <path d="M0 -150 L0 150" stroke="#fff1f9" stroke-opacity="0.6" stroke-width="3"/>
+    <path d="M-86 -30 L86 -30" stroke="#fff1f9" stroke-opacity="0.4" stroke-width="2"/>
+    <circle r="190" fill="none" stroke="#ff8fc7" stroke-opacity="0.28" stroke-width="2" stroke-dasharray="6 14"/>
+  </g>
+  <!-- Stars and sparkles -->
+  <g fill="#fff1f9">
+    <circle cx="680" cy="180" r="4" opacity="0.8"/>
+    <circle cx="820" cy="420" r="3" opacity="0.6"/>
+    <circle cx="1400" cy="520" r="4" opacity="0.7"/>
+    <circle cx="240" cy="600" r="3" opacity="0.6"/>
+    <circle cx="980" cy="640" r="3" opacity="0.5"/>
+    <circle cx="1240" cy="160" r="3" opacity="0.55"/>
+  </g>
+  <g fill="#9fd8ff" opacity="0.55">
+    <circle cx="600" cy="520" r="2.5"/>
+    <circle cx="760" cy="300" r="2"/>
+    <circle cx="1320" cy="680" r="2.5"/>
+    <circle cx="180" cy="380" r="2"/>
+  </g>
+  <!-- City skyline, softened -->
+  <g fill="#151033" opacity="0.9">
+    <rect x="40" y="700" width="120" height="200"/>
+    <rect x="180" y="740" width="90" height="160"/>
+    <rect x="1290" y="720" width="110" height="180"/>
+    <rect x="1420" y="690" width="140" height="210"/>
+  </g>
+</svg>

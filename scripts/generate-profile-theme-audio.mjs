@@ -93,6 +93,82 @@ const TRACKS = [
     bell: 0,
     cutoff: 0.4,
   },
+  // ── Anime themes ──────────────────────────────────────────────────────
+  // Same synthesis engine, written to match each theme's mood: a warm village
+  // evening, a sun-breathing flame, an open sea and a glittering crystal.
+  {
+    file: "naruto-hidden-leaf",
+    title: "Hidden Leaf — Will of Fire",
+    chordSeconds: 4,
+    chords: [
+      ["d3", "f#3", "a3", "e4", "f#4"], // Dadd9 — open, hopeful
+      ["b2", "d3", "f#3", "a3", "d4"], // Bm7 — a step inward
+      ["g2", "b2", "d3", "e3", "a3"], // G6/9 — lift
+      ["a2", "c#3", "e3", "a3", "b3"], // Aadd9 — back home
+    ],
+    timbre: "pad",
+    arpEvery: 0.32,
+    arpGain: 0.03,
+    arpRange: 3,
+    pulseBpm: 84,
+    pulseGain: 0.1,
+    bell: 0.018,
+    cutoff: 0.42,
+  },
+  {
+    file: "demon-slayer-hinokami",
+    title: "Hinokami — Sun Breathing",
+    chordSeconds: 4.2,
+    chords: [
+      ["e2", "b2", "e3", "g3", "b3"], // Em — the stance
+      ["c2", "g2", "c3", "e3", "g3"], // Cmaj — the draw
+      ["d2", "a2", "d3", "f3", "a3"], // Dm — the cut
+      ["e2", "b2", "e3", "g3", "d4"], // Em7 — settle
+    ],
+    timbre: "dark",
+    pulseBpm: 92,
+    pulseGain: 0.16,
+    percussion: 0.1,
+    bell: 0,
+    cutoff: 0.2,
+    gain: 0.48,
+  },
+  {
+    file: "one-piece-grand-line",
+    title: "Grand Line — Thousand Sunny",
+    chordSeconds: 3.6,
+    chords: [
+      ["c3", "g3", "c4", "e4", "g4"], // C — set sail
+      ["a2", "e3", "a3", "c4", "e4"], // Am — the swell
+      ["f2", "c3", "f3", "a3", "c4"], // F — horizon
+      ["g2", "d3", "g3", "b3", "d4"], // G — homeward
+    ],
+    timbre: "saw",
+    arpEvery: 0.22,
+    arpGain: 0.04,
+    arpRange: 2,
+    pulseBpm: 112,
+    pulseGain: 0.12,
+    bell: 0,
+    cutoff: 0.44,
+  },
+  {
+    file: "sailor-moon-prism",
+    title: "Moon Prism — Silver Crystal",
+    chordSeconds: 3.9,
+    chords: [
+      ["f3", "a3", "c4", "e4", "g4"], // Fmaj9 — glitter
+      ["d3", "f3", "a3", "c4", "e4"], // Dm9 — drift
+      ["bb2", "d3", "f3", "a3", "c4"], // Bbmaj7 — moonrise
+      ["c3", "e3", "g3", "b3", "d4"], // Cmaj9 — return
+    ],
+    timbre: "glass",
+    arpEvery: 0.26,
+    arpGain: 0.05,
+    arpRange: 3,
+    bell: 0.03,
+    cutoff: 0.52,
+  },
 ]
 
 function voice(t, freq, phase, timbre) {

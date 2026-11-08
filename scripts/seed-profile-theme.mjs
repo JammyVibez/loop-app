@@ -86,6 +86,79 @@ const THEMES = [
       "A midnight drive in neon: retro sun over the skyline, chrome-rose name, wet-street " +
       "reflections and a 15-second synthwave loop. Pro only.",
   },
+  // ── Anime themes ─────────────────────────────────────────────────────────
+  // Artwork and CSS come from scripts/generate-anime-profile-themes.mjs, the
+  // soundtrack from scripts/generate-profile-theme-audio.mjs. Admins can swap
+  // any of it afterwards from Admin → Themes → Edit theme (including a GIF or
+  // short video background).
+  {
+    name: "Naruto — Hidden Leaf",
+    slug: "naruto-hidden-leaf",
+    price: 2600,
+    audioTitle: "Hidden Leaf — Will of Fire",
+    colors: {
+      primary: "#ff8a3d",
+      secondary: "#63d29a",
+      accent: "#ffe8c9",
+      background: "#0a1020",
+      surface: "#131f38",
+      text: "#f4f0e6",
+    },
+    description:
+      "A village evening in leaf green and ember orange: the leaf crest over the rooftops, a " +
+      "warm sunset scrim and a 16-second theme of resolve. Pro only.",
+  },
+  {
+    name: "Demon Slayer — Hinokami",
+    slug: "demon-slayer-hinokami",
+    price: 2600,
+    audioTitle: "Hinokami — Sun Breathing",
+    colors: {
+      primary: "#ff5a33",
+      secondary: "#ffd166",
+      accent: "#fff1e6",
+      background: "#0a0507",
+      surface: "#1b0b0d",
+      text: "#ffe9df",
+    },
+    description:
+      "Black timber, bronze checkers and a rising sun flame: the Hinokami crest, embers over " +
+      "the profile and a 17-second sun-breathing pulse. Pro only.",
+  },
+  {
+    name: "One Piece — Grand Line",
+    slug: "one-piece-grand-line",
+    price: 2400,
+    audioTitle: "Grand Line — Thousand Sunny",
+    colors: {
+      primary: "#ffcf5c",
+      secondary: "#38a9e0",
+      accent: "#fff4d1",
+      background: "#04101c",
+      surface: "#0a2233",
+      text: "#f4fbff",
+    },
+    description:
+      "Open ocean gold and sail blue: a compass crest, a ship on the sunset line and a " +
+      "14-second sea-faring loop. Pro only.",
+  },
+  {
+    name: "Sailor Moon — Moon Prism",
+    slug: "sailor-moon-prism",
+    price: 2400,
+    audioTitle: "Moon Prism — Silver Crystal",
+    colors: {
+      primary: "#ff8fc7",
+      secondary: "#9fd8ff",
+      accent: "#fff1f9",
+      background: "#0a0718",
+      surface: "#17102e",
+      text: "#fdf2ff",
+    },
+    description:
+      "Silver crystal and pastel ribbon light: a crescent moon, prism sparkles and a " +
+      "16-second glassy moonrise loop. Pro only.",
+  },
 ]
 
 const syncEquipped = process.argv.includes("--sync-equipped")

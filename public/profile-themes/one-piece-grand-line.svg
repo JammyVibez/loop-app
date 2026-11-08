@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Grand Line sunset with a sailing ship and rolling waves">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#04101c"/>
+      <stop offset="0.55" stop-color="#0a2233"/>
+      <stop offset="1" stop-color="#04101c"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fff4d1" stop-opacity="0.75"/>
+      <stop offset="0.55" stop-color="#ffcf5c" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#ffcf5c" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="flame" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#ffcf5c"/>
+      <stop offset="0.6" stop-color="#ff9a4d"/>
+      <stop offset="1" stop-color="#38a9e0"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0f3b57" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#04101c"/>
+    </linearGradient>
+    <linearGradient id="ribbon" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffcf5c" stop-opacity="0.35"/>
+      <stop offset="0.5" stop-color="#38a9e0" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#ffcf5c" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="ribbon2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#38a9e0" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#ffcf5c" stop-opacity="0.16"/>
+    </linearGradient>
+    <linearGradient id="crystal" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffcf5c"/>
+      <stop offset="0.5" stop-color="#fff4d1"/>
+      <stop offset="1" stop-color="#38a9e0"/>
+    </linearGradient>
+    <pattern id="checker" width="28" height="28" patternUnits="userSpaceOnUse">
+      <rect width="14" height="14" fill="#38a9e0" fill-opacity="0.55"/>
+      <rect x="14" y="14" width="14" height="14" fill="#38a9e0" fill-opacity="0.55"/>
+    </pattern>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  <circle cx="1050" cy="360" r="190" fill="url(#glow)" opacity="0.65"/>
+  <circle cx="1050" cy="360" r="110" fill="#ffd97a" opacity="0.5"/>
+  <!-- Sea -->
+  <rect y="560" width="1600" height="340" fill="url(#sea)"/>
+  <g stroke="#8fd8f5" stroke-opacity="0.35" stroke-width="4" fill="none">
+    <path d="M0 640 Q120 610 240 640 T480 640 T720 640 T960 640 T1200 640 T1440 640 T1600 636"/>
+    <path d="M0 720 Q140 686 280 720 T560 720 T840 720 T1120 720 T1400 720 T1600 714" opacity="0.7"/>
+    <path d="M0 810 Q160 776 320 810 T640 810 T960 810 T1280 810 T1600 802" opacity="0.5"/>
+  </g>
+  <!-- Ship silhouette -->
+  <g transform="translate(900 470)" fill="#0a2233" stroke="#ffcf5c" stroke-opacity="0.35">
+    <path d="M-150 96 L150 96 L110 150 L-110 150 Z"/>
+    <rect x="-6" y="-120" width="12" height="216"/>
+    <path d="M6 -110 L120 20 L6 20 Z" fill="#12374f"/>
+    <path d="M-6 -90 L-100 30 L-6 30 Z" fill="#12374f"/>
+    <circle cx="0" cy="-128" r="10" fill="#ffcf5c" fill-opacity="0.7"/>
+  </g>
+  <!-- Log pose / compass crest -->
+  <g transform="translate(330 280)" opacity="0.9">
+    <circle r="130" fill="none" stroke="#ffcf5c" stroke-opacity="0.3" stroke-width="3"/>
+    <circle r="98" fill="none" stroke="#38a9e0" stroke-opacity="0.35" stroke-width="2"/>
+    <path d="M0 -96 L24 0 L0 96 L-24 0 Z" fill="#ffcf5c" fill-opacity="0.55"/>
+    <path d="M-96 0 L0 -22 L96 0 L0 22 Z" fill="#38a9e0" fill-opacity="0.45"/>
+    <circle r="12" fill="#04101c" stroke="#ffcf5c" stroke-opacity="0.6"/>
+  </g>
+  <!-- Gulls -->
+  <g stroke="#e8f7ff" stroke-opacity="0.5" stroke-width="4" fill="none">
+    <path d="M1180 210 q26 -18 52 0 q26 -18 52 0"/>
+    <path d="M1280 260 q18 -12 36 0 q18 -12 36 0" opacity="0.7"/>
+  </g>
+</svg>

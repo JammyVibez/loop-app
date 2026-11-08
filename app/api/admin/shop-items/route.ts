@@ -1,6 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import { getUserFromRequest } from "@/lib/server-auth";
+import { sanitizeProfileCustomCss } from '@/lib/profile-custom-css'
+import { safeThemeAssetUrl } from '@/lib/profile-theme'
+
+/**
+ * Profile-theme fields an admin can edit on an existing item. The CSS is
+ * sanitised and the media URLs validated here, exactly as on create, so a
+ * stale tab or a hand-written request cannot store a stylesheet that escapes
+ * the profile or a background that is not a real asset.
+ * `""` clears the field instead of saving an empty string.
+ */
+function sanitizeProfileThemeFields(itemData: unknown): { data?: Record<string, unknown>; error?: string } {
+  if (!itemData || typeof itemData !== 'object' || Array.isArray(itemData)) return {}
+  const data = { ...(itemData as Record<string, unknown>) }
+
+  if (typeof data.profile_css === 'string' && data.profile_css.trim()) {
+    try {
+      data.profile_css = sanitizeProfileCustomCss(data.profile_css)
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Invalid profile CSS' }
+    }
+  } else {
+    delete data.profile_css
+  }
+
+  for (const key of ['profile_background_url', 'profile_audio_url']) {
+    if (!(key in data)) continue
+    const raw = data[key]
+    if (raw === null || raw === undefined || raw === '') {
+      delete data[key]
+      continue
+    }
+    const url = safeThemeAssetUrl(raw)
+    if (!url) return { error: 'Use an https link or a Loop-hosted file for the theme media.' }
+    data[key] = url
+  }
+
+  return { data }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -72,6 +110,11 @@ export async function POST(request: NextRequest) {
     // `animation_url` columns: the coin price is `price_coins`, and admin art
     // lives inside item_data, which is what the storefront reads.
     const baseItemData = itemData.item_data && typeof itemData.item_data === 'object' ? itemData.item_data : {}
+    const sanitized = sanitizeProfileThemeFields(baseItemData)
+    if (sanitized.error) {
+      return NextResponse.json({ success: false, error: sanitized.error }, { status: 400 })
+    }
+    const safeItemData = sanitized.data ?? baseItemData
     const shopItem = {
       name: itemData.name,
       description: itemData.description || '',
@@ -82,7 +125,7 @@ export async function POST(request: NextRequest) {
       rarity: itemData.rarity || 'common',
       premium_only: itemData.premium_only || false,
       item_data: {
-        ...baseItemData,
+        ...safeItemData,
         ...(itemData.image_url ? { image_url: itemData.image_url } : {}),
         ...(itemData.animation_url ? { animation_url: itemData.animation_url } : {}),
       },
@@ -114,7 +157,7 @@ export async function PUT(request: NextRequest) {
     // item_data before it reaches here, so they must not be written as columns.
     const { id, price: _price, image_url: _imageUrl, animation_url: _animationUrl, ...updateData } = await request.json()
     const supabase = createServerClient()
-    
+
     // Check admin permissions
     
 
@@ -132,6 +175,12 @@ export async function PUT(request: NextRequest) {
     if (profileError || !profile?.is_admin) {
       return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 })
     }
+
+    const sanitized = sanitizeProfileThemeFields(updateData.item_data)
+    if (sanitized.error) {
+      return NextResponse.json({ success: false, error: sanitized.error }, { status: 400 })
+    }
+    if (sanitized.data) updateData.item_data = sanitized.data
 
     const { data: item, error } = await supabase
       .from('shop_items')

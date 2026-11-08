@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Music2, Plus, RefreshCw, Zap } from "lucide-react"
+import { ImageIcon, Palette, Plus, RefreshCw, Zap } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
@@ -322,17 +322,17 @@ export function AdminCatalogPanel() {
                 <div>
                   <p className="text-xs font-semibold">Profile theme</p>
                   <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
-                    Attached to the buyer&apos;s profile when they equip this theme: a background picture, a looping
-                    soundtrack, and CSS scoped to their profile. The CSS is sanitised on save and never sent to the
-                    storefront.
+                    Attached to the buyer&apos;s profile when they equip this theme: a background picture, GIF or short
+                    video, a looping soundtrack, and CSS scoped to their profile. The CSS is sanitised on save and
+                    never sent to the storefront.
                   </p>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <MediaField
                     label="Profile background"
-                    hint="painted behind the whole profile"
-                    accept="image/*"
+                    hint="image, GIF or short video behind the profile"
+                    accept="image/*,video/*"
                     value={form.profile_background_url}
                     onChange={(url) => setForm((p) => ({ ...p, profile_background_url: url }))}
                   />
@@ -481,7 +481,7 @@ export function AdminCatalogPanel() {
                   </div>
 
                   {(item.category === "theme" || item.item_type?.includes("profile_theme")) && (
-                    <ThemeSoundEditor item={item} getAuthHeader={getAuthHeader} onSaved={loadItems} />
+                    <ThemeEditor item={item} getAuthHeader={getAuthHeader} onSaved={loadItems} />
                   )}
                 </div>
               )
@@ -494,20 +494,29 @@ export function AdminCatalogPanel() {
 }
 
 /**
- * Soundtrack editor for a catalog theme that already exists.
+ * Editor for a catalog theme that already exists.
  *
- * The create form can attach a soundtrack, but replacing one on a live theme
- * used to mean hunting the item down in Shop management. This edits just the
- * audio fields of `item_data`, so the artwork, CSS, price and buyers' copies
- * are untouched. It previews the file before saving and exposes both playback
- * defaults the equip endpoint reads.
+ * The create form can build a theme, but changing one afterwards used to mean
+ * hunting the item down in Shop management — and even there the profile
+ * background could only be swapped for another picture. This edits the parts
+ * an owner actually receives: the name and price, the background (image, GIF or
+ * short video), the soundtrack and its defaults, and the scoped profile CSS.
+ * The server sanitises the CSS and validates both media URLs before saving, so
+ * a mistake here can never escape the profile.
  */
-function ThemeSoundEditor({
+function ThemeEditor({
   item,
   getAuthHeader,
   onSaved,
 }: {
-  item: { id: string; name: string; item_data?: any }
+  item: {
+    id: string
+    name: string
+    price_coins?: number
+    rarity?: string
+    is_active?: boolean
+    item_data?: any
+  }
   getAuthHeader: () => Record<string, string>
   onSaved: () => Promise<void> | void
 }) {
@@ -515,25 +524,48 @@ function ThemeSoundEditor({
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const initial = (item.item_data || {}) as Record<string, unknown>
+  const [name, setName] = useState(item.name)
+  const [price, setPrice] = useState(String(item.price_coins ?? 0))
+  const [rarity, setRarity] = useState(item.rarity || "common")
+  const [active, setActive] = useState(item.is_active !== false)
+  const [backgroundUrl, setBackgroundUrl] = useState(
+    typeof initial.profile_background_url === "string" ? initial.profile_background_url : "",
+  )
   const [audioUrl, setAudioUrl] = useState(typeof initial.profile_audio_url === "string" ? initial.profile_audio_url : "")
   const [title, setTitle] = useState(typeof initial.profile_audio_title === "string" ? initial.profile_audio_title : "")
   const [enabled, setEnabled] = useState(initial.profile_audio_enabled !== false)
   const [autoplay, setAutoplay] = useState(initial.profile_audio_autoplay !== false)
+  const [css, setCss] = useState(typeof initial.profile_css === "string" ? initial.profile_css : "")
+  const cssBytes = new TextEncoder().encode(css).length
 
   // Re-read the row each time the dialog opens, so a save (or a change made in
   // Shop management) is reflected instead of the state captured at mount.
   const changeOpen = (next: boolean) => {
     if (next) {
       const fresh = (item.item_data || {}) as Record<string, unknown>
+      setName(item.name)
+      setPrice(String(item.price_coins ?? 0))
+      setRarity(item.rarity || "common")
+      setActive(item.is_active !== false)
+      setBackgroundUrl(typeof fresh.profile_background_url === "string" ? fresh.profile_background_url : "")
       setAudioUrl(typeof fresh.profile_audio_url === "string" ? fresh.profile_audio_url : "")
       setTitle(typeof fresh.profile_audio_title === "string" ? fresh.profile_audio_title : "")
       setEnabled(fresh.profile_audio_enabled !== false)
       setAutoplay(fresh.profile_audio_autoplay !== false)
+      setCss(typeof fresh.profile_css === "string" ? fresh.profile_css : "")
     }
     setOpen(next)
   }
 
   const save = async () => {
+    if (!name.trim()) {
+      toast({ title: "Name required", variant: "destructive" })
+      return
+    }
+    if (cssBytes > MAX_PROFILE_CUSTOM_CSS_BYTES) {
+      toast({ title: "Profile CSS is over the limit", variant: "destructive" })
+      return
+    }
     setSaving(true)
     try {
       const response = await fetch("/api/admin/shop-items", {
@@ -541,18 +573,24 @@ function ThemeSoundEditor({
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({
           id: item.id,
+          name: name.trim(),
+          price_coins: Number(price) || 0,
+          rarity,
+          is_active: active,
           item_data: {
             ...(item.item_data || {}),
+            profile_background_url: backgroundUrl.trim(),
             profile_audio_url: audioUrl.trim(),
             profile_audio_title: title.trim(),
             profile_audio_enabled: enabled,
             profile_audio_autoplay: autoplay,
+            profile_css: css,
           },
         }),
       })
       const result = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(result.error || "Failed to save the soundtrack")
-      toast({ description: `${item.name} soundtrack saved.` })
+      if (!response.ok) throw new Error(result.error || "Failed to save the theme")
+      toast({ description: `${name.trim()} saved. Re-equipping it applies the new background.` })
       setOpen(false)
       await onSaved()
     } catch (error: any) {
@@ -566,20 +604,68 @@ function ThemeSoundEditor({
     <Dialog open={open} onOpenChange={changeOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="shrink-0 rounded-full">
-          <Music2 className="mr-1.5 h-3.5 w-3.5" />
-          Sound
-          {!enabled && <span className="ml-1.5 text-[10px] text-muted-foreground">off</span>}
+          <Palette className="mr-1.5 h-3.5 w-3.5" />
+          Edit theme
+          {!active && <span className="ml-1.5 text-[10px] text-muted-foreground">hidden</span>}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Soundtrack · {item.name}</DialogTitle>
+          <DialogTitle>Edit theme · {item.name}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Upload or paste the loop an owner hears on their profile. Replacing it does not touch the theme&apos;s CSS,
-            artwork or the copies buyers already own.
+            Everything a buyer receives: the background media, soundtrack, its playback defaults and the profile CSS.
+            Buyers keep the copy they already own until they re-equip the theme, so changing art never breaks a live
+            profile.
           </p>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor={`theme-name-${item.id}`}>Name</Label>
+              <Input
+                id={`theme-name-${item.id}`}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor={`theme-price-${item.id}`}>Price (coins)</Label>
+              <Input
+                id={`theme-price-${item.id}`}
+                type="number"
+                min={0}
+                value={price}
+                onChange={(event) => setPrice(event.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor={`theme-rarity-${item.id}`}>Rarity</Label>
+              <select
+                id={`theme-rarity-${item.id}`}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={rarity}
+                onChange={(event) => setRarity(event.target.value)}
+              >
+                <option value="common">Common</option>
+                <option value="rare">Rare</option>
+                <option value="epic">Epic</option>
+                <option value="legendary">Legendary</option>
+              </select>
+            </div>
+            <label className="flex items-center justify-between gap-3 rounded-md border border-input px-3">
+              <span className="text-xs font-medium">Live in shop</span>
+              <Switch checked={active} onCheckedChange={setActive} />
+            </label>
+          </div>
+
+          <MediaField
+            label="Profile background"
+            hint="picture, animated GIF or short video"
+            accept="image/*,video/*"
+            value={backgroundUrl}
+            onChange={setBackgroundUrl}
+          />
 
           <MediaField
             label="Soundtrack"
@@ -616,13 +702,36 @@ function ThemeSoundEditor({
             </div>
           </div>
 
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor={`theme-css-${item.id}`}>Profile CSS</Label>
+              <span
+                className={
+                  cssBytes > MAX_PROFILE_CUSTOM_CSS_BYTES
+                    ? "text-[10px] tabular-nums text-destructive"
+                    : "text-[10px] tabular-nums text-muted-foreground"
+                }
+              >
+                {cssBytes.toLocaleString()} / {MAX_PROFILE_CUSTOM_CSS_BYTES.toLocaleString()} bytes
+              </span>
+            </div>
+            <Textarea
+              id={`theme-css-${item.id}`}
+              value={css}
+              onChange={(event) => setCss(event.target.value)}
+              rows={6}
+              spellCheck={false}
+              className="font-mono text-[11px] leading-relaxed"
+            />
+          </div>
+
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>
               Cancel
             </Button>
             <Button onClick={save} disabled={saving}>
-              {saving ? <Spinner className="mr-2 h-4 w-4" /> : <Music2 className="mr-2 h-4 w-4" />}
-              Save soundtrack
+              {saving ? <Spinner className="mr-2 h-4 w-4" /> : <ImageIcon className="mr-2 h-4 w-4" />}
+              Save theme
             </Button>
           </div>
         </div>
