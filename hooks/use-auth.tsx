@@ -50,6 +50,7 @@ interface User {
   pronouns?: string | null
   profile_theme?: any
   custom_profile_css?: string
+  profile_layout?: Record<string, unknown>
   privacy_settings?: Record<string, unknown>
   notification_settings?: Record<string, unknown>
   verification_level?: string
@@ -185,6 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       theme_data: profileData.theme_data ?? previous?.theme_data,
       theme_preferences: profileData.theme_preferences ?? previous?.theme_preferences,
       custom_profile_css: profileData.custom_profile_css ?? previous?.custom_profile_css ?? "",
+      profile_layout: profileData.profile_layout ?? previous?.profile_layout,
       interests: profileData.interests ?? previous?.interests ?? [],
       phone: profileData.phone ?? previous?.phone,
       website: profileData.website ?? previous?.website,
@@ -519,6 +521,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const nextOrg = Boolean(profile.is_organization ?? prev.is_organization)
       const nextThemePrefs = (profile.theme_preferences as any) ?? prev.theme_preferences
       const nextCustomProfileCss = (profile.custom_profile_css as string | undefined) ?? prev.custom_profile_css
+      const nextProfileLayout = (profile.profile_layout as Record<string, unknown> | undefined) ?? prev.profile_layout
       const nextLocation = (profile.location as string | undefined) ?? prev.location
       const nextWebsite = (profile.website as string | undefined) ?? prev.website
       const nextPronouns = (profile.pronouns as string | null | undefined) ?? prev.pronouns ?? null
@@ -556,6 +559,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         nextOnboarding === prev.onboarding_completed &&
         nextThemePrefs === prev.theme_preferences &&
         nextCustomProfileCss === prev.custom_profile_css &&
+        nextProfileLayout === prev.profile_layout &&
         nextPrivacy === prev.privacy_settings &&
         nextNotification === prev.notification_settings &&
         nextPremiumExpiry === prev.premium_expires_at
@@ -582,6 +586,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         organization_badge_url: (profile.organization_badge_url as string | undefined) ?? prev.organization_badge_url,
         theme_preferences: nextThemePrefs,
         custom_profile_css: nextCustomProfileCss,
+        profile_layout: nextProfileLayout,
         location: nextLocation,
         website: nextWebsite,
         pronouns: nextPronouns,

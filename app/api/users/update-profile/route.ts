@@ -5,6 +5,7 @@ import { sanitizeTaggedCircles } from "@/lib/circle-limits"
 import { getUserFromRequest } from "@/lib/server-auth"
 import { isProUser } from "@/lib/pro-features"
 import { sanitizeProfileCustomCss } from "@/lib/profile-custom-css"
+import { validateProfileLayout } from "@/lib/profile-layout"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
@@ -60,6 +61,17 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
     const viewerIsPro = isProUser(profileRow as any)
     let validatedCustomProfileCss: string | undefined
+    let validatedProfileLayout: ReturnType<typeof validateProfileLayout> | undefined
+    if (Object.prototype.hasOwnProperty.call(body, "profile_layout")) {
+      try {
+        validatedProfileLayout = validateProfileLayout(body.profile_layout)
+      } catch (error) {
+        return NextResponse.json(
+          { error: error instanceof Error ? error.message : "Invalid profile layout." },
+          { status: 400 },
+        )
+      }
+    }
     if (Object.prototype.hasOwnProperty.call(body, "custom_profile_css")) {
       if (!viewerIsPro) {
         return NextResponse.json(
@@ -240,6 +252,7 @@ export async function POST(request: NextRequest) {
       privacy_settings,
       notification_settings,
       tagged_circles: sanitizedTags,
+      profile_layout: validatedProfileLayout,
       custom_profile_css: validatedCustomProfileCss,
       onboarding_completed: typeof onboarding_completed === "boolean" ? onboarding_completed : undefined,
       has_seen_feature_tour:

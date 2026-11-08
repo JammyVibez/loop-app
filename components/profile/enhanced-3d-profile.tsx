@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Calendar, Coins, Edit, Flame, Gift, Heart, Link as LinkIcon, Lock, MapPin, MessageCircle, MoreHorizontal, Plus, Palette, Share2, Wand2, Zap, Trophy, Upload, Users, Package, Building2, } from "lucide-react"
+import { ArrowLeft, Calendar, Coins, Edit, Flame, Gift, Heart, Link as LinkIcon, Lock, MapPin, MessageCircle, MoreHorizontal, Plus, Palette, Share2, Wand2, Zap, Trophy, Upload, Users, Package, Building2, Store, } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -51,6 +51,9 @@ import { ProfileAchievementShowcase } from "@/components/profile/profile-achieve
 import { stripCircleBioTokens } from "@/lib/circle-bio-tokens"
 import { isRustApiUnavailable, rustApiRequest } from "@/lib/rust-api"
 import { EnhancedMediaViewer } from "@/components/media/enhanced-media-viewer"
+import { ProfileDesigner } from "@/components/profile/profile-designer"
+import { normalizeProfileLayout, type ProfileLayout } from "@/lib/profile-layout"
+import { TactileButton } from "@/components/ui/tactile-button"
 
 interface Achievement {
   id: string
@@ -114,6 +117,8 @@ interface UserProfile {
   active_cosmetics?: ActiveCosmetics | null
   theme_preferences?: any
   custom_profile_css?: string | null
+  profile_design_css?: string | null
+  profile_layout?: ProfileLayout
   available_earnings?: number
   total_earnings?: number
 }
@@ -141,6 +146,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   // Cover picked from the file dialog, waiting to be framed in the cropper.
   const [coverCrop, setCoverCrop] = useState<File | null>(null)
   const [showGiftModal, setShowGiftModal] = useState(false)
+  const [designerOpen, setDesignerOpen] = useState(false)
   // Tapping the profile photo or cover opens it full-screen (zoom / swipe).
   const [photoViewer, setPhotoViewer] = useState<{
     url: string
@@ -547,6 +553,20 @@ export function Enhanced3DProfile({ username }: { username: string }) {
 
   const isOwnProfile = Boolean(user && (user.id === profile.id || user.username === profile.username))
   const displayName = profile.display_name || profile.username
+  const profileLayout = normalizeProfileLayout(profile.profile_layout)
+  const sectionOrder = (id: string) => profileLayout.sections.indexOf(id)
+  const sidebarOrder = (id: string) => profileLayout.sidebar.indexOf(id)
+  const sectionStyle = (id: string): React.CSSProperties => ({
+    order: sectionOrder(id),
+    display: profileLayout.hidden.includes(id) ? "none" : undefined,
+  })
+  const blockStyle = (id: string): React.CSSProperties => ({
+    order: sidebarOrder(id),
+    display: profileLayout.hidden.includes(id) ? "none" : undefined,
+  })
+  const profileBeforeContent = sectionOrder("profile") <= sectionOrder("content")
+  const gridTemplateAreas = profileBeforeContent ? '"profile content"' : '"content profile"'
+  const gridTemplateColumns = profileBeforeContent ? "360px minmax(0, 1fr)" : "minmax(0, 1fr) 360px"
   const xp = Number(profile.xp_points || 0)
   const level = Number(profile.level || 1)
   const nextXp = xpForNextLevel(level)
@@ -555,6 +575,9 @@ export function Enhanced3DProfile({ username }: { username: string }) {
 
   return (
     <div className="mx-auto w-full max-w-6xl bg-background min-h-screen loop-profile-custom-css">
+      {profile.profile_design_css ? (
+        <style dangerouslySetInnerHTML={{ __html: profile.profile_design_css }} />
+      ) : null}
       {profile.custom_profile_css ? (
         <style dangerouslySetInnerHTML={{ __html: profile.custom_profile_css }} />
       ) : null}
@@ -613,9 +636,9 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         </div>
       </div>
 
-      <div className="lg:px-4 lg:pt-4">
+      <div className="lg:px-4 lg:pt-4 loop-profile-layout-canvas">
       {/* Banner — animated cover with upload button */}
-      <div className="relative">
+      <div className="relative loop-profile-layout-cover" data-profile-section="cover" style={sectionStyle("cover")}>
       <div
         role={profile.banner_url || (profile as any).video_cover_url ? "button" : undefined}
         tabIndex={profile.banner_url || (profile as any).video_cover_url ? 0 : -1}
@@ -703,11 +726,11 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       </div>
 
       {/* Desktop: two-column layout — sticky info sidebar + content column. Mobile stays stacked. */}
-      <div className="lg:grid lg:grid-cols-[360px_minmax(0,1fr)] lg:gap-8">
+      <div className="loop-profile-layout-grid" style={{ display: "grid", gap: "2rem", alignItems: "start", gridTemplateAreas, gridTemplateColumns }}>
       {/* Avatar + actions — stack on mobile; empty overlap must not block cover button */}
-      <div className="relative z-10 px-3 pb-3 sm:px-4 lg:px-0 lg:pb-0">
-        <div className="lg:sticky lg:top-28 lg:pb-8">
-        <div className="-mt-10 flex flex-col gap-3 pointer-events-none sm:-mt-14 sm:flex-row sm:items-end sm:justify-between">
+      <div className="relative z-10 px-3 pb-3 sm:px-4 lg:px-0 lg:pb-0 loop-profile-sidebar-column" data-profile-section="profile" style={{ gridArea: "profile", order: sectionOrder("profile"), minWidth: 0 }}>
+        <div className="lg:sticky lg:top-28 lg:pb-8 loop-profile-sidebar">
+        <div className="-mt-10 flex flex-col gap-3 pointer-events-none sm:-mt-14 sm:flex-row sm:items-end sm:justify-between" data-profile-block="avatar-actions" style={blockStyle("avatar-actions")}>
           <div
             className={cn(
               "relative self-start pointer-events-auto rounded-full",
@@ -770,6 +793,14 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                     <Edit className="mr-2 h-4 w-4" /> Edit profile
                   </Button>
                 </Link>
+                <TactileButton variant="secondary" className="min-w-0 flex-1 rounded-full px-3 sm:flex-none" onClick={() => setDesignerOpen(true)}>
+                  <Palette className="mr-2 h-4 w-4" /> Design
+                </TactileButton>
+                <Link href="/profile-marketplace" className="min-w-0 flex-1 sm:flex-none">
+                  <Button variant="outline" className="w-full rounded-full px-3 font-semibold sm:px-4">
+                    <Store className="mr-2 h-4 w-4" /> Market
+                  </Button>
+                </Link>
                 <div className="w-full sm:w-auto">
                   <ProfileShareCard
                     username={profile.username}
@@ -823,8 +854,8 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           </div>
         </div>
 
-        <div className="mt-3 space-y-3">
-          <div>
+        <div className="mt-3 space-y-3 loop-profile-sidebar-blocks">
+          <div data-profile-block="identity" style={blockStyle("identity")}>
             <div className="flex flex-wrap items-center gap-1.5">
               {/* The mark needs real air beside the name — a hairline gap still
                   reads as part of the word at these sizes. */}
@@ -861,6 +892,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             )}
           </div>
 
+          <div data-profile-block="bio" style={blockStyle("bio")}>
           {profile.bio ? (
             <RichContent text={profile.bio} className="text-[15px] leading-relaxed" showPreviewCard={false} />
           ) : (
@@ -869,8 +901,9 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             </p>
           )}
           <BioCommunityTags tags={profile.tagged_circles} bioText={profile.bio} />
+          </div>
 
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground" data-profile-block="details" style={blockStyle("details")}>
             {profile.location && (
               <span className="inline-flex items-center gap-1">
                 <MapPin className="h-4 w-4" /> {profile.location}
@@ -903,7 +936,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           </div>
 
           {/* Compact X-style stats */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm" data-profile-block="stats" style={blockStyle("stats")}>
             <Link href={`/profile/${profile.username}/following`} className="hover:underline">
               <span className="font-bold text-foreground">{formatCount(profile.following_count)}</span>{" "}
               <span className="text-muted-foreground">Following</span>
@@ -934,9 +967,11 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           </div>
 
           {/* Admin-granted awards shelf */}
-          {profile.id && <ProfileAwards userId={profile.id} />}
+          <div data-profile-block="awards" style={blockStyle("awards")}>
+            {profile.id && <ProfileAwards userId={profile.id} />}
+          </div>
 
-          <div className="mt-2 space-y-1.5">
+          <div className="mt-2 space-y-1.5" data-profile-block="progress" style={blockStyle("progress")}>
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>
                 {xp.toLocaleString()} XP · next level at {nextXp.toLocaleString()}
@@ -951,6 +986,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             </div>
 
             {/* Organization Account Tier & Follower Progress Status */}
+            <div data-profile-block="organization" style={blockStyle("organization")}>
             {profile.is_organization ? (
               <div className="mt-3 space-y-2 rounded-xl border border-border/70 bg-card p-3.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -996,6 +1032,8 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                 </p>
               </div>
             )}
+            </div>
+            <div data-profile-block="cosmetics" style={blockStyle("cosmetics")}>
             {(cosmetics.badge || cosmetics.frame || cosmetics.aura || cosmetics.effect || cosmetics.font || cosmetics.cardEffect) && (
               <div className="space-y-2.5 rounded-xl border border-border/70 bg-card p-3">
                 <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
@@ -1130,6 +1168,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           </div>
         </div>
       ) : (
+      <div className="loop-profile-layout-main" data-profile-section="content" style={{ gridArea: "content", order: sectionOrder("content"), minWidth: 0 }}>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full lg:pt-4">
         <TabsList className="flex h-auto w-full justify-stretch overflow-x-auto rounded-none border-b border-border/70 bg-transparent p-0">
           {[
@@ -1139,7 +1178,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             { id: "media", label: "Media" },
             { id: "work", label: "Creative work" },
             { id: "awards", label: "Awards" },
-          ].map((tab) => (
+          ].sort((left, right) => profileLayout.tabs.indexOf(left.id) - profileLayout.tabs.indexOf(right.id)).map((tab) => (
             <TabsTrigger
               key={tab.id}
               value={tab.id}
@@ -1243,6 +1282,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           )}
         </TabsContent>
       </Tabs>
+      </div>
       )}
       </div>
       </div>
@@ -1279,6 +1319,18 @@ export function Enhanced3DProfile({ username }: { username: string }) {
 
       {/* Tap the profile photo or cover → full-screen viewer (pinch/double-tap
           zoom, swipe, Escape to close) reusing the app's media viewer. */}
+      {isOwnProfile ? (
+        <ProfileDesigner
+          open={designerOpen}
+          onOpenChange={setDesignerOpen}
+          initialLayout={profileLayout}
+          initialCss={profile.custom_profile_css || ""}
+          isPremium={Boolean(user?.is_premium)}
+          displayName={displayName}
+          onSaved={(layout) => setProfile((current) => current ? { ...current, profile_layout: layout } : current)}
+        />
+      ) : null}
+
       {photoViewer && (
         <EnhancedMediaViewer
           open
