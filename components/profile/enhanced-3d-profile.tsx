@@ -629,12 +629,23 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       {/* A purchased theme paints its artwork behind the whole profile, then
           smokes the lower half so names and text always keep their contrast. */}
       {profileTheme.backgroundUrl ? (
-        <div aria-hidden="true" className="loop-profile-background pointer-events-none absolute inset-0 overflow-hidden">
+        <div
+          aria-hidden="true"
+          data-profile-background=""
+          className="loop-profile-background pointer-events-none absolute inset-0 overflow-hidden"
+        >
           <div
+            data-profile-background-image=""
             className="absolute inset-0 bg-cover bg-top bg-no-repeat"
             style={{ backgroundImage: `url("${profileTheme.backgroundUrl}")` }}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-background/20 via-background/75 to-background" />
+          {/* Only enough smoke for contrast: the artwork is the point of the
+              theme, so the panel below keeps it visible rather than hiding it
+              behind an opaque page background. */}
+          <div
+            data-profile-background-scrim=""
+            className="absolute inset-0 bg-gradient-to-b from-background/10 via-background/40 to-background/85"
+          />
         </div>
       ) : null}
       {/* Profile top bar. The site header is h-16 (64px), so top-16 pins this

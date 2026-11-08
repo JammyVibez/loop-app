@@ -62,7 +62,7 @@ export function LoopCardContent({
   return (
     <>
       {LoginGateDialog}
-      <div className="space-y-2">
+      <div data-loop-card-content="" className="space-y-2">
         <div
           onDoubleClick={() => onLike({ fromDoubleTap: true })}
           className="relative"

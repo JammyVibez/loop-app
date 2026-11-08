@@ -151,7 +151,7 @@ export function LoopCardActions({
     shouldShowCount(value) ? <span className={count}>{Number(value)}</span> : null
 
   return (
-    <div className="mt-1.5 flex items-center justify-between gap-1">
+    <div data-loop-card-actions="" className="mt-1.5 flex items-center justify-between gap-1">
       {/* Primary engagement — the four things people do from the feed. */}
       <div className="loop-action-row flex min-w-0 items-center sm:gap-2">
         <Button

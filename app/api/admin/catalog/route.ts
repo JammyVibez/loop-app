@@ -209,6 +209,10 @@ export async function POST(request: NextRequest) {
       if (audioUrl) itemData.profile_audio_url = audioUrl
       const audioTitle = typeof body.profile_audio_title === "string" ? body.profile_audio_title.trim().slice(0, 80) : ""
       if (audioTitle) itemData.profile_audio_title = audioTitle
+      // Soundtrack defaults travel with the item: an admin can ship a theme
+      // silent, or one that only plays once a visitor asks for it.
+      itemData.profile_audio_enabled = body.profile_audio_enabled !== false
+      itemData.profile_audio_autoplay = body.profile_audio_autoplay !== false
     }
 
     const { data: item, error } = await supabase

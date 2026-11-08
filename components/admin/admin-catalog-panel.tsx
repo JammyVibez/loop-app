@@ -1,12 +1,13 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Plus, RefreshCw, Zap } from "lucide-react"
+import { Music2, Plus, RefreshCw, Zap } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -99,6 +100,8 @@ export function AdminCatalogPanel() {
     profile_background_url: "",
     profile_audio_url: "",
     profile_audio_title: "",
+    profile_audio_enabled: true,
+    profile_audio_autoplay: true,
   })
 
   const loadItems = useCallback(async () => {
@@ -147,6 +150,8 @@ export function AdminCatalogPanel() {
                 profile_background_url: form.profile_background_url,
                 profile_audio_url: form.profile_audio_url,
                 profile_audio_title: form.profile_audio_title,
+                profile_audio_enabled: form.profile_audio_enabled,
+                profile_audio_autoplay: form.profile_audio_autoplay,
               }
             : {}),
         }),
@@ -350,6 +355,29 @@ export function AdminCatalogPanel() {
                   />
                 </div>
 
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-border bg-background/40 px-2.5 py-2">
+                    <span>
+                      <span className="block text-[11px] font-medium">Sound on by default</span>
+                      <span className="block text-[10px] text-muted-foreground">Off ships it silent.</span>
+                    </span>
+                    <Switch
+                      checked={form.profile_audio_enabled}
+                      onCheckedChange={(checked) => setForm((p) => ({ ...p, profile_audio_enabled: checked }))}
+                    />
+                  </label>
+                  <label className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-border bg-background/40 px-2.5 py-2">
+                    <span>
+                      <span className="block text-[11px] font-medium">Starts automatically</span>
+                      <span className="block text-[10px] text-muted-foreground">Off waits for a tap.</span>
+                    </span>
+                    <Switch
+                      checked={form.profile_audio_autoplay}
+                      onCheckedChange={(checked) => setForm((p) => ({ ...p, profile_audio_autoplay: checked }))}
+                    />
+                  </label>
+                </div>
+
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <Label htmlFor="cat-profile-css">Profile CSS</Label>
@@ -451,6 +479,10 @@ export function AdminCatalogPanel() {
                       </p>
                     </div>
                   </div>
+
+                  {(item.category === "theme" || item.item_type?.includes("profile_theme")) && (
+                    <ThemeSoundEditor item={item} getAuthHeader={getAuthHeader} onSaved={loadItems} />
+                  )}
                 </div>
               )
             })
@@ -458,5 +490,143 @@ export function AdminCatalogPanel() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+/**
+ * Soundtrack editor for a catalog theme that already exists.
+ *
+ * The create form can attach a soundtrack, but replacing one on a live theme
+ * used to mean hunting the item down in Shop management. This edits just the
+ * audio fields of `item_data`, so the artwork, CSS, price and buyers' copies
+ * are untouched. It previews the file before saving and exposes both playback
+ * defaults the equip endpoint reads.
+ */
+function ThemeSoundEditor({
+  item,
+  getAuthHeader,
+  onSaved,
+}: {
+  item: { id: string; name: string; item_data?: any }
+  getAuthHeader: () => Record<string, string>
+  onSaved: () => Promise<void> | void
+}) {
+  const { toast } = useToast()
+  const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const initial = (item.item_data || {}) as Record<string, unknown>
+  const [audioUrl, setAudioUrl] = useState(typeof initial.profile_audio_url === "string" ? initial.profile_audio_url : "")
+  const [title, setTitle] = useState(typeof initial.profile_audio_title === "string" ? initial.profile_audio_title : "")
+  const [enabled, setEnabled] = useState(initial.profile_audio_enabled !== false)
+  const [autoplay, setAutoplay] = useState(initial.profile_audio_autoplay !== false)
+
+  // Re-read the row each time the dialog opens, so a save (or a change made in
+  // Shop management) is reflected instead of the state captured at mount.
+  const changeOpen = (next: boolean) => {
+    if (next) {
+      const fresh = (item.item_data || {}) as Record<string, unknown>
+      setAudioUrl(typeof fresh.profile_audio_url === "string" ? fresh.profile_audio_url : "")
+      setTitle(typeof fresh.profile_audio_title === "string" ? fresh.profile_audio_title : "")
+      setEnabled(fresh.profile_audio_enabled !== false)
+      setAutoplay(fresh.profile_audio_autoplay !== false)
+    }
+    setOpen(next)
+  }
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      const response = await fetch("/api/admin/shop-items", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({
+          id: item.id,
+          item_data: {
+            ...(item.item_data || {}),
+            profile_audio_url: audioUrl.trim(),
+            profile_audio_title: title.trim(),
+            profile_audio_enabled: enabled,
+            profile_audio_autoplay: autoplay,
+          },
+        }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error || "Failed to save the soundtrack")
+      toast({ description: `${item.name} soundtrack saved.` })
+      setOpen(false)
+      await onSaved()
+    } catch (error: any) {
+      toast({ title: "Save failed", description: error.message, variant: "destructive" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={changeOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="shrink-0 rounded-full">
+          <Music2 className="mr-1.5 h-3.5 w-3.5" />
+          Sound
+          {!enabled && <span className="ml-1.5 text-[10px] text-muted-foreground">off</span>}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Soundtrack · {item.name}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Upload or paste the loop an owner hears on their profile. Replacing it does not touch the theme&apos;s CSS,
+            artwork or the copies buyers already own.
+          </p>
+
+          <MediaField
+            label="Soundtrack"
+            hint="MP3, WAV, OGG or M4A — loops on the profile"
+            accept="audio/*"
+            value={audioUrl}
+            onChange={setAudioUrl}
+          />
+
+          <div className="space-y-1.5">
+            <Label htmlFor={`sound-title-${item.id}`}>Soundtrack title</Label>
+            <Input
+              id={`sound-title-${item.id}`}
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="e.g. Malevolent Shrine — Cursed Pulse"
+            />
+          </div>
+
+          <div className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium">Sound on by default</p>
+                <p className="text-[10px] text-muted-foreground">Off equips the theme silent.</p>
+              </div>
+              <Switch checked={enabled} onCheckedChange={setEnabled} />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium">Starts automatically</p>
+                <p className="text-[10px] text-muted-foreground">Off waits for the visitor to tap the sound pill.</p>
+              </div>
+              <Switch checked={autoplay} onCheckedChange={setAutoplay} />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={save} disabled={saving}>
+              {saving ? <Spinner className="mr-2 h-4 w-4" /> : <Music2 className="mr-2 h-4 w-4" />}
+              Save soundtrack
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }

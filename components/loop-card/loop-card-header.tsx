@@ -103,7 +103,7 @@ export function LoopCardHeader({
     (Array.isArray(loop.media_urls) && loop.media_urls.length > 1)
 
   return (
-    <div className="flex flex-col gap-1 px-4 pb-2 pt-4 sm:px-5">
+    <div data-loop-card-header="" className="flex flex-col gap-1 px-4 pb-2 pt-4 sm:px-5">
       {LoginGateDialog}
 
       {/* Branch origin banner — always name the author we branched from (@username + badge when verified) */}

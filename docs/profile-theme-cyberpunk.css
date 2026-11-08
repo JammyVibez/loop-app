@@ -1,0 +1,434 @@
+/*
+ * CYBERPUNK // NIGHT CITY
+ * A complete Loop Pro profile theme you can paste as-is, then re-colour.
+ *
+ * How it is applied
+ *   • Personal CSS: Settings → Profile → Custom profile CSS (Pro), paste this whole file.
+ *   • Shop theme:   Admin → Themes & Effects → New catalog item → Theme, paste it into
+ *                   "Profile CSS", add a background picture and a soundtrack.
+ *
+ * Rules the sanitiser enforces
+ *   • Every selector is scoped to .loop-profile-custom-css automatically.
+ *   • url(), @import, @font-face and executable values are rejected. All art here is
+ *     pure CSS gradients, so nothing is fetched.
+ *   • @media, @supports and @keyframes are allowed; keyframe names are namespaced.
+ *   • The scoped result must stay under 21,000 UTF-8 bytes.
+ *
+ * Everything you are likely to change is a token in the first block.
+ */
+
+.loop-profile-custom-css {
+  /* ── Palette ─────────────────────────────────────────────────────────── */
+  --cp-void: #04070f;
+  --cp-panel: rgba(4, 10, 20, 0.74);
+  --cp-cyan: #00f0ff;
+  --cp-magenta: #ff2bd6;
+  --cp-acid: #f6ff00;
+  --cp-ink: #d8fbff;
+  --cp-dim: rgba(178, 232, 255, 0.62);
+  --cp-line: rgba(0, 240, 255, 0.28);
+  --cp-line-hot: rgba(255, 43, 214, 0.45);
+  --cp-glass: linear-gradient(158deg, rgba(6, 16, 30, 0.86), rgba(3, 6, 14, 0.92));
+
+  /* ── Post-card tokens (read by the "Post cards" block at the bottom) ─── */
+  --lp-card-bg: linear-gradient(158deg, rgba(6, 18, 32, 0.9), rgba(4, 8, 16, 0.94));
+  --lp-card-border: rgba(0, 240, 255, 0.26);
+  --lp-card-border-strong: rgba(255, 43, 214, 0.55);
+  --lp-card-hairline: rgba(0, 240, 255, 0.16);
+  --lp-card-ink: #d8fbff;
+  --lp-card-muted: rgba(178, 232, 255, 0.64);
+  --lp-card-accent: #00f0ff;
+  --lp-card-like: #ff2bd6;
+  --lp-card-glow: rgba(0, 240, 255, 0.5);
+  --lp-card-hover: rgba(0, 240, 255, 0.12);
+
+  padding-bottom: 2.5rem;
+  color: var(--cp-ink);
+}
+
+/* ── Background artwork ────────────────────────────────────────────────────
+   The owner's background picture is drawn by the app; these layers tint it,
+   add the city grid and run a slow scanline over the whole profile. */
+
+.loop-profile-custom-css [data-profile-background-image] {
+  filter: saturate(1.18) contrast(1.06);
+}
+
+.loop-profile-custom-css [data-profile-background-scrim] {
+  background-image:
+    radial-gradient(120% 80% at 16% 0%, rgba(255, 43, 214, 0.2), transparent 58%),
+    radial-gradient(100% 70% at 84% 6%, rgba(0, 240, 255, 0.18), transparent 60%),
+    linear-gradient(180deg, rgba(4, 7, 15, 0.28), rgba(4, 7, 15, 0.66) 56%, rgba(4, 7, 15, 0.92));
+}
+
+.loop-profile-custom-css .loop-profile-background::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(0, 240, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 43, 214, 0.06) 1px, transparent 1px);
+  background-size: 44px 44px, 44px 44px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.85), transparent 72%);
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.85), transparent 72%);
+}
+
+.loop-profile-custom-css .loop-profile-background::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.035) 0,
+    rgba(255, 255, 255, 0.035) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  opacity: 0.55;
+  animation: cpScan 9s linear infinite;
+}
+
+@keyframes cpScan {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 44px;
+  }
+}
+
+/* ── Cover ──────────────────────────────────────────────────────────────────
+   A hard-edged screen with a neon sweep and an acid data strip. */
+
+.loop-profile-custom-css .loop-profile-layout-cover {
+  position: relative;
+}
+
+.loop-profile-custom-css .loop-profile-layout-cover > div:first-child {
+  border-radius: 2px;
+  box-shadow:
+    0 0 0 1px var(--cp-line),
+    0 0 44px -18px rgba(0, 240, 255, 0.7),
+    0 40px 90px -58px rgba(0, 0, 0, 0.95);
+}
+
+.loop-profile-custom-css .loop-profile-layout-cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  border-radius: 2px;
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(0, 240, 255, 0.18) 42%,
+    rgba(255, 43, 214, 0.32) 50%,
+    rgba(246, 255, 0, 0.14) 56%,
+    transparent 68%
+  );
+  background-size: 240% 100%;
+  animation: cpSweep 8s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+@keyframes cpSweep {
+  0%,
+  100% {
+    background-position: 148% 0;
+  }
+  55% {
+    background-position: -48% 0;
+  }
+}
+
+/* ── Identity column ───────────────────────────────────────────────────────
+   An angled glass module with a clipped corner — the canonical cyberpunk card. */
+
+.loop-profile-custom-css .loop-profile-sidebar-column {
+  position: relative;
+  padding-inline: 1rem;
+  color: var(--cp-dim);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column::before {
+  content: "";
+  position: absolute;
+  inset: 3.25rem 0 -0.25rem;
+  border: 1px solid var(--cp-line);
+  border-radius: 2px;
+  background-image: var(--cp-glass);
+  clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+  box-shadow:
+    0 0 0 1px rgba(255, 43, 214, 0.08) inset,
+    0 34px 80px -56px rgba(0, 0, 0, 0.96),
+    0 0 42px -30px rgba(0, 240, 255, 0.65);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  pointer-events: none;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar,
+.loop-profile-custom-css .loop-profile-sidebar-blocks {
+  position: relative;
+  z-index: 1;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar {
+  padding-bottom: 0.9rem;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column .text-foreground {
+  color: var(--cp-ink);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column .text-muted-foreground {
+  color: var(--cp-dim);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column [class*="border-border"] {
+  border-color: var(--cp-line);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column .bg-muted {
+  background-color: rgba(0, 240, 255, 0.08);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column .bg-card {
+  background-color: rgba(255, 43, 214, 0.05);
+}
+
+/* Name: chrome under a neon sign. */
+.loop-profile-custom-css .loop-profile-sidebar-column h2 {
+  font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background-image: linear-gradient(100deg, #ffffff, var(--cp-cyan) 38%, var(--cp-magenta) 72%, #ffffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 14px rgba(0, 240, 255, 0.35));
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column [data-profile-block="identity"] {
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+/* Primary action: acid fill, black type — a hazard label. */
+.loop-profile-custom-css .loop-profile-sidebar-column .bg-foreground {
+  background-image: linear-gradient(118deg, var(--cp-acid), #7dffb8);
+  background-color: var(--cp-acid);
+  color: #03060c;
+  box-shadow: 0 0 22px -10px rgba(246, 255, 0, 0.7);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column button {
+  border-color: rgba(0, 240, 255, 0.32);
+  color: var(--cp-ink);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column button:hover {
+  background-color: rgba(0, 240, 255, 0.12);
+  border-color: var(--cp-cyan);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column a {
+  text-underline-offset: 3px;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column [data-profile-block="progress"] div[class*="h-full"] {
+  background-image: linear-gradient(90deg, var(--cp-cyan), var(--cp-magenta));
+  box-shadow: 0 0 18px rgba(0, 240, 255, 0.6);
+}
+
+/* ── Content column ─────────────────────────────────────────────────────────
+   Translucent so the background picture keeps moving behind the posts. */
+
+.loop-profile-custom-css .loop-profile-layout-main {
+  position: relative;
+  padding: 0 0.5rem 0.75rem;
+  border-radius: 2px;
+  border: 1px solid var(--cp-line);
+  background-color: var(--cp-panel);
+  box-shadow:
+    0 0 0 1px rgba(255, 43, 214, 0.1),
+    0 32px 84px -58px rgba(0, 0, 0, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.loop-profile-custom-css .loop-profile-layout-main::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px solid rgba(0, 240, 255, 0.07);
+  pointer-events: none;
+}
+
+/* ── Tabs ─────────────────────────────────────────────────────────────────── */
+
+.loop-profile-custom-css [data-profile-tab] {
+  color: color-mix(in srgb, var(--cp-ink) 52%, transparent);
+  font-family: ui-monospace, "JetBrains Mono", monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.loop-profile-custom-css [data-profile-tab][data-state="active"] {
+  color: var(--cp-cyan);
+  border-bottom-color: var(--cp-magenta);
+  background-image: linear-gradient(180deg, rgba(0, 240, 255, 0.16), transparent);
+  text-shadow: 0 0 14px rgba(0, 240, 255, 0.55);
+}
+
+.loop-profile-custom-css [data-profile-tab][data-state="active"]:focus-visible {
+  outline-color: var(--cp-cyan);
+}
+
+/* ── Grid tiles and list rows ─────────────────────────────────────────────── */
+
+.loop-profile-custom-css [data-profile-post-tile] {
+  outline: 1px solid rgba(0, 240, 255, 0.12);
+  outline-offset: -1px;
+}
+
+.loop-profile-custom-css [data-profile-post-tile]:hover {
+  outline-color: var(--cp-magenta);
+  box-shadow: 0 0 28px -14px rgba(255, 43, 214, 0.8);
+}
+
+.loop-profile-custom-css [data-profile-post-row] {
+  border-bottom-color: rgba(0, 240, 255, 0.16);
+}
+
+.loop-profile-custom-css [data-profile-post-row]:hover {
+  background-color: rgba(0, 240, 255, 0.06);
+}
+
+/* ── Post cards ─────────────────────────────────────────────────────────────
+   "Post cards" renders the real LoopCard, so the theme styles its internals:
+   surface (data-loop-card), identity row (data-loop-card-header), body
+   (data-loop-card-content), media (data-loop-card-media) and the action
+   bar (data-loop-card-actions). */
+
+.loop-profile-custom-css [data-loop-card] {
+  background: var(--lp-card-bg) !important;
+  border: 1px solid var(--lp-card-border) !important;
+  border-radius: 2px !important;
+  box-shadow:
+    0 24px 60px -44px rgba(0, 0, 0, 0.94),
+    0 0 38px -28px var(--lp-card-glow) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.loop-profile-custom-css [data-loop-card]:hover {
+  border-color: var(--lp-card-border-strong) !important;
+  box-shadow:
+    0 24px 60px -44px rgba(0, 0, 0, 0.94),
+    0 0 46px -24px rgba(255, 43, 214, 0.55) !important;
+  transform: translateY(-1px);
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-header] {
+  border-bottom: 1px solid var(--lp-card-hairline);
+  padding-bottom: 0.7rem;
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-header] img {
+  box-shadow: 0 0 0 1px var(--lp-card-hairline);
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-header] a:hover {
+  color: var(--lp-card-accent);
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-header] .text-foreground,
+.loop-profile-custom-css [data-loop-card] [data-loop-card-content] .text-foreground,
+.loop-profile-custom-css [data-loop-card] [data-loop-card-content] {
+  color: var(--lp-card-ink);
+}
+
+.loop-profile-custom-css [data-loop-card] .text-muted-foreground {
+  color: var(--lp-card-muted) !important;
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-content] a[href^="/hashtag"] {
+  color: var(--lp-card-accent) !important;
+  background-color: var(--lp-card-hover);
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-content] code,
+.loop-profile-custom-css [data-loop-card] [data-loop-card-content] pre {
+  border: 1px solid var(--lp-card-hairline);
+  background-color: rgba(0, 240, 255, 0.06);
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-media] {
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--lp-card-hairline);
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-actions] {
+  margin-top: 0.45rem;
+  border-top: 1px solid var(--lp-card-hairline);
+  padding-top: 0.2rem;
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-actions] button,
+.loop-profile-custom-css [data-loop-card] [data-loop-card-actions] a {
+  color: var(--lp-card-muted);
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-actions] button:hover {
+  background-color: var(--lp-card-hover);
+  color: var(--lp-card-accent);
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-actions] .text-rose-500 {
+  color: var(--lp-card-like) !important;
+}
+
+.loop-profile-custom-css [data-loop-card] .text-emerald-500 {
+  color: var(--cp-acid) !important;
+}
+
+/* The old cards-view container rule: keep it out of the way now that the card
+   itself carries the surface. */
+.loop-profile-custom-css [data-profile-post-card] > * {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* ── Small screens ────────────────────────────────────────────────────────── */
+
+@media (max-width: 1023px) {
+  .loop-profile-custom-css .loop-profile-sidebar-column::before {
+    inset: 2.75rem -0.25rem -0.25rem;
+  }
+
+  .loop-profile-custom-css .loop-profile-layout-main {
+    padding: 0 0.25rem 0.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loop-profile-custom-css .loop-profile-layout-cover::after,
+  .loop-profile-custom-css .loop-profile-background::after {
+    animation: none;
+  }
+
+  .loop-profile-custom-css [data-loop-card]:hover {
+    transform: none;
+  }
+}

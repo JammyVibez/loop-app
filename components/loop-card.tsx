@@ -555,6 +555,11 @@ export const LoopCard = memo(function LoopCard({
         <Card
           ref={cardRef}
           className={getCardStyle()}
+          // Stable hooks: a surface can dress the whole card, not just the
+          // container it sits in. Profile themes use these to restyle a post
+          // card's surface, header, body, media and action row.
+          data-loop-card=""
+          data-loop-card-surface={surface}
           style={cardEffectStyle(
             (loop.author.cosmetics || loop.author.active_cosmetics)?.cardEffect
           )}
@@ -624,15 +629,17 @@ export const LoopCard = memo(function LoopCard({
               />
             )}
 
-            <LoopCardMedia
-              mediaType={loop.media_type}
-              mediaUrl={loop.media_url}
-              mediaUrls={loop.media_urls}
-              doubleTapHeart={doubleTapHeart}
-              onDoubleTapLike={() => handleLike({ fromDoubleTap: true })}
-              onOpenViewer={() => setViewerOpen(true)}
-              isSpoiler={Boolean(loop.is_spoiler)}
-            />
+            <div data-loop-card-media="">
+              <LoopCardMedia
+                mediaType={loop.media_type}
+                mediaUrl={loop.media_url}
+                mediaUrls={loop.media_urls}
+                doubleTapHeart={doubleTapHeart}
+                onDoubleTapLike={() => handleLike({ fromDoubleTap: true })}
+                onOpenViewer={() => setViewerOpen(true)}
+                isSpoiler={Boolean(loop.is_spoiler)}
+              />
+            </div>
 
             {/* Gift indicators */}
             {Number(loop.gifts_received) > 0 && (

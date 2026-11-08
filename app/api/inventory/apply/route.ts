@@ -262,8 +262,11 @@ export async function POST(request: NextRequest) {
             ...(profileTheme?.audioUrl
               ? {
                   profile_audio: profileTheme.audioUrl,
-                  profile_audio_enabled: true,
-                  profile_audio_autoplay: true,
+                  // The admin decides whether the theme arrives sounding and
+                  // whether it starts on its own; the owner can override both
+                  // later from Profile atmosphere.
+                  profile_audio_enabled: profileTheme.audioEnabled,
+                  profile_audio_autoplay: profileTheme.audioAutoplay,
                 }
               : {}),
             ...(profileTheme?.audioTitle ? { profile_audio_title: profileTheme.audioTitle } : {}),

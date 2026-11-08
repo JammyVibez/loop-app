@@ -8,8 +8,19 @@
   --ah-pink: #ff8fb1;
   --ah-blue: #7fb2ff;
   --ah-cream: #ffe9f0;
-  --ah-glass: linear-gradient(158deg, rgba(34, 12, 44, 0.92), rgba(9, 4, 16, 0.96));
+  --ah-glass: linear-gradient(158deg, rgba(34, 12, 44, 0.74), rgba(9, 4, 16, 0.82));
   --ah-hairline: rgba(255, 110, 150, 0.3);
+  /* Post-card tokens — see the "Post cards" block below. */
+  --lp-card-bg: linear-gradient(158deg, rgba(34, 12, 44, 0.8), rgba(9, 4, 16, 0.9));
+  --lp-card-border: rgba(255, 110, 150, 0.28);
+  --lp-card-border-strong: rgba(255, 143, 177, 0.56);
+  --lp-card-hairline: rgba(255, 110, 150, 0.18);
+  --lp-card-ink: #ffe9f0;
+  --lp-card-muted: rgba(255, 205, 220, 0.64);
+  --lp-card-accent: #ff8fb1;
+  --lp-card-like: #ff2e63;
+  --lp-card-glow: rgba(255, 46, 99, 0.5);
+  --lp-card-hover: rgba(255, 46, 99, 0.14);
   padding-bottom: 2.5rem;
 }
 
@@ -152,10 +163,103 @@
   padding: 0 0.5rem 0.75rem;
   border-radius: 26px;
   border: 1px solid rgba(255, 110, 150, 0.26);
-  background-color: var(--background);
+  /* Keep the neon skyline visible behind the panel. */
+  background-color: color-mix(in srgb, var(--background) 78%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   box-shadow:
     0 34px 80px -60px rgba(0, 0, 0, 0.85),
     inset 0 1px 0 rgba(255, 143, 177, 0.05);
+}
+
+/* The neon skyline artwork sits behind the whole page; keep a magenta bloom
+   over the identity column and let the street darken toward the posts. */
+.loop-profile-custom-css [data-profile-background-image] {
+  filter: saturate(1.18) contrast(1.05);
+}
+
+.loop-profile-custom-css [data-profile-background-scrim] {
+  background-image:
+    radial-gradient(86% 66% at 26% 40%, rgba(255, 46, 99, 0.2), transparent 62%),
+    radial-gradient(70% 52% at 82% 18%, rgba(127, 178, 255, 0.16), transparent 64%),
+    linear-gradient(180deg, rgba(5, 3, 15, 0.16), rgba(5, 3, 15, 0.54) 56%, rgba(5, 3, 15, 0.93));
+}
+
+/* ── Post cards ──────────────────────────────────────────────────────────
+   The "Post cards" presentation is the real LoopCard, not a tile, so the
+   theme dresses the card itself: surface, edges, identity row, body copy,
+   media and action bar all read from the --lp-card-* tokens above. */
+.loop-profile-custom-css [data-loop-card] {
+  background: var(--lp-card-bg) !important;
+  border: 1px solid var(--lp-card-border) !important;
+  border-radius: 20px !important;
+  box-shadow:
+    0 24px 60px -44px rgba(0, 0, 0, 0.9),
+    0 0 38px -28px var(--lp-card-glow) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.loop-profile-custom-css [data-loop-card]:hover {
+  border-color: var(--lp-card-border-strong) !important;
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-header] {
+  border-bottom: 1px solid var(--lp-card-hairline);
+  padding-bottom: 0.7rem;
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-header] img {
+  box-shadow: 0 0 0 1px var(--lp-card-hairline);
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-header] a:hover {
+  color: var(--lp-card-accent);
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-header] .text-foreground,
+.loop-profile-custom-css [data-loop-card] [data-loop-card-content] .text-foreground,
+.loop-profile-custom-css [data-loop-card] [data-loop-card-content] {
+  color: var(--lp-card-ink);
+}
+
+.loop-profile-custom-css [data-loop-card] .text-muted-foreground {
+  color: var(--lp-card-muted) !important;
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-content] a[href^="/hashtag"] {
+  color: var(--lp-card-accent) !important;
+  background-color: var(--lp-card-hover);
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-media] {
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--lp-card-hairline);
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-actions] {
+  margin-top: 0.45rem;
+  border-top: 1px solid var(--lp-card-hairline);
+  padding-top: 0.2rem;
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-actions] button,
+.loop-profile-custom-css [data-loop-card] [data-loop-card-actions] a {
+  color: var(--lp-card-muted);
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-actions] button:hover {
+  background-color: var(--lp-card-hover);
+  color: var(--lp-card-accent);
+}
+
+.loop-profile-custom-css [data-loop-card] [data-loop-card-actions] .text-rose-500 {
+  color: var(--lp-card-like) !important;
+}
+
+.loop-profile-custom-css [data-loop-card] .text-emerald-500 {
+  color: var(--lp-card-accent) !important;
 }
 
 .loop-profile-custom-css [data-profile-tab] {
@@ -189,15 +293,8 @@
 }
 
 .loop-profile-custom-css [data-profile-post-card] > * {
-  border-color: rgba(255, 110, 150, 0.28) !important;
-  box-shadow:
-    0 18px 44px -34px rgba(0, 0, 0, 0.85),
-    0 0 34px -30px rgba(255, 46, 99, 0.7),
-    inset 0 1px 0 rgba(255, 143, 177, 0.07) !important;
-}
-
-.loop-profile-custom-css [data-profile-post-card] > *:hover {
-  border-color: rgba(255, 143, 177, 0.5) !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .loop-profile-custom-css .loop-profile-layout-main [class*="border-border"] {

@@ -583,6 +583,34 @@ export function ShopManagement() {
                 />
               </div>
 
+              {/* What an owner gets the moment this theme is equipped. Both
+                  switches are only defaults — the profile owner can change
+                  them later from Profile atmosphere. */}
+              <div className="space-y-2 rounded-lg border border-border bg-background/40 px-2.5 py-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-medium">Sound on by default</p>
+                    <p className="text-[10px] text-muted-foreground">Off ships the theme silent.</p>
+                  </div>
+                  <Switch
+                    checked={themeData.profile_audio_enabled !== false}
+                    onCheckedChange={(checked) => setThemeData({ profile_audio_enabled: checked })}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-medium">Starts automatically</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Off waits for a visitor to tap the sound pill.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={themeData.profile_audio_autoplay !== false}
+                    onCheckedChange={(checked) => setThemeData({ profile_audio_autoplay: checked })}
+                  />
+                </div>
+              </div>
+
               <div>
                 <div className="flex items-center justify-between gap-2">
                   <Label className="text-xs">Profile CSS</Label>

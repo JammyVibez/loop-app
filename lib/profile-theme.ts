@@ -12,6 +12,10 @@ export type ProfileThemeAssets = {
   backgroundUrl: string | null
   audioUrl: string | null
   audioTitle: string | null
+  /** Admin default: is the theme's soundtrack on when it is equipped? */
+  audioEnabled: boolean
+  /** Admin default: should it start on its own, or wait for a tap? */
+  audioAutoplay: boolean
 }
 
 export const PROFILE_POST_VIEWS = ["grid", "list", "cards"] as const
@@ -42,6 +46,8 @@ const EMPTY: ProfileThemeAssets = {
   backgroundUrl: null,
   audioUrl: null,
   audioTitle: null,
+  audioEnabled: true,
+  audioAutoplay: true,
 }
 
 /** An https URL, or a site-relative path served from `public/`. */
@@ -68,6 +74,10 @@ export function readProfileThemeItemData(itemData: unknown): ProfileThemeAssets 
     backgroundUrl: safeThemeAssetUrl(data.profile_background_url),
     audioUrl: safeThemeAssetUrl(data.profile_audio_url),
     audioTitle: title(data.profile_audio_title),
+    // Only an explicit `false` turns either switch off, so themes created
+    // before these fields existed keep playing.
+    audioEnabled: data.profile_audio_enabled !== false,
+    audioAutoplay: data.profile_audio_autoplay !== false,
   }
 }
 
@@ -79,6 +89,8 @@ export function readProfileThemePreferences(themePreferences: unknown): ProfileT
     backgroundUrl: atmosphere.backgroundUrl,
     audioUrl: atmosphere.audioUrl,
     audioTitle: atmosphere.audioTitle,
+    audioEnabled: atmosphere.audioEnabled,
+    audioAutoplay: atmosphere.audioAutoplay,
   }
 }
 

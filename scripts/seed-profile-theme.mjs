@@ -5,6 +5,9 @@
 // endpoint reads. Idempotent: re-running updates the existing rows in place.
 //
 // Run with: node scripts/seed-profile-theme.mjs
+// Add --sync-equipped to also refresh the stored profile CSS of anyone who
+// currently has one of these themes equipped (shop theme updates are otherwise
+// only picked up when the owner re-equips the item).
 import { readFileSync } from "node:fs"
 import pg from "pg"
 
@@ -85,6 +88,8 @@ const THEMES = [
   },
 ]
 
+const syncEquipped = process.argv.includes("--sync-equipped")
+
 const client = new pg.Client({ connectionString: databaseUrl, ssl: { rejectUnauthorized: false } })
 await client.connect()
 try {
@@ -114,7 +119,9 @@ try {
     }
 
     const existing = await client.query("SELECT id FROM shop_items WHERE name = $1 LIMIT 1", [theme.name])
+    let themeId
     if (existing.rows.length) {
+      themeId = existing.rows[0].id
       await client.query(
         `UPDATE shop_items
             SET description = $2,
@@ -128,9 +135,9 @@ try {
                 item_data = $5::jsonb,
                 updated_at = now()
           WHERE id = $1`,
-        [existing.rows[0].id, theme.description, theme.price, image, JSON.stringify(itemData)],
+        [themeId, theme.description, theme.price, image, JSON.stringify(itemData)],
       )
-      console.log(`Updated ${theme.name} (${existing.rows[0].id}) — CSS ${cssBytes} bytes.`)
+      console.log(`Updated ${theme.name} (${themeId}) — CSS ${cssBytes} bytes.`)
     } else {
       const inserted = await client.query(
         `INSERT INTO shop_items
@@ -139,7 +146,16 @@ try {
          RETURNING id`,
         [theme.name, theme.description, theme.price, image, JSON.stringify(itemData)],
       )
-      console.log(`Inserted ${theme.name} (${inserted.rows[0].id}) — CSS ${cssBytes} bytes.`)
+      themeId = inserted.rows[0].id
+      console.log(`Inserted ${theme.name} (${themeId}) — CSS ${cssBytes} bytes.`)
+    }
+
+    if (syncEquipped) {
+      const synced = await client.query(
+        "UPDATE profiles SET profile_design_css = $1, updated_at = now() WHERE active_theme::text = $2::text",
+        [css, themeId],
+      )
+      console.log(`  ↳ refreshed ${synced.rowCount} equipped profile(s).`)
     }
   }
 } finally {
