@@ -139,11 +139,13 @@ export function MediaField({
   const upload = async (file: File) => {
     setBusy(true)
     try {
-      const type = file.type.startsWith("video/") || file.type.startsWith("audio/")
-        ? "video"
-        : file.type === "application/json" || file.name.endsWith(".json")
-          ? "file"
-          : "image"
+      const type = file.type.startsWith("audio/")
+        ? "audio"
+        : file.type.startsWith("video/")
+          ? "video"
+          : file.type === "application/json" || file.name.endsWith(".json")
+            ? "file"
+            : "image"
 
       const signRes = await fetch("/api/upload/sign", {
         method: "POST",
