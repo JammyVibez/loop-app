@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
+import { sanitizeProfileCustomCss } from "@/lib/profile-custom-css"
+import { safeThemeAssetUrl } from "@/lib/profile-theme"
 
 async function requireAdmin(request: NextRequest) {
   const user = await getUserFromRequest(request)
@@ -169,17 +171,45 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const itemData =
-      body.item_data ||
-      (category === "theme"
-        ? preset
-        : category === "font"
-          ? { font_family: fontFamily, font_preset: body.font_preset || "inter" }
-          : {
-              colors: preset.colors,
-              effects: { ...(preset.effects || {}), kind: category, intensity: body.intensity || "medium" },
-              ...variantHints,
-            })
+    const itemData: Record<string, any> = {
+      ...(body.item_data ||
+        (category === "theme"
+          ? preset
+          : category === "font"
+            ? { font_family: fontFamily, font_preset: body.font_preset || "inter" }
+            : {
+                colors: preset.colors,
+                effects: { ...(preset.effects || {}), kind: category, intensity: body.intensity || "medium" },
+                ...variantHints,
+              })),
+    }
+
+    // Profile themes carry the buyer's actual profile styling. The CSS is
+    // scoped and sanitised here, so no admin paste can escape the profile or
+    // exceed the column limit; artwork and audio must be real URLs.
+    if (category === "theme") {
+      const profileCss = typeof body.profile_css === "string" ? body.profile_css : ""
+      if (profileCss.trim()) {
+        try {
+          itemData.profile_css = sanitizeProfileCustomCss(profileCss)
+        } catch (error) {
+          return NextResponse.json(
+            { error: error instanceof Error ? error.message : "Invalid profile CSS" },
+            { status: 400 },
+          )
+        }
+      }
+      const backgroundUrl = safeThemeAssetUrl(body.profile_background_url)
+      if (backgroundUrl) {
+        itemData.profile_background_url = backgroundUrl
+        // The artwork doubles as the shop card unless separate art is set.
+        if (!itemData.image_url) itemData.image_url = backgroundUrl
+      }
+      const audioUrl = safeThemeAssetUrl(body.profile_audio_url)
+      if (audioUrl) itemData.profile_audio_url = audioUrl
+      const audioTitle = typeof body.profile_audio_title === "string" ? body.profile_audio_title.trim().slice(0, 80) : ""
+      if (audioTitle) itemData.profile_audio_title = audioTitle
+    }
 
     const { data: item, error } = await supabase
       .from("shop_items")

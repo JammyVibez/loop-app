@@ -13,6 +13,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { Spinner } from "@/components/ui/skeletons"
+import { MediaField } from "@/components/admin/shop-management"
+import { MAX_PROFILE_CUSTOM_CSS_BYTES } from "@/lib/profile-custom-css-limits"
 
 interface CatalogItem {
   id: string
@@ -92,6 +94,11 @@ export function AdminCatalogPanel() {
     card_variant: "none",
     pfp_interaction: "none",
     premium_only: false,
+    // Profile themes only: the CSS, artwork and soundtrack the buyer receives.
+    profile_css: "",
+    profile_background_url: "",
+    profile_audio_url: "",
+    profile_audio_title: "",
   })
 
   const loadItems = useCallback(async () => {
@@ -134,6 +141,14 @@ export function AdminCatalogPanel() {
           card_variant: form.card_variant,
           pfp_interaction: form.pfp_interaction,
           premium_only: form.premium_only,
+          ...(form.category === "theme"
+            ? {
+                profile_css: form.profile_css,
+                profile_background_url: form.profile_background_url,
+                profile_audio_url: form.profile_audio_url,
+                profile_audio_title: form.profile_audio_title,
+              }
+            : {}),
         }),
       })
       const data = await response.json()
@@ -297,6 +312,75 @@ export function AdminCatalogPanel() {
                 </select>
               </div>
             )}
+            {form.category === "theme" ? (
+              <div className="space-y-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.05] p-3 sm:col-span-2">
+                <div>
+                  <p className="text-xs font-semibold">Profile theme</p>
+                  <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
+                    Attached to the buyer&apos;s profile when they equip this theme: a background picture, a looping
+                    soundtrack, and CSS scoped to their profile. The CSS is sanitised on save and never sent to the
+                    storefront.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <MediaField
+                    label="Profile background"
+                    hint="painted behind the whole profile"
+                    accept="image/*"
+                    value={form.profile_background_url}
+                    onChange={(url) => setForm((p) => ({ ...p, profile_background_url: url }))}
+                  />
+                  <MediaField
+                    label="Soundtrack"
+                    hint="loops softly from the visitor's first tap"
+                    accept="audio/*"
+                    value={form.profile_audio_url}
+                    onChange={(url) => setForm((p) => ({ ...p, profile_audio_url: url }))}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="cat-audio-title">Soundtrack title</Label>
+                  <Input
+                    id="cat-audio-title"
+                    value={form.profile_audio_title}
+                    onChange={(e) => setForm((p) => ({ ...p, profile_audio_title: e.target.value }))}
+                    placeholder="e.g. Gilded Dusk — Nocturne"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="cat-profile-css">Profile CSS</Label>
+                    <span
+                      className={
+                        new TextEncoder().encode(form.profile_css).length > MAX_PROFILE_CUSTOM_CSS_BYTES
+                          ? "text-[10px] tabular-nums text-destructive"
+                          : "text-[10px] tabular-nums text-muted-foreground"
+                      }
+                    >
+                      {new TextEncoder().encode(form.profile_css).length.toLocaleString()} /{" "}
+                      {MAX_PROFILE_CUSTOM_CSS_BYTES.toLocaleString()} bytes
+                    </span>
+                  </div>
+                  <Textarea
+                    id="cat-profile-css"
+                    value={form.profile_css}
+                    onChange={(e) => setForm((p) => ({ ...p, profile_css: e.target.value }))}
+                    placeholder=".loop-profile-custom-css { --accent: #e8c98b; }"
+                    rows={8}
+                    spellCheck={false}
+                    className="font-mono text-[11px] leading-relaxed"
+                  />
+                  <p className="text-[10px] leading-relaxed text-muted-foreground">
+                    Selectors are scoped to <code>.loop-profile-custom-css</code> automatically. url(), @import and
+                    script values are rejected, and the profile limit applies.
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
             <div className="flex items-center justify-between rounded-md border border-input px-3 sm:col-span-2">
               <div>
                 <Label htmlFor="cat-premium" className="cursor-pointer">

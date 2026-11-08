@@ -118,7 +118,7 @@ const AUDIO_URL = /\.(?:mp3|wav|ogg|m4a|aac|flac|opus)(?:[?#]|$)/i
  * admin picks (photo, GIF, MP4/WebM, audio, or a Lottie `.json` export) renders
  * in the preview below exactly as the storefront will draw it.
  */
-function MediaField({
+export function MediaField({
   label,
   hint,
   value,
