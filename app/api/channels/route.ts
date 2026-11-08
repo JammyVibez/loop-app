@@ -7,6 +7,7 @@ import {
   normalizeNovels,
   normalizeResolvedStream,
 } from "@/lib/channels"
+import { HLS_PROXY_PREFIX, toProxiedPath } from "@/lib/channels-hls"
 
 /**
  * Server-side bridge to the UltraSrc API.
@@ -180,9 +181,9 @@ export async function GET(request: NextRequest) {
             ...stream,
             title: stream.title ?? id,
             group: field(payload, ["group", "category", "country"]),
-            // The documented, auth-exempt HLS route works even when the watch
-            // payload exposes no direct URL.
-            playbackUrl: stream.playbackUrl ?? `${origin}/api/v1/live/play/${encodePath(id)}.m3u8`,
+            // Live playback always goes through the app's own origin: the API
+            // may be loopback-only, and its manifests point at that origin.
+            playbackUrl: `${HLS_PROXY_PREFIX}/api/v1/live/play/${encodePath(id)}.m3u8`,
           },
         })
       }
@@ -207,10 +208,15 @@ export async function GET(request: NextRequest) {
           { src },
           0,
         )
+        const dramaStream = normalizeResolvedStream(payload, origin)
         return NextResponse.json({
           ok: true,
           configured: true,
-          data: normalizeResolvedStream(payload, origin),
+          data: {
+            ...dramaStream,
+            playbackUrl: toProxiedPath(dramaStream.playbackUrl, origin),
+            sources: dramaStream.sources.map((url) => toProxiedPath(url, origin) ?? url),
+          },
         })
       }
 

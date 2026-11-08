@@ -68,6 +68,21 @@ through `/api/channels`, which keeps `ULTRASRC_API_KEY` on the server. Without
 The guide supports live channel browse/search and HLS playback, drama episode
 resolution per title, and novel search, details and chapter reading.
 
+### Running UltraSrc next to the app
+
+The API can run as a private service on the same host, so no key ever leaves the
+server and the API port is never exposed:
+
+- Clone `https://tangled.org/ultrasrc.tngl.sh/ultrasrc-api` into `/opt/ultrasrc-api`
+  and run `bun install`, then start it with PM2 on port `3010` under Bun.
+- Store `ULTRASRC_API_URL=http://127.0.0.1:3010` and `ULTRASRC_API_KEY=…` in a
+  root-owned `/etc/loop/ultrasrc.conf` (`chmod 600`) and source it before
+  `pm2 restart loop-app --update-env`. The deploy workflow does this when the
+  file exists.
+- Leave the port closed in the host firewall. Browsers never call the API
+  directly: `/api/channels` resolves data server-side and `/api/channels/hls/*`
+  proxies playback, rewriting manifests onto the app's own origin.
+
 ## Key Features
 
 - **Loop Trees** — Branching conversations (up to 10 levels deep)
@@ -88,9 +103,20 @@ npm run build   # produces .next/ output
 npm start       # starts production server
 ```
 
-Pushes to `main` are picked up by the VPS every minute (`loop-autodeploy.timer`,
-`/var/loop/deploy-production.sh`): fetch → install → build → `pm2 restart
-loop-app` → health check → share-card check.
+The GitHub Actions workflow deploys pushes to `main` to the VPS after both CI
+verification and the production build pass. Configure these repository Actions
+secrets under **Settings → Secrets and variables → Actions**:
+
+- `VPS_HOST` — VPS hostname or IP
+- `VPS_USER` — SSH user with access to the app checkout and PM2
+- `VPS_SSH_KEY` — private SSH key for that user
+- `VPS_PORT` — optional SSH port (defaults to `22`)
+- `VPS_APP_DIR` — optional app checkout path (defaults to `/var/loop`)
+
+The VPS checkout must have `origin` configured for this repository, Node.js 22+
+installed, and the app's production environment configured. The workflow runs
+`git pull --ff-only`, `npm ci --legacy-peer-deps`, `npm run build`, then restarts
+(or starts) the `loop-app` PM2 process.
 
 ## Share Cards (OG Images)
 

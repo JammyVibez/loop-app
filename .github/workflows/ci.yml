@@ -84,3 +84,37 @@ jobs:
           path: artifacts/responsive/
           if-no-files-found: ignore
           retention-days: 7
+
+  deploy:
+    name: Deploy to VPS
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [verify, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Update and restart production app
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          APP_DIR: ${{ secrets.VPS_APP_DIR }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          envs: APP_DIR
+          script: |
+            set -e
+            # Channels runs against a loopback-only UltraSrc service. Its URL and
+            # key live in this root-owned file so `pm2 restart --update-env`
+            # keeps them without storing secrets in the repository.
+            if [ -f /etc/loop/ultrasrc.conf ]; then set -a; . /etc/loop/ultrasrc.conf; set +a; fi
+            cd "${APP_DIR:-/var/loop}"
+            git pull --ff-only origin main
+            npm ci --legacy-peer-deps
+            npm run build
+            if pm2 describe loop-app >/dev/null 2>&1; then
+              pm2 restart loop-app --update-env
+            else
+              pm2 start ecosystem.config.js --only loop-app
+            fi
+            pm2 save
