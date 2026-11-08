@@ -92,7 +92,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # This VPS also deploys itself on a systemd timer, so the SSH path is
+      # optional: without the secrets the job reports a skip instead of a
+      # failed workflow.
+      - name: Check for deployment credentials
+        id: credentials
+        run: |
+          if [ -n "${{ secrets.VPS_HOST }}" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "VPS_HOST secret is not set - skipping the SSH deploy."
+          fi
+
       - name: Update and restart production app
+        if: steps.credentials.outputs.ready == 'true'
         uses: appleboy/ssh-action@v1.2.0
         env:
           APP_DIR: ${{ secrets.VPS_APP_DIR }}
