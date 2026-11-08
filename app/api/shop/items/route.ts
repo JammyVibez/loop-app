@@ -35,9 +35,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Failed to fetch shop items" }, { status: 500 })
     }
 
+    // A profile theme's CSS is the thing buyers pay for. The storefront gets
+    // the artwork, soundtrack and colour tokens, never the stylesheet itself —
+    // equipping applies it server-side (see /api/inventory/apply).
+    const safeItems = (items || []).map((item) => {
+      const data = item?.item_data
+      if (!data || typeof data !== "object" || Array.isArray(data) || !("profile_css" in data)) {
+        return item
+      }
+      const { profile_css: _profileCss, ...rest } = data as Record<string, unknown>
+      return { ...item, item_data: rest }
+    })
+
     return NextResponse.json({
       success: true,
-      items: items || [],
+      items: safeItems,
       hasMore: items?.length === limit,
     })
   } catch (error) {

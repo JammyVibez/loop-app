@@ -68,21 +68,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Set default values
+    // Set default values. This schema has no `price`, `image_url` or
+    // `animation_url` columns: the coin price is `price_coins`, and admin art
+    // lives inside item_data, which is what the storefront reads.
+    const baseItemData = itemData.item_data && typeof itemData.item_data === 'object' ? itemData.item_data : {}
     const shopItem = {
       name: itemData.name,
       description: itemData.description || '',
-      price: itemData.price || 0,
       price_coins: itemData.price_coins || 0,
       price_usd: itemData.price_usd || null,
       category: itemData.category,
       item_type: itemData.item_type,
       rarity: itemData.rarity || 'common',
       premium_only: itemData.premium_only || false,
-      item_data: itemData.item_data || {},
+      item_data: {
+        ...baseItemData,
+        ...(itemData.image_url ? { image_url: itemData.image_url } : {}),
+        ...(itemData.animation_url ? { animation_url: itemData.animation_url } : {}),
+      },
       preview_data: itemData.preview_data || {},
-      image_url: itemData.image_url || null,
-      animation_url: itemData.animation_url || null,
       is_active: true
     }
 
@@ -105,7 +109,10 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { id, ...updateData } = await request.json()
+    // `price`, `image_url` and `animation_url` are client-side form fields on
+    // this schema: the coin price is price_coins and art is folded into
+    // item_data before it reaches here, so they must not be written as columns.
+    const { id, price: _price, image_url: _imageUrl, animation_url: _animationUrl, ...updateData } = await request.json()
     const supabase = createServerClient()
     
     // Check admin permissions

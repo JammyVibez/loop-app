@@ -79,6 +79,9 @@ export async function POST(request: NextRequest) {
         .update({
           active_theme: null,
           theme_preferences: null,
+          // A profile theme's CSS, background and soundtrack all live with the
+          // equipped item, so unequipping it restores the plain profile.
+          profile_design_css: "",
           updated_at: new Date().toISOString(),
         })
         .eq("id", user.id)

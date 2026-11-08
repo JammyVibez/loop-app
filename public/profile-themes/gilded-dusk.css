@@ -1,0 +1,195 @@
+/*
+ * Gilded Dusk — a Loop Pro profile theme.
+ *
+ * Applied to a buyer's profile by equipping the shop item. Every selector is
+ * scoped to .loop-profile-custom-css server-side, so the 21 KB limit and the
+ * ban on external resource loads are part of the theme contract, not a
+ * suggestion.
+ */
+
+.loop-profile-custom-css {
+  --gd-gold: #e8c98b;
+  --gd-gold-bright: #f7e6c4;
+  --gd-rose: #c98f7a;
+  --gd-cream: #f7f0e4;
+  --gd-glass: linear-gradient(158deg, rgba(32, 21, 40, 0.88), rgba(15, 10, 21, 0.94));
+  --gd-hairline: rgba(232, 201, 139, 0.24);
+  padding-bottom: 2.5rem;
+}
+
+/* Cover: a gold hairline and a slow champagne sweep across the top of the
+   profile. The sweep is decoration only, so it never intercepts a tap. */
+.loop-profile-custom-css .loop-profile-layout-cover {
+  position: relative;
+}
+
+.loop-profile-custom-css .loop-profile-layout-cover > div:first-child {
+  box-shadow:
+    0 0 0 1px rgba(232, 201, 139, 0.38),
+    0 46px 90px -64px rgba(0, 0, 0, 0.9);
+}
+
+.loop-profile-custom-css .loop-profile-layout-cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  border-radius: 28px;
+  background-image: linear-gradient(105deg, transparent 34%, rgba(247, 230, 196, 0.16) 47%, transparent 61%);
+  background-size: 240% 100%;
+  animation: gildedSweep 12s ease-in-out infinite;
+}
+
+@keyframes gildedSweep {
+  0%,
+  100% {
+    background-position: 135% 0;
+  }
+  50% {
+    background-position: -35% 0;
+  }
+}
+
+/* Identity column: one pane of smoked glass behind the whole block stack, so
+   the artwork stays visible around the profile instead of behind its text. */
+.loop-profile-custom-css .loop-profile-sidebar-column {
+  position: relative;
+  padding-inline: 1rem;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column::before {
+  content: "";
+  position: absolute;
+  inset: 3.25rem 0 -0.25rem;
+  border-radius: 26px;
+  background-image: var(--gd-glass);
+  border: 1px solid var(--gd-hairline);
+  box-shadow:
+    0 34px 80px -56px rgba(0, 0, 0, 0.95),
+    inset 0 1px 0 rgba(247, 230, 196, 0.09);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  pointer-events: none;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar {
+  position: relative;
+  z-index: 1;
+  padding-bottom: 0.9rem;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-blocks {
+  position: relative;
+  z-index: 1;
+}
+
+/* Type inside the pane. The sidebar uses the app's muted greys by default,
+   which vanish against smoked glass. */
+.loop-profile-custom-css .loop-profile-sidebar-column {
+  color: rgba(247, 240, 228, 0.74);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column .text-foreground {
+  color: var(--gd-gold-bright);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column .text-muted-foreground {
+  color: rgba(247, 240, 228, 0.6);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column [class*="border-border"] {
+  border-color: var(--gd-hairline);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column .bg-muted {
+  background-color: rgba(247, 240, 228, 0.14);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column .bg-card {
+  background-color: rgba(247, 240, 228, 0.05);
+}
+
+/* Name: a warm serif with a champagne-to-rose leaf. */
+.loop-profile-custom-css .loop-profile-sidebar-column h2 {
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  letter-spacing: 0.004em;
+  background-image: linear-gradient(112deg, #fdf3dc, #e8c98b 46%, #c98f7a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column [data-profile-block="identity"] {
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid rgba(232, 201, 139, 0.2);
+}
+
+/* The visitor's Follow pill and the owner's buttons: brass instead of ink. */
+.loop-profile-custom-css .loop-profile-sidebar-column .bg-foreground {
+  background-image: linear-gradient(118deg, #f8e7bd, #e0b47c 62%, #c98f7a);
+  background-color: #e8c98b;
+  color: #1a1120;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column button {
+  border-color: rgba(232, 201, 139, 0.34);
+  color: #f2e4cf;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column button:hover {
+  background-color: rgba(232, 201, 139, 0.12);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column a {
+  text-underline-offset: 3px;
+}
+
+/* XP rail: gold on smoke. */
+.loop-profile-custom-css .loop-profile-sidebar-column [data-profile-block="progress"] div[class*="h-full"] {
+  background-image: linear-gradient(90deg, #c98f7a, #e8c98b 55%, #f7e6c4);
+  box-shadow: 0 0 18px rgba(232, 201, 139, 0.45);
+}
+
+/* Content column: a parchment panel, so posts and text stay legible over the
+   artwork. Feed cards keep their own surfaces on top of it. */
+.loop-profile-custom-css .loop-profile-layout-main {
+  position: relative;
+  padding: 0 0.5rem 0.75rem;
+  border-radius: 26px;
+  border: 1px solid rgba(232, 201, 139, 0.2);
+  background-color: var(--background);
+  box-shadow: 0 34px 80px -60px rgba(0, 0, 0, 0.8);
+}
+
+/* Tab labels sit on the parchment panel, so they follow the app's foreground
+   (dark in light mode, cream in dark) instead of the smoked-glass palette. */
+.loop-profile-custom-css [data-profile-tab] {
+  color: color-mix(in srgb, var(--foreground) 58%, transparent);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.loop-profile-custom-css [data-profile-tab][data-state="active"] {
+  color: var(--foreground);
+  border-bottom-color: var(--gd-gold);
+  background-image: linear-gradient(180deg, rgba(232, 201, 139, 0.18), transparent);
+}
+
+@media (max-width: 1023px) {
+  .loop-profile-custom-css .loop-profile-sidebar-column::before {
+    inset: 2.75rem -0.25rem -0.25rem;
+  }
+
+  .loop-profile-custom-css .loop-profile-layout-main {
+    padding: 0 0.25rem 0.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loop-profile-custom-css .loop-profile-layout-cover::after {
+    animation: none;
+  }
+}

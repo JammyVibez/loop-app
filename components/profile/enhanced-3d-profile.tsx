@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Calendar, Coins, Flame, Gift, Heart, Link as LinkIcon, Lock, MapPin, MessageCircle, MoreHorizontal, Plus, Palette, Share2, Wand2, Zap, Trophy, Upload, Users, Package, Building2, Store, } from "lucide-react"
+import { ArrowLeft, Calendar, Coins, Flame, Gift, Heart, Link as LinkIcon, Lock, MapPin, MessageCircle, MoreHorizontal, Plus, Palette, Share2, Wand2, Zap, Trophy, Upload, Users, Package, Building2, } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +18,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LoopCard } from "@/components/loop-card"
 import { useAuth } from "@/hooks/use-auth"
 import { ProfileShareCard } from "@/components/profile/profile-share-card"
+import { ProfileThemeAudio } from "@/components/profile/profile-theme-audio"
+import { readProfileThemePreferences } from "@/lib/profile-theme"
 import { ProfileSkeleton } from "@/components/loading-states"
 import { EmptyState as PageEmptyState } from "@/components/ui/empty-state"
 import { ProxyImg } from "@/components/ui/proxy-img"
@@ -121,7 +123,12 @@ interface UserProfile {
   is_following?: boolean
   active_effects?: any[]
   active_cosmetics?: ActiveCosmetics | null
-  theme_preferences?: any
+  theme_preferences?: {
+    profile_background?: string | null
+    profile_audio?: string | null
+    profile_audio_title?: string | null
+    [key: string]: any
+  } | null
   custom_profile_css?: string | null
   profile_design_css?: string | null
   profile_layout?: ProfileLayout
@@ -575,6 +582,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
 
   const isOwnProfile = Boolean(user && (user.id === profile.id || user.username === profile.username))
   const displayName = profile.display_name || profile.username
+  const profileTheme = readProfileThemePreferences(profile.theme_preferences)
   const profileLayout = normalizeProfileLayout(profile.profile_layout)
   const sectionOrder = (id: string) => profileLayout.sections.indexOf(id)
   const sidebarOrder = (id: string) => profileLayout.sidebar.indexOf(id)
@@ -596,12 +604,28 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   const xpProgress = Math.min(100, Math.round(((xp - prevXp) / Math.max(1, nextXp - prevXp)) * 100))
 
   return (
-    <div className="loop-profile-custom-css mx-auto w-full max-w-6xl bg-background">
+    <div
+      className={cn(
+        "loop-profile-custom-css relative mx-auto w-full max-w-6xl",
+        profileTheme.backgroundUrl ? "bg-transparent" : "bg-background",
+      )}
+    >
       {profile.profile_design_css ? (
         <style dangerouslySetInnerHTML={{ __html: profile.profile_design_css }} />
       ) : null}
       {profile.custom_profile_css ? (
         <style dangerouslySetInnerHTML={{ __html: profile.custom_profile_css }} />
+      ) : null}
+      {/* A purchased theme paints its artwork behind the whole profile, then
+          smokes the lower half so names and text always keep their contrast. */}
+      {profileTheme.backgroundUrl ? (
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div
+            className="absolute inset-0 bg-cover bg-top bg-no-repeat"
+            style={{ backgroundImage: `url("${profileTheme.backgroundUrl}")` }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-background/20 via-background/75 to-background" />
+        </div>
       ) : null}
       {/* Profile top bar. The site header is h-16 (64px), so top-16 pins this
           flush against it — top-14 tucked the strip 8px underneath the header,
@@ -660,7 +684,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         </div>
       </div>
 
-      <div className="loop-profile-layout-canvas lg:px-4 lg:pt-4">
+      <div className="loop-profile-layout-canvas relative z-10 lg:px-4 lg:pt-4">
       {/* Banner — animated cover with upload button */}
       <div className="relative loop-profile-layout-cover" data-profile-section="cover" style={sectionStyle("cover")}>
       <div
@@ -857,12 +881,6 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                       <Link href="/inventory">
                         <Package className="mr-2 h-4 w-4 text-muted-foreground" />
                         Inventory
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="rounded-xl">
-                      <Link href="/profile-marketplace">
-                        <Store className="mr-2 h-4 w-4 text-muted-foreground" />
-                        Design marketplace
                       </Link>
                     </DropdownMenuItem>
                     {!profile.is_premium && (
@@ -1416,6 +1434,10 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           displayName={displayName}
           onSaved={(layout) => setProfile((current) => current ? { ...current, profile_layout: layout } : current)}
         />
+      ) : null}
+
+      {profileTheme.audioUrl ? (
+        <ProfileThemeAudio src={profileTheme.audioUrl} title={profileTheme.audioTitle} />
       ) : null}
 
       {photoViewer && (

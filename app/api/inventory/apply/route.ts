@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { cosmeticsFromInventory } from "@/lib/cosmetics"
+import { sanitizeProfileCustomCss } from "@/lib/profile-custom-css"
+import { isProfileThemeItem, readProfileThemeItemData } from "@/lib/profile-theme"
 import { getUserFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic"
@@ -218,7 +220,20 @@ export async function POST(request: NextRequest) {
     }
 
     let themePayload: ReturnType<typeof themePayloadFromShopItem> | null = null
-    const themeLike = isThemeItem(shopItem, itemType)
+
+    // Profile themes carry their own CSS, background picture and soundtrack on
+    // top of the usual colour tokens. The CSS is scoped and sanitised here,
+    // never in the browser, so an admin paste can never escape the profile.
+    const profileTheme = isProfileThemeItem(shopItem) ? readProfileThemeItemData(shopItem.item_data) : null
+    let profileThemeCss = ""
+    if (profileTheme?.css) {
+      try {
+        profileThemeCss = sanitizeProfileCustomCss(profileTheme.css)
+      } catch (error) {
+        console.error("Profile theme CSS rejected:", error)
+      }
+    }
+    const themeLike = isThemeItem(shopItem, itemType) || Boolean(profileTheme)
 
     if (themeLike) {
       themePayload = themePayloadFromShopItem(shopItem)
@@ -226,7 +241,15 @@ export async function POST(request: NextRequest) {
         .from("profiles")
         .update({
           active_theme: shopItem.id,
-          theme_preferences: themePayload,
+          theme_preferences: {
+            ...themePayload,
+            ...(profileTheme?.backgroundUrl ? { profile_background: profileTheme.backgroundUrl } : {}),
+            ...(profileTheme?.audioUrl ? { profile_audio: profileTheme.audioUrl } : {}),
+            ...(profileTheme?.audioTitle ? { profile_audio_title: profileTheme.audioTitle } : {}),
+          },
+          // Switching to a plain colour theme clears the previous profile CSS
+          // instead of leaving a half-applied design behind.
+          profile_design_css: profileThemeCss,
           updated_at: new Date().toISOString(),
         })
         .eq("id", user.id)
@@ -241,6 +264,9 @@ export async function POST(request: NextRequest) {
       success: true,
       message: "Item applied successfully",
       theme: themePayload,
+      profile_theme: profileTheme
+        ? { has_css: Boolean(profileThemeCss), background: Boolean(profileTheme.backgroundUrl), audio: Boolean(profileTheme.audioUrl) }
+        : null,
       cosmetics,
       item: {
         id: inventoryItem.id,

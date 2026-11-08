@@ -16,6 +16,7 @@ import { Spinner } from "@/components/ui/skeletons"
 import { CustomMedia, customMediaFor } from "@/components/shop/custom-media"
 import { ShopItemMiniPreview, type ShopPreviewItem } from "@/components/shop/shop-item-preview"
 import { itemIllustration } from "@/components/shop/shop-art"
+import { MAX_PROFILE_CUSTOM_CSS_BYTES } from "@/lib/profile-custom-css-limits"
 
 interface ShopItem {
   id: string
@@ -75,6 +76,14 @@ function illustrationName(item: { name?: string; description?: string; category?
   return art?.nm || null
 }
 
+/** Art lives in item_data on this schema, with the row columns as a fallback. */
+function artFromItem(item: ShopItem, key: "image_url" | "animation_url"): string {
+  const direct = item[key]
+  if (typeof direct === "string" && direct) return direct
+  const value = (item.item_data || {})[key]
+  return typeof value === "string" ? value : ""
+}
+
 const RARITY_COLORS: Record<string, string> = {
   common: "bg-slate-500",
   rare: "bg-sky-500",
@@ -98,24 +107,29 @@ function emptyItem(): Omit<ShopItem, "id" | "created_at" | "sales_count"> {
   }
 }
 
+/** Cloudinary serves uploaded audio from its video resource. */
+const AUDIO_URL = /\.(?:mp3|wav|ogg|m4a|aac|flac|opus)(?:[?#]|$)/i
+
 /**
  * One piece of item art: upload it, paste a URL, or clear it.
  *
  * Uploads go straight to Cloudinary through `/api/upload/sign`, so a 40MB
  * looping video never has to pass through a route handler — and any file the
- * admin picks (photo, GIF, MP4/WebM, or a Lottie `.json` export) renders in
- * the preview below exactly as the storefront will draw it.
+ * admin picks (photo, GIF, MP4/WebM, audio, or a Lottie `.json` export) renders
+ * in the preview below exactly as the storefront will draw it.
  */
 function MediaField({
   label,
   hint,
   value,
   onChange,
+  accept = "image/*,video/*,.json",
 }: {
   label: string
   hint: string
   value: string
   onChange: (url: string) => void
+  accept?: string
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [busy, setBusy] = useState(false)
@@ -125,7 +139,7 @@ function MediaField({
   const upload = async (file: File) => {
     setBusy(true)
     try {
-      const type = file.type.startsWith("video/")
+      const type = file.type.startsWith("video/") || file.type.startsWith("audio/")
         ? "video"
         : file.type === "application/json" || file.name.endsWith(".json")
           ? "file"
@@ -178,7 +192,7 @@ function MediaField({
           <input
             ref={inputRef}
             type="file"
-            accept="image/*,video/*,.json"
+            accept={accept}
             className="hidden"
             onChange={(event) => {
               const file = event.target.files?.[0]
@@ -213,11 +227,17 @@ function MediaField({
 
       <div className="relative h-28 overflow-hidden rounded-lg border border-dashed border-border bg-background/60">
         {value ? (
-          <CustomMedia url={value} alt={label} />
+          AUDIO_URL.test(value) ? (
+            <div className="flex h-full items-center px-3">
+              <audio src={value} controls preload="metadata" className="w-full" />
+            </div>
+          ) : (
+            <CustomMedia url={value} alt={label} />
+          )
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-1 text-[11px] text-muted-foreground">
+          <div className="flex h-full flex-col items-center justify-center gap-1 px-3 text-center text-[11px] text-muted-foreground">
             <Film className="h-4 w-4" />
-            Drop in a PNG, GIF, MP4, WebM or Lottie JSON
+            Drop in a PNG, GIF, MP4, WebM, audio file or Lottie JSON
           </div>
         )}
       </div>
@@ -277,7 +297,11 @@ export function ShopManagement() {
         body: JSON.stringify({
           ...form,
           price_coins: form.price,
-          item_data: form.item_data || {},
+          item_data: {
+            ...(form.item_data || {}),
+            ...(form.image_url ? { image_url: form.image_url } : {}),
+            ...(form.animation_url ? { animation_url: form.animation_url } : {}),
+          },
           preview_data: form.preview_data || {},
         }),
       })
@@ -299,7 +323,16 @@ export function ShopManagement() {
       const res = await fetch("/api/admin/shop-items", {
         method: "PUT",
         headers: authHeaders(),
-        body: JSON.stringify({ id: editingItem.id, ...form }),
+        body: JSON.stringify({
+          id: editingItem.id,
+          ...form,
+          price_coins: form.price,
+          item_data: {
+            ...(form.item_data || {}),
+            ...(form.image_url ? { image_url: form.image_url } : {}),
+            ...(form.animation_url ? { animation_url: form.animation_url } : {}),
+          },
+        }),
       })
       if (!res.ok) throw new Error("Failed")
       await fetchItems()
@@ -360,8 +393,8 @@ export function ShopManagement() {
       rarity: item.rarity,
       is_active: item.is_active,
       premium_only: item.premium_only,
-      image_url: item.image_url || "",
-      animation_url: item.animation_url || "",
+      image_url: artFromItem(item, "image_url"),
+      animation_url: artFromItem(item, "animation_url"),
       item_data: item.item_data,
       preview_data: item.preview_data,
     })
@@ -381,8 +414,8 @@ export function ShopManagement() {
       // A duplicate starts hidden so it cannot go live by accident.
       is_active: false,
       premium_only: item.premium_only,
-      image_url: item.image_url || "",
-      animation_url: item.animation_url || "",
+      image_url: artFromItem(item, "image_url"),
+      animation_url: artFromItem(item, "animation_url"),
       item_data: item.item_data,
       preview_data: item.preview_data,
     })
@@ -419,6 +452,13 @@ export function ShopManagement() {
 
   /* ── Item form (shared between create and edit) ── */
   function ItemForm({ mode }: { mode: "create" | "edit" }) {
+    const themeData = (form.item_data || {}) as Record<string, unknown>
+    const setThemeData = (patch: Record<string, unknown>) =>
+      setForm((current) => ({ ...current, item_data: { ...(current.item_data || {}), ...patch } }))
+    const showProfileTheme = form.category === "theme" || form.item_type === "profile_theme"
+    const profileCss = typeof themeData.profile_css === "string" ? themeData.profile_css : ""
+    const profileCssBytes = new TextEncoder().encode(profileCss).length
+
     return (
       <div className="max-h-[72vh] space-y-4 overflow-y-auto px-0.5 pr-1">
         {/* What the storefront will actually draw for this item, right now. */}
@@ -501,6 +541,73 @@ export function ShopManagement() {
               <Label className="text-xs">Pro only</Label>
             </div>
           </div>
+
+          {/* Profile themes are the only items that restyle a buyer's profile:
+              CSS, artwork and soundtrack all travel with the item and are
+              applied by the inventory equip endpoint. */}
+          {showProfileTheme ? (
+            <div className="space-y-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.05] p-3">
+              <div>
+                <p className="text-xs font-semibold text-foreground">Profile theme</p>
+                <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
+                  Equipping this item restyles the buyer's profile. The CSS is scoped to the profile, sanitised
+                  server-side, and never sent to the storefront.
+                </p>
+              </div>
+
+              <MediaField
+                label="Profile background"
+                hint="the picture painted behind their profile"
+                accept="image/*"
+                value={typeof themeData.profile_background_url === "string" ? themeData.profile_background_url : ""}
+                onChange={(url) => setThemeData({ profile_background_url: url })}
+              />
+
+              <MediaField
+                label="Soundtrack"
+                hint="loops softly, starting on the visitor's first tap"
+                accept="audio/*"
+                value={typeof themeData.profile_audio_url === "string" ? themeData.profile_audio_url : ""}
+                onChange={(url) => setThemeData({ profile_audio_url: url })}
+              />
+
+              <div>
+                <Label className="text-xs">Soundtrack title</Label>
+                <Input
+                  value={typeof themeData.profile_audio_title === "string" ? themeData.profile_audio_title : ""}
+                  onChange={(event) => setThemeData({ profile_audio_title: event.target.value })}
+                  placeholder="e.g. Gilded Dusk — Nocturne"
+                  className="mt-1 h-8 text-xs"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-xs">Profile CSS</Label>
+                  <span
+                    className={cn(
+                      "text-[10px] tabular-nums",
+                      profileCssBytes > MAX_PROFILE_CUSTOM_CSS_BYTES ? "text-destructive" : "text-muted-foreground",
+                    )}
+                  >
+                    {profileCssBytes.toLocaleString()} / {MAX_PROFILE_CUSTOM_CSS_BYTES.toLocaleString()} bytes
+                  </span>
+                </div>
+                <Textarea
+                  value={profileCss}
+                  onChange={(event) => setThemeData({ profile_css: event.target.value })}
+                  placeholder=".loop-profile-custom-css { --gold: #e8c98b; }"
+                  rows={8}
+                  spellCheck={false}
+                  className="mt-1 font-mono text-[11px] leading-relaxed"
+                />
+                <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                  Selectors are scoped to <code>.loop-profile-custom-css</code> automatically. url(), @import and
+                  script values are rejected.
+                </p>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <Button onClick={mode === "create" ? createItem : updateItem} disabled={saving} className="w-full">
