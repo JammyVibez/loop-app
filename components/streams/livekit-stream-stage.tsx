@@ -237,16 +237,16 @@ export const LivekitStreamStage = forwardRef<LivekitStreamStageHandle, LivekitSt
 
     if (error) {
       return (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/70">
-          <p className="rounded-xl bg-black/60 px-4 py-2 text-sm text-white/80 backdrop-blur">{error}</p>
+        <div className="absolute inset-0 flex items-center justify-center bg-background/70">
+          <p className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground backdrop-blur">{error}</p>
         </div>
       )
     }
 
     if (!joined) {
       return (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-          <Spinner className="h-8 w-8 text-rose-400" />
+        <div className="absolute inset-0 flex items-center justify-center bg-background/60">
+          <Spinner className="h-8 w-8 text-primary" />
         </div>
       )
     }
@@ -294,15 +294,15 @@ function StageVideo({
 
   if (audioOnly) {
     return (
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-gradient-to-br from-zinc-950 via-[#11131a] to-rose-950/60 text-white">
-        <span className="flex h-24 w-24 items-center justify-center rounded-full border border-rose-300/20 bg-rose-400/10 text-rose-200 shadow-[0_0_80px_rgba(251,113,133,0.15)]">
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-gradient-to-br from-muted via-background to-card text-foreground">
+        <span className="flex h-24 w-24 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary shadow-low">
           <svg viewBox="0 0 48 48" aria-hidden="true" className="h-12 w-12 fill-current">
             <path d="M24 4a4 4 0 0 0-4 4v16a4 4 0 0 0 8 0V8a4 4 0 0 0-4-4Zm-13 19a2 2 0 0 0-4 0 17 17 0 0 0 15 16.9V44h-6a2 2 0 0 0 0 4h16a2 2 0 0 0 0-4h-6v-4.1A17 17 0 0 0 41 23a2 2 0 0 0-4 0 13 13 0 0 1-26 0Z" />
           </svg>
         </span>
         <div className="text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-rose-200/70">Audio room</p>
-          <p className="mt-1 text-sm text-white/55">Listen live, chat and send gifts</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Audio room</p>
+          <p className="mt-1 text-sm text-muted-foreground">Listen live, chat and send gifts</p>
         </div>
       </div>
     )
@@ -314,8 +314,8 @@ function StageVideo({
 
   if (!tile) {
     return (
-      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-zinc-950 via-black to-zinc-900">
-        <p className="text-sm text-white/60">Waiting for the host…</p>
+      <div className="absolute inset-0 flex items-center justify-center bg-muted">
+        <p className="text-sm text-muted-foreground">Waiting for the host…</p>
       </div>
     )
   }

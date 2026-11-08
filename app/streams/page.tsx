@@ -154,31 +154,31 @@ export default function StreamsPage() {
   }, [streams, searchQuery])
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-rose-500/15 px-3 py-1 text-xs font-semibold text-rose-300">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-400" />
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-destructive/10 px-3 py-1 text-xs font-semibold text-destructive">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-destructive" />
               LIVE NOW
             </div>
-            <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Livestream</h1>
-            <p className="mt-1 text-sm text-white/60">
-              Watch creators in real time — chat, react, gift, and join the vibe.
+            <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Audio Rooms</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Listen in real time — chat, react, send gifts, and join the conversation.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link href="/channels">
               <Button
                 variant="outline"
-                className="h-11 rounded-full border-white/15 bg-white/5 px-5 font-semibold text-white hover:bg-white/10 hover:text-white"
+                className="h-11 rounded-full border-border bg-card px-5 font-semibold text-foreground hover:bg-accent hover:text-foreground"
               >
                 <Tv className="mr-2 h-4 w-4" />
                 Channels
               </Button>
             </Link>
             <Link href={user ? "/create/stream" : "/login"}>
-              <Button className="h-11 rounded-full bg-rose-500 px-6 font-bold hover:bg-rose-400">
+              <Button className="h-11 rounded-full px-6 font-bold">
                 <Radio className="mr-2 h-4 w-4" />
                 Go Live
               </Button>
@@ -192,12 +192,12 @@ export default function StreamsPage() {
             e.preventDefault()
           }}
         >
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search lives, creators, categories…"
-            className="h-11 rounded-full border-white/10 bg-white/5 pl-10 text-white placeholder:text-white/40"
+            className="h-11 rounded-full border-border bg-card pl-10 text-foreground placeholder:text-muted-foreground"
           />
         </form>
 
@@ -209,7 +209,7 @@ export default function StreamsPage() {
               onClick={() => setActiveTab(tab)}
               className={cn(
                 "rounded-full px-4 py-1.5 text-sm font-semibold capitalize",
-                activeTab === tab ? "bg-white text-black" : "bg-white/10 text-white/70",
+                activeTab === tab ? "bg-foreground text-background" : "bg-muted text-muted-foreground",
               )}
             >
               {tab}
@@ -226,8 +226,8 @@ export default function StreamsPage() {
               className={cn(
                 "whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold",
                 selectedCategory === cat.id
-                  ? "bg-rose-500 text-white"
-                  : "bg-white/8 text-white/65",
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground",
               )}
             >
               {cat.label}
@@ -236,18 +236,18 @@ export default function StreamsPage() {
         </div>
 
         {loading ? (
-          <div className="flex min-h-[40vh] items-center justify-center text-white/60">
-            <Spinner className="mr-2 h-5 w-5" /> Loading lives…
+          <div className="flex min-h-[40vh] items-center justify-center text-muted-foreground">
+            <Spinner className="mr-2 h-5 w-5" /> Loading audio rooms…
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-center">
-            <Zap className="h-10 w-10 text-white/30" />
-            <p className="text-lg font-semibold">No lives right now</p>
-            <p className="max-w-sm text-sm text-white/50">
-              Be the first to go live — share your camera or screen with fans in real time.
+            <Zap className="h-10 w-10 text-muted-foreground/60" />
+            <p className="text-lg font-semibold">No audio rooms right now</p>
+            <p className="max-w-sm text-sm text-muted-foreground">
+              Be the first to open a room — talk with listeners, take questions and send gifts.
             </p>
             <Link href={user ? "/create/stream" : "/login"}>
-              <Button className="rounded-full bg-rose-500 hover:bg-rose-400">Start a Live</Button>
+              <Button className="rounded-full">Start an audio room</Button>
             </Link>
           </div>
         ) : (
@@ -256,7 +256,7 @@ export default function StreamsPage() {
               <Link
                 key={stream.id}
                 href={`/streams/${stream.id}`}
-                className="group relative aspect-[9/14] overflow-hidden rounded-2xl bg-zinc-900"
+                className={`group relative aspect-[9/14] overflow-hidden rounded-2xl ${stream.thumbnail_url ? "bg-zinc-900" : "border border-border bg-card"}`}
               >
                 {stream.thumbnail_url ? (
                   <img
@@ -265,22 +265,24 @@ export default function StreamsPage() {
                     className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-rose-900/50 via-zinc-900 to-indigo-950">
-                    <Radio className="h-10 w-10 text-white/35" />
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/10 via-muted to-card">
+                    <Radio className="h-10 w-10 text-primary/60" />
                   </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-black/30" />
+                {stream.thumbnail_url ? (
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-black/30" />
+                ) : null}
                 <div className="absolute left-2 top-2 flex items-center gap-1.5">
                   {stream.status === "live" ? (
                     <span className="rounded bg-rose-500 px-1.5 py-0.5 text-[10px] font-black tracking-wide">
                       LIVE
                     </span>
                   ) : (
-                    <span className="rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase">
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
                       {stream.status}
                     </span>
                   )}
-                  <span className="inline-flex items-center gap-1 rounded bg-black/50 px-1.5 py-0.5 text-[10px] font-semibold backdrop-blur">
+                  <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold backdrop-blur ${stream.thumbnail_url ? "bg-black/50 text-white" : "border border-border bg-background/80 text-muted-foreground"}`}>
                     <Eye className="h-3 w-3" />
                     {formatViewers(stream.viewer_count)}
                   </span>
@@ -296,7 +298,7 @@ export default function StreamsPage() {
                       size="sm"
                       className="h-6 w-6 border border-white/20 rounded-full"
                     />
-                    <p className="truncate text-xs text-white/80">
+                    <p className={`truncate text-xs ${stream.thumbnail_url ? "text-white/80" : "text-muted-foreground"}`}>
                       {stream.streamer?.display_name || stream.streamer?.username}
                     </p>
                   </div>

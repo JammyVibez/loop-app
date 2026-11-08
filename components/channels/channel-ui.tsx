@@ -6,12 +6,13 @@ import { ArrowLeft, Info } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 /**
- * Channel screens are deliberately their own dark surface.
+ * Channel screens share the app's theme tokens.
  *
- * The reference is an entertainment guide: near-black canvas, full-bleed
- * artwork and white pill actions. Keeping that palette local (instead of
- * inheriting the app theme) means the guide reads the same in light mode as it
- * does at midnight — exactly like a TV app should.
+ * The guide used to paint its own near-black canvas, which made it look like a
+ * separate product next to the rest of LOOP (and clashed with the audio rooms,
+ * which were pure black). Surfaces, text and borders now come from the same
+ * semantic tokens as every other page, so the guide follows the selected theme.
+ * Only artwork overlays stay dark, because white type sits on top of posters.
  */
 
 const POSTER_HUES = [258, 202, 12, 332, 158, 36]
@@ -55,13 +56,13 @@ export function ChannelScreen({
   children: ReactNode
 }) {
   return (
-    <div className="min-h-screen bg-[#08090a] text-white">
-      <div className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#08090a]/90 backdrop-blur-xl">
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur-xl">
         <div className="mx-auto flex h-14 w-full max-w-3xl items-center gap-3 px-4">
           <Link
             href={backHref}
             aria-label="Back"
-            className="-ml-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white"
+            className="-ml-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
@@ -147,23 +148,23 @@ export function ChannelNotice({
       className={cn(
         "rounded-2xl border p-4 sm:p-5",
         tone === "warning"
-          ? "border-amber-400/25 bg-amber-400/[0.06]"
-          : "border-white/10 bg-white/[0.03]",
+          ? "border-warning/30 bg-warning-surface"
+          : "border-border bg-card",
       )}
     >
       <div className="flex items-start gap-3">
         <span
           className={cn(
             "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-            tone === "warning" ? "bg-amber-400/15 text-amber-300" : "bg-white/[0.06] text-white/60",
+            tone === "warning" ? "bg-warning/15 text-warning" : "bg-muted text-muted-foreground",
           )}
         >
           <Info className="h-4 w-4" />
         </span>
         <div className="min-w-0 space-y-1">
-          <p className="text-sm font-semibold text-white">{title}</p>
+          <p className="text-sm font-semibold text-foreground">{title}</p>
           {description ? (
-            <p className="text-[13px] leading-relaxed text-white/55">{description}</p>
+            <p className="text-[13px] leading-relaxed text-muted-foreground">{description}</p>
           ) : null}
           {children}
         </div>
@@ -174,5 +175,5 @@ export function ChannelNotice({
 
 /** Skeleton block tuned to the guide's surfaces. */
 export function ChannelSkeleton({ className }: { className?: string }) {
-  return <div className={cn("animate-pulse rounded-xl bg-white/[0.05]", className)} />
+  return <div className={cn("animate-pulse rounded-xl bg-muted", className)} />
 }

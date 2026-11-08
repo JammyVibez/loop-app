@@ -1,6 +1,5 @@
 "use client"
 
-import { useState, useEffect, useId } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { AppLogo } from "@/components/brand/app-logo"
@@ -9,62 +8,47 @@ import { AvatarWithFrame } from "@/components/ui/avatar-with-frame"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { ChevronDown, LogOut } from "lucide-react"
+import { LogOut } from "lucide-react"
 import { AnimatedIconView } from "@/components/icons/animated/animated-icon-view"
 import type { AnimatedIconComponent } from "@/components/icons/animated/animated-icon-view"
 import HomeIcon from "@/components/icons/animated/home-icon"
 import MagnifierIcon from "@/components/icons/animated/magnifier-icon"
 import PenIcon from "@/components/icons/animated/pen-icon"
-import UsersIcon from "@/components/icons/animated/users-icon"
+import UsersGroupIcon from "@/components/icons/animated/users-group-icon"
 import MessageCircleIcon from "@/components/icons/animated/message-circle-icon"
+import ChartLineIcon from "@/components/icons/animated/chart-line-icon"
+import SendHorizontalIcon from "@/components/icons/animated/send-horizontal-icon"
 import RadioIcon from "@/components/icons/animated/radio-icon"
 import TvIcon from "@/components/icons/animated/tv-icon"
-import WalletIcon from "@/components/icons/animated/wallet-icon"
-import CodeIcon from "@/components/icons/animated/code-icon"
-import ChartLineIcon from "@/components/icons/animated/chart-line-icon"
+import FlameIcon from "@/components/icons/animated/flame-icon"
 import ClockIcon from "@/components/icons/animated/clock-icon"
 import BookmarkIcon from "@/components/icons/animated/bookmark-icon"
-import UserPlusIcon from "@/components/icons/animated/user-plus-icon"
-import LockIcon from "@/components/icons/animated/lock-icon"
-import UsersGroupIcon from "@/components/icons/animated/users-group-icon"
-import ShieldCheckIcon from "@/components/icons/animated/shield-check"
-import FlameIcon from "@/components/icons/animated/flame-icon"
 
 import { UserBadges } from "@/components/user-badge"
 import {
   primarySidebarNav,
-  readSidebarMoreExpanded,
   secondarySidebarNav,
-  writeSidebarMoreExpanded,
   type SidebarAudience,
 } from "@/lib/sidebar-nav"
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 
 /** Icons live here rather than in the nav model so `lib/sidebar-nav` stays free
- *  of React and the "no destination lost" rules can be unit tested. */
+ *  of React. Every row gets its own icon: repeated icons made separate
+ *  destinations look like duplicates. */
 const NAV_ICONS: Record<string, AnimatedIconComponent> = {
   "/": HomeIcon,
   "/explore": MagnifierIcon,
   "/create": PenIcon,
-  "/communities": UsersIcon,
+  "/communities": UsersGroupIcon,
   "/messages": MessageCircleIcon,
+  "/quests": ChartLineIcon,
+  "/chains": SendHorizontalIcon,
   "/streams": RadioIcon,
   "/channels": TvIcon,
-  "/wallet": WalletIcon,
-  "/quests": ChartLineIcon,
-  "/co-loop/studio": CodeIcon,
-  "/earnings": ChartLineIcon,
-  "/developers": CodeIcon,
-  "/events": ClockIcon,
   "/drops": FlameIcon,
+  "/events": ClockIcon,
   "/bookmarks": BookmarkIcon,
-  "/collections": BookmarkIcon,
-  "/invite": UserPlusIcon,
-  "/lounge": LockIcon,
-  "/organization": UsersGroupIcon,
-  "/loopadmin": ShieldCheckIcon,
-  "/team": UsersIcon,
 }
 
 /** Guides the new-user tour to real elements. */
@@ -73,39 +57,15 @@ const NAV_TOUR_ANCHORS: Record<string, string> = {
   "/wallet": "wallet",
 }
 
-function navItemClasses(href: string, active: boolean) {
-  if (active) {
-    return href === "/loopadmin"
-      ? "bg-amber-500 text-white shadow-sm"
-      : href === "/team"
-        ? "bg-blue-500 text-white shadow-sm"
-        : "bg-primary text-primary-foreground shadow-sm"
-  }
-  if (href === "/loopadmin") return "text-amber-500 hover:bg-amber-500/10"
-  if (href === "/team") return "text-blue-500 hover:bg-blue-500/10"
-  return "text-muted-foreground hover:bg-muted hover:text-foreground"
+function navItemClasses(active: boolean) {
+  return active
+    ? "bg-primary text-primary-foreground shadow-sm"
+    : "text-muted-foreground hover:bg-muted hover:text-foreground"
 }
 
 export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
   const { user, signOut } = useAuth()
   const pathname = usePathname()
-
-  // This component renders twice on small screens (desktop rail + the mobile
-  // sheet), so the disclosure needs an id that is unique per instance.
-  const morePanelId = useId()
-
-  // Persisted so someone who opens More keeps it open across visits.
-  const [moreOpen, setMoreOpen] = useState(false)
-  useEffect(() => {
-    setMoreOpen(readSidebarMoreExpanded())
-  }, [])
-
-  const toggleMore = () => {
-    setMoreOpen((prev) => {
-      writeSidebarMoreExpanded(!prev)
-      return !prev
-    })
-  }
 
   if (!user) return null
 
@@ -118,10 +78,13 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
     isTeamMember: Boolean(user.is_team_member),
   }
 
-  // Five always-visible destinations; everything else lives behind "More" so
-  // the rail reads as a hierarchy instead of a flat list of a dozen links.
-  const primaryNav = primarySidebarNav(audience)
-  const secondaryNav = secondarySidebarNav(audience)
+  // One list: five core destinations, then the product surfaces. Account and
+  // staff tools are in the profile menu, so nothing appears twice.
+  const navItems = [...primarySidebarNav(audience), ...secondarySidebarNav(audience)]
+  const primaryCount = primarySidebarNav(audience).length
+
+  const isItemActive = (href: string) =>
+    pathname === href || (href !== "/" && pathname.startsWith(`${href}/`))
 
   return (
     <div className="flex h-full flex-col justify-between overflow-hidden">
@@ -134,108 +97,38 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
         </div>
 
         <ScrollArea className="flex-1 my-2 pr-2 scrollbar-thin">
-          {/* The rail is navigation and nothing else: five core destinations,
-              one disclosure, then your account. */}
           <p className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/60">
             Menu
           </p>
           <div className="space-y-0.5">
-            {primaryNav.map((item) => {
+            {navItems.map((item, index) => {
               const Icon = NAV_ICONS[item.href]
-              // Prefix match: sub-routes like /communities/123 and /loopadmin/quests
-              // should keep their parent highlighted.
-              const isActive =
-                pathname === item.href ||
-                (item.href !== "/" && pathname.startsWith(`${item.href}/`))
+              const isActive = isItemActive(item.href)
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={onLinkClick}
-                  data-tour={NAV_TOUR_ANCHORS[item.href]}
-                  className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-[13px] font-semibold transition-colors ${navItemClasses(item.href, isActive)}`}
-                >
-                  <div className="flex items-center gap-3">
-                    {Icon ? <AnimatedIconView component={Icon} size={16} className="h-4 w-4" /> : null}
-                    <span>{item.label}</span>
-                  </div>
-                  {item.badge ? (
-                    <Badge className="bg-rose-500 px-1.5 py-0 text-[9px] font-bold text-white">
-                      {item.badge}
-                    </Badge>
+                <div key={item.href}>
+                  {index === primaryCount ? (
+                    <div className="mx-3 my-2 h-px bg-border/70" aria-hidden="true" />
                   ) : null}
-                </Link>
+                  <Link
+                    href={item.href}
+                    onClick={onLinkClick}
+                    data-tour={NAV_TOUR_ANCHORS[item.href]}
+                    className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-[13px] font-semibold transition-colors ${navItemClasses(isActive)}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {Icon ? <AnimatedIconView component={Icon} size={16} className="h-4 w-4" /> : null}
+                      <span>{item.label}</span>
+                    </div>
+                    {item.badge ? (
+                      <Badge className="bg-rose-500 px-1.5 py-0 text-[9px] font-bold text-white">
+                        {item.badge}
+                      </Badge>
+                    ) : null}
+                  </Link>
+                </div>
               )
             })}
-
-            {/* Everything else stays reachable from the same rail, just not
-                competing with the primary destinations for attention. */}
-            {secondaryNav.length > 0 && (
-              <button
-                type="button"
-                onClick={toggleMore}
-                aria-expanded={moreOpen}
-                aria-controls={morePanelId}
-                className={`mt-1 flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[13px] font-semibold transition-colors ${
-                  secondaryNav.some(
-                    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
-                  )
-                    ? "text-foreground hover:bg-muted"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <ChevronDown
-                    className={`h-4 w-4 transition-transform duration-200 ${moreOpen ? "rotate-180" : ""}`}
-                  />
-                  <span>More</span>
-                </div>
-                {!moreOpen && (
-                  <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[9px] font-bold text-muted-foreground">
-                    {secondaryNav.length}
-                  </span>
-                )}
-              </button>
-            )}
-
-            {secondaryNav.length > 0 && moreOpen && (
-              <div id={morePanelId} className="space-y-1 pl-3">
-                {secondaryNav.map((item) => {
-                  const Icon = NAV_ICONS[item.href]
-                  const isActive =
-                    pathname === item.href || pathname.startsWith(`${item.href}/`)
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={onLinkClick}
-                      className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-[13px] font-semibold transition-colors ${navItemClasses(item.href, isActive)}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        {Icon ? <AnimatedIconView component={Icon} size={16} className="h-4 w-4" /> : null}
-                        <span>{item.label}</span>
-                      </div>
-                      {item.badge ? (
-                        item.tone ? (
-                          <Badge
-                            variant="outline"
-                            className={`text-[9px] ${item.tone === "admin" ? "border-amber-500/50" : "border-blue-500/50"}`}
-                          >
-                            {item.badge}
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-rose-500 text-[9px] px-1.5 py-0 text-white font-bold">
-                            {item.badge}
-                          </Badge>
-                        )
-                      ) : null}
-                    </Link>
-                  )
-                })}
-              </div>
-            )}
           </div>
-
         </ScrollArea>
       </div>
 

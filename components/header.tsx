@@ -27,7 +27,6 @@ import {
   User,
   LogOut,
   Coins,
-  Target,
   X,
   Sun,
   Moon,
@@ -35,7 +34,14 @@ import {
   Flower2,
   TreePine,
   Palette,
-  Plus,
+  Bookmark,
+  Wallet,
+  Code,
+  UserPlus,
+  Lock,
+  Building2,
+  ShieldCheck,
+  Users,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { AnimatedIconView } from "@/components/icons/animated/animated-icon-view"
@@ -258,12 +264,6 @@ export function Header() {
                     <span className="text-xs font-medium">Your profile</span>
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
-                  <Link href="/quests" className="flex items-center gap-2">
-                    <Target className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-xs font-medium">Quests</span>
-                  </Link>
-                </DropdownMenuItem>
               </div>
 
               {/* Theme submenu replaces the bar's theme button. */}
@@ -297,6 +297,70 @@ export function Header() {
                   <span className="text-xs font-medium">Settings</span>
                 </Link>
               </DropdownMenuItem>
+
+              {/* Account, workspace and staff tools live here instead of
+                  repeating a second navigation list in the sidebar rail. */}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                Tools
+              </DropdownMenuLabel>
+              <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                <Link href="/collections" className="flex items-center gap-2">
+                  <Bookmark className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-medium">Collections</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                <Link href="/earnings" className="flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-medium">Creator Studio</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                <Link href="/developers" className="flex items-center gap-2">
+                  <Code className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-medium">Developer Hub</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                <Link href="/invite" className="flex items-center gap-2">
+                  <UserPlus className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-medium">Invite friends</span>
+                </Link>
+              </DropdownMenuItem>
+
+              {user.is_premium ? (
+                <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                  <Link href="/lounge" className="flex items-center gap-2">
+                    <Lock className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs font-medium">Pro Lounge</span>
+                  </Link>
+                </DropdownMenuItem>
+              ) : null}
+              {user.is_organization ? (
+                <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                  <Link href="/organization" className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs font-medium">Organization</span>
+                  </Link>
+                </DropdownMenuItem>
+              ) : null}
+              {isAdmin ? (
+                <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                  <Link href="/loopadmin" className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-amber-500" />
+                    <span className="text-xs font-medium">Admin Dashboard</span>
+                  </Link>
+                </DropdownMenuItem>
+              ) : null}
+              {isAdmin || user.is_team_member ? (
+                <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                  <Link href="/team" className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-blue-500" />
+                    <span className="text-xs font-medium">Team Dashboard</span>
+                  </Link>
+                </DropdownMenuItem>
+              ) : null}
 
               <DropdownMenuSeparator />
 

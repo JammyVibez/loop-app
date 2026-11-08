@@ -9,7 +9,7 @@ export default function StreamDetailPage() {
 
   if (!streamId) {
     return (
-      <div className="flex h-[100dvh] items-center justify-center bg-black text-white">
+      <div className="flex h-[100dvh] items-center justify-center bg-background text-foreground">
         Stream not found
       </div>
     )

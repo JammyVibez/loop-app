@@ -124,7 +124,7 @@ export function ChannelsBrowser() {
   return (
     <ChannelScreen title="Channels">
       <div className="mx-auto w-full max-w-3xl pb-16">
-        <div className="sticky top-14 z-20 bg-[#08090a]/90 backdrop-blur-xl">
+        <div className="sticky top-14 z-20 bg-background/90 backdrop-blur-xl">
           <div className="flex gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {CHANNEL_TABS.map((item) => (
               <button
@@ -139,8 +139,8 @@ export function ChannelsBrowser() {
                 className={cn(
                   "shrink-0 rounded-full px-4 py-2 text-[14px] font-semibold transition",
                   tab === item.id
-                    ? "bg-white text-black"
-                    : "bg-white/[0.07] text-white/85 hover:bg-white/[0.12]",
+                    ? "bg-foreground text-background"
+                    : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground",
                 )}
               >
                 {item.label}
@@ -165,7 +165,7 @@ export function ChannelsBrowser() {
                   <button
                     type="button"
                     onClick={() => void loadTitles()}
-                    className="mt-2 text-xs font-semibold text-white underline decoration-white/30 underline-offset-4"
+                    className="mt-2 text-xs font-semibold text-primary underline decoration-primary/30 underline-offset-4"
                   >
                     Try again
                   </button>
@@ -232,25 +232,25 @@ export function ChannelsBrowser() {
                 </div>
 
                 {showInfo ? (
-                  <div className="mx-4 mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <div className="mx-4 mt-3 rounded-2xl border border-border bg-card p-4">
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-[12px]">
                       <div>
-                        <dt className="text-white/40">Type</dt>
-                        <dd className="mt-0.5 font-semibold text-white/90">
+                        <dt className="text-muted-foreground">Type</dt>
+                        <dd className="mt-0.5 font-semibold text-foreground">
                           {featured.kind === "movie" ? "Movie" : "Series"}
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-white/40">Year</dt>
-                        <dd className="mt-0.5 font-semibold text-white/90">{featured.year ?? "—"}</dd>
+                        <dt className="text-muted-foreground">Year</dt>
+                        <dd className="mt-0.5 font-semibold text-foreground">{featured.year ?? "—"}</dd>
                       </div>
                       <div>
-                        <dt className="text-white/40">Country</dt>
-                        <dd className="mt-0.5 font-semibold text-white/90">{featured.country ?? "—"}</dd>
+                        <dt className="text-muted-foreground">Country</dt>
+                        <dd className="mt-0.5 font-semibold text-foreground">{featured.country ?? "—"}</dd>
                       </div>
                       <div>
-                        <dt className="text-white/40">Language</dt>
-                        <dd className="mt-0.5 font-semibold text-white/90">{featured.language ?? "—"}</dd>
+                        <dt className="text-muted-foreground">Language</dt>
+                        <dd className="mt-0.5 font-semibold text-foreground">{featured.language ?? "—"}</dd>
                       </div>
                     </dl>
                     {featured.genres.length ? (
@@ -258,7 +258,7 @@ export function ChannelsBrowser() {
                         {featured.genres.map((genre) => (
                           <span
                             key={genre}
-                            className="rounded-full bg-white/[0.07] px-2.5 py-0.5 text-[11px] font-medium text-white/70"
+                            className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground"
                           >
                             {genre}
                           </span>
@@ -296,33 +296,33 @@ export function ChannelsBrowser() {
               <h2 className="mb-1 text-[21px] font-bold tracking-tight">More to watch</h2>
               <Link
                 href="/channels?tab=drama"
-                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 transition hover:border-white/20 hover:bg-white/[0.06]"
+                className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5 transition hover:border-primary/30 hover:bg-accent"
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-white/70">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                   <Clapperboard className="h-[18px] w-[18px]" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[14px] font-semibold text-white">Asian dramas</span>
-                  <span className="mt-0.5 block truncate text-[11px] text-white/40">
+                  <span className="block text-[14px] font-semibold text-foreground">Asian dramas</span>
+                  <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
                     KissKH, AsiaFlix, DramaCool and more
                   </span>
                 </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-white/35" />
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
               </Link>
               <Link
                 href="/channels?tab=novel"
-                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 transition hover:border-white/20 hover:bg-white/[0.06]"
+                className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5 transition hover:border-primary/30 hover:bg-accent"
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-white/70">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                   <Film className="h-[18px] w-[18px]" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[14px] font-semibold text-white">Light &amp; web novels</span>
-                  <span className="mt-0.5 block truncate text-[11px] text-white/40">
+                  <span className="block text-[14px] font-semibold text-foreground">Light &amp; web novels</span>
+                  <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
                     Search NovelBuddy and NovelFire, read chapters here
                   </span>
                 </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-white/35" />
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
               </Link>
             </section>
           </div>
@@ -335,24 +335,24 @@ export function ChannelsBrowser() {
                 <h2 className="text-[22px] font-bold tracking-tight">
                   {tab === "movies" ? "Movies" : "Shows"}
                 </h2>
-                <p className="mt-1 text-[13px] leading-relaxed text-white/50">
+                <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
                   {tab === "movies"
                     ? "Full films added by the Loop team."
                     : "Series with full seasons and episodes."}
                 </p>
               </div>
-              <span className="shrink-0 text-[12px] text-white/40">{browserTitles.length}</span>
+              <span className="shrink-0 text-[12px] text-muted-foreground">{browserTitles.length}</span>
             </div>
 
             <div className="relative">
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="search"
                 value={libraryQuery}
                 onChange={(event) => setLibraryQuery(event.target.value)}
                 placeholder={tab === "movies" ? "Search movies" : "Search shows"}
                 aria-label={tab === "movies" ? "Search movies" : "Search shows"}
-                className="h-11 w-full rounded-full border border-white/10 bg-white/[0.05] pl-10 pr-4 text-sm text-white placeholder:text-white/35 focus:border-white/25 focus:outline-none"
+                className="h-11 w-full rounded-full border border-border bg-background pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/40 focus:outline-none"
               />
             </div>
 
@@ -367,7 +367,7 @@ export function ChannelsBrowser() {
                 <button
                   type="button"
                   onClick={() => void loadTitles()}
-                  className="mt-2 text-xs font-semibold text-white underline decoration-white/30 underline-offset-4"
+                  className="mt-2 text-xs font-semibold text-primary underline decoration-primary/30 underline-offset-4"
                 >
                   Try again
                 </button>
@@ -395,7 +395,7 @@ export function ChannelsBrowser() {
           <div className="space-y-4 px-4 pt-2">
             <div>
               <h2 className="text-[22px] font-bold tracking-tight">Asian dramas</h2>
-              <p className="mt-1 text-[13px] leading-relaxed text-white/50">
+              <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
                 Pick a provider, enter a drama title and an episode number. UltraSrc resolves the
                 stream on demand.
               </p>
@@ -412,7 +412,7 @@ export function ChannelsBrowser() {
                 <button
                   type="button"
                   onClick={() => setDramasStatus("idle")}
-                  className="mt-2 text-xs font-semibold text-white underline decoration-white/30 underline-offset-4"
+                  className="mt-2 text-xs font-semibold text-primary underline decoration-primary/30 underline-offset-4"
                 >
                   Try again
                 </button>
@@ -423,22 +423,22 @@ export function ChannelsBrowser() {
                   <Link
                     key={provider.id}
                     href={`/channels/drama/${encodeURIComponent(provider.id)}?name=${encodeURIComponent(provider.name)}`}
-                    className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 transition hover:border-white/20 hover:bg-white/[0.06]"
+                    className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5 transition hover:border-primary/30 hover:bg-accent"
                   >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-white/70">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                       <Clapperboard className="h-[18px] w-[18px]" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[14px] font-semibold text-white">
+                      <span className="block text-[14px] font-semibold text-foreground">
                         {provider.name}
                       </span>
-                      <span className="mt-0.5 block truncate text-[11px] text-white/40">
+                      <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
                         {provider.mirrors.length
                           ? provider.mirrors.join(" · ")
                           : "Asian drama provider"}
                       </span>
                     </span>
-                    <ChevronRight className="h-4 w-4 shrink-0 text-white/35" />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                   </Link>
                 ))}
               </div>
@@ -460,7 +460,7 @@ export function ChannelsBrowser() {
           <div className="space-y-4 px-4 pt-2">
             <div>
               <h2 className="text-[22px] font-bold tracking-tight">Light &amp; web novels</h2>
-              <p className="mt-1 text-[13px] leading-relaxed text-white/50">
+              <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
                 Search NovelBuddy and NovelFire, then read chapters right here.
               </p>
             </div>
@@ -472,17 +472,17 @@ export function ChannelsBrowser() {
               }}
               className="relative"
             >
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="search"
                 value={novelQuery}
                 onChange={(event) => setNovelQuery(event.target.value)}
                 placeholder="Search novels"
                 aria-label="Search novels"
-                className="h-11 w-full rounded-full border border-white/10 bg-white/[0.05] pl-10 pr-11 text-sm text-white placeholder:text-white/35 focus:border-white/25 focus:outline-none"
+                className="h-11 w-full rounded-full border border-border bg-background pl-10 pr-11 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/40 focus:outline-none"
               />
               {novelsStatus === "loading" ? (
-                <Loader2 className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-white/40" />
+                <Loader2 className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
               ) : null}
             </form>
 
@@ -496,7 +496,7 @@ export function ChannelsBrowser() {
                       setNovelQuery(term)
                       void searchNovels(term)
                     }}
-                    className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[12px] font-medium text-white/70 transition hover:border-white/25 hover:text-white"
+                    className="rounded-full border border-border bg-muted/40 px-3 py-1.5 text-[12px] font-medium text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
                   >
                     {term}
                   </button>
@@ -509,7 +509,7 @@ export function ChannelsBrowser() {
                 <button
                   type="button"
                   onClick={() => void searchNovels(novelTerm ?? novelQuery)}
-                  className="mt-2 text-xs font-semibold text-white underline decoration-white/30 underline-offset-4"
+                  className="mt-2 text-xs font-semibold text-primary underline decoration-primary/30 underline-offset-4"
                 >
                   Try again
                 </button>
@@ -526,7 +526,7 @@ export function ChannelsBrowser() {
               <>
                 <div className="flex items-baseline justify-between">
                   <h3 className="text-[17px] font-bold tracking-tight">Results</h3>
-                  <span className="text-[12px] text-white/40">
+                  <span className="text-[12px] text-muted-foreground">
                     {novels.length} for “{novelTerm}”
                   </span>
                 </div>
@@ -546,10 +546,10 @@ export function ChannelsBrowser() {
                         className="aspect-[2/3] w-full"
                         fallbackClassName="text-2xl"
                       />
-                      <p className="mt-2 line-clamp-2 text-[13px] font-semibold leading-snug text-white">
+                      <p className="mt-2 line-clamp-2 text-[13px] font-semibold leading-snug text-foreground">
                         {novel.title}
                       </p>
-                      <p className="mt-0.5 truncate text-[11px] text-white/40">
+                      <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
                         {novel.author ?? novel.provider ?? "Web novel"}
                       </p>
                     </Link>
@@ -618,7 +618,7 @@ function TitleRail({
         <button
           type="button"
           onClick={onSeeAll}
-          className="text-[12px] font-semibold text-white/45 transition hover:text-white"
+          className="text-[12px] font-semibold text-muted-foreground transition hover:text-foreground"
         >
           See all
         </button>
@@ -626,7 +626,7 @@ function TitleRail({
       <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {titles.slice(0, 10).map((title) => (
           <Link key={title.id} href={watchHref(title)} className="group w-[38%] shrink-0 sm:w-[26%]">
-            <div className="relative aspect-[2/3] w-full overflow-hidden rounded-2xl ring-1 ring-white/10">
+            <div className="relative aspect-[2/3] w-full overflow-hidden rounded-2xl ring-1 ring-border">
               <ChannelArt
                 src={title.poster}
                 name={title.title}
@@ -636,8 +636,8 @@ function TitleRail({
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
             </div>
-            <p className="mt-2 line-clamp-1 text-[13px] font-semibold text-white">{title.title}</p>
-            <p className="mt-0.5 text-[11px] text-white/40">
+            <p className="mt-2 line-clamp-1 text-[13px] font-semibold text-foreground">{title.title}</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
               {title.kind === "movie" ? "Movie" : `${title.episodeCount || 0} episodes`}
               {title.year ? ` · ${title.year}` : ""}
             </p>
@@ -651,7 +651,7 @@ function TitleRail({
 function TitleCard({ title }: { title: ChannelTitle }) {
   return (
     <Link href={watchHref(title)} className="group min-w-0">
-      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl ring-1 ring-white/10">
+      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl ring-1 ring-border">
         <ChannelArt
           src={title.poster}
           name={title.title}
@@ -665,10 +665,10 @@ function TitleCard({ title }: { title: ChannelTitle }) {
           {title.year ? <span>{title.year}</span> : null}
         </span>
       </div>
-      <p className="mt-2 line-clamp-2 text-[14px] font-semibold leading-snug text-white">
+      <p className="mt-2 line-clamp-2 text-[14px] font-semibold leading-snug text-foreground">
         {title.title}
       </p>
-      <p className="mt-0.5 truncate text-[12px] text-white/40">
+      <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
         {title.genres.length ? title.genres.slice(0, 2).join(" · ") : title.kind === "movie" ? "Movie" : "Series"}
       </p>
     </Link>

@@ -68,7 +68,7 @@ export default function MoviePage() {
               description={error ?? "It may have been unpublished or removed from the library."}
               tone="warning"
             >
-              <Link href="/channels" className="mt-2 inline-block text-xs font-semibold text-white underline decoration-white/30 underline-offset-4">
+              <Link href="/channels" className="mt-2 inline-block text-xs font-semibold text-primary underline decoration-primary/30 underline-offset-4">
                 Browse Channels
               </Link>
             </ChannelNotice>
@@ -77,13 +77,13 @@ export default function MoviePage() {
           {movie ? (
             <div>
               <h1 className="text-2xl font-black tracking-tight sm:text-3xl">{movie.title}</h1>
-              <p className="mt-1.5 text-[13px] text-white/50">
+              <p className="mt-1.5 text-[13px] text-muted-foreground">
                 {meta.join(" · ")}
                 {movie.genres.length ? `${meta.length ? " · " : ""}${movie.genres.join(", ")}` : ""}
               </p>
 
               {movie.synopsis ? (
-                <p className="mt-3 text-[14px] leading-relaxed text-white/70">{movie.synopsis}</p>
+                <p className="mt-3 text-[14px] leading-relaxed text-muted-foreground">{movie.synopsis}</p>
               ) : null}
             </div>
           ) : null}
@@ -92,7 +92,7 @@ export default function MoviePage() {
 
           <Link
             href="/channels?tab=movies"
-            className="inline-flex h-11 items-center gap-2 rounded-full bg-white/[0.06] px-4 text-[13px] font-semibold text-white ring-1 ring-white/10 transition hover:bg-white/[0.1]"
+            className="inline-flex h-11 items-center gap-2 rounded-full bg-muted px-4 text-[13px] font-semibold text-foreground ring-1 ring-border transition hover:bg-accent"
           >
             <ChevronLeft className="h-4 w-4" />
             All movies

@@ -67,7 +67,7 @@ export function CreateStreamForm({ onStreamCreated }: CreateStreamFormProps) {
       </p>
 
       <div className="rounded-2xl border border-border/60 bg-muted/30 p-4">
-        <Mic className="mb-2 h-5 w-5 text-rose-500" />
+        <Mic className="mb-2 h-5 w-5 text-primary" />
         <p className="text-sm font-semibold">Audio stage</p>
         <p className="mt-1 text-xs text-muted-foreground">Your microphone is live; listeners join to talk in chat, react and send gifts.</p>
       </div>
@@ -120,7 +120,7 @@ export function CreateStreamForm({ onStreamCreated }: CreateStreamFormProps) {
         <Button
           disabled={saving}
           onClick={handleCreate}
-          className="h-12 w-full rounded-full bg-rose-500 text-base font-bold hover:bg-rose-400"
+          className="h-12 w-full rounded-full text-base font-bold"
         >
           {saving ? <Spinner className="mr-2 h-4 w-4" /> : <Mic className="mr-2 h-4 w-4" />}
           Open Audio Studio

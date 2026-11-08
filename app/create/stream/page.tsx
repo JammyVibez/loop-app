@@ -23,21 +23,21 @@ export default function CreateStreamPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-xl px-4 py-8">
         <Link
           href="/streams"
-          className="mb-6 inline-flex items-center text-sm text-white/60 hover:text-white"
+          className="mb-6 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="mr-1 h-4 w-4" /> Back to Audio Rooms
         </Link>
 
         <div className="mb-6">
           <h1 className="flex items-center gap-2 text-2xl font-black">
-            <Radio className="h-6 w-6 text-rose-500" />
+            <Radio className="h-6 w-6 text-primary" />
             Start an Audio Room
           </h1>
-          <p className="mt-2 text-sm text-white/60">
+          <p className="mt-2 text-sm text-muted-foreground">
             Audio-first rooms with live conversation, listener chat, reactions, and gifts.
           </p>
         </div>

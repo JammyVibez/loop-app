@@ -466,8 +466,8 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
 
   if (loading) {
     return (
-      <div className="flex h-[100dvh] items-center justify-center bg-black text-white">
-        <Spinner className="mr-2 h-6 w-6 text-rose-500" />
+      <div className="flex h-[100dvh] items-center justify-center bg-background text-foreground">
+        <Spinner className="mr-2 h-6 w-6 text-primary" />
         Loading audio room…
       </div>
     )
@@ -475,18 +475,18 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
 
   if (!stream) {
     return (
-      <div className="flex h-[100dvh] flex-col items-center justify-center gap-4 bg-black px-6 text-center text-white">
-        <Radio className="h-12 w-12 text-white/40" />
+      <div className="flex h-[100dvh] flex-col items-center justify-center gap-4 bg-background px-6 text-center text-foreground">
+        <Radio className="h-12 w-12 text-muted-foreground" />
         <p>This audio room is unavailable.</p>
         <Link href="/streams">
-          <Button className="rounded-full bg-rose-500 hover:bg-rose-400">Back to Audio Rooms</Button>
+          <Button className="rounded-full">Back to Audio Rooms</Button>
         </Link>
       </div>
     )
   }
 
   return (
-    <div className="relative h-[100dvh] w-full overflow-hidden bg-black text-white">
+    <div className="relative h-[100dvh] w-full overflow-hidden bg-background text-foreground">
       {/* Full-bleed video stage — 100ms SFU media layer */}
       <div className="absolute inset-0">
         {mediaProvider === "livekit" ? (
@@ -526,27 +526,27 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
           />
         )}
         {hmsError && (
-          <div className="absolute inset-x-0 bottom-48 z-20 mx-auto flex w-fit max-w-[90%] items-center gap-2 rounded-full bg-black/65 px-4 py-2 text-xs text-amber-300 backdrop-blur">
-            <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-amber-400" />
+          <div className="absolute inset-x-0 bottom-48 z-20 mx-auto flex w-fit max-w-[90%] items-center gap-2 rounded-full border border-warning/30 bg-card/95 px-4 py-2 text-xs text-warning backdrop-blur">
+            <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-warning" />
             {hmsError}
           </div>
         )}
         {!isLive && !isOwner && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-b from-zinc-950 via-black to-zinc-900">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-b from-muted via-background to-card">
             {stream.thumbnail_url ? (
               <ProxyImg src={stream.thumbnail_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30" />
             ) : null}
-            {audioOnly ? <Mic className="relative z-10 h-14 w-14 text-rose-500/80" /> : <Radio className="relative z-10 h-14 w-14 text-rose-500/80" />}
-            <p className="relative z-10 text-sm text-white/70">
+            {audioOnly ? <Mic className="relative z-10 h-14 w-14 text-primary/80" /> : <Radio className="relative z-10 h-14 w-14 text-primary/80" />}
+            <p className="relative z-10 text-sm text-muted-foreground">
               {stream.status === "ended" ? "This audio room has ended" : "Waiting for the host to start the audio room…"}
             </p>
           </div>
         )}
         {isOwner && !isLive && stream.status !== "ended" && (
           <div className="absolute inset-x-0 bottom-36 z-20 flex flex-col items-center gap-3 px-4">
-            <div className="rounded-2xl bg-black/55 px-4 py-3 text-center backdrop-blur">
+            <div className="rounded-2xl border border-border bg-card/95 px-4 py-3 text-center text-foreground backdrop-blur">
               <p className="text-base font-semibold">{stream.title}</p>
-              <p className="mt-1 text-xs text-white/70">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {hasLocalPreview
                   ? "Microphone ready — start your audio room when you are"
                   : "Allow microphone access to start your audio room"}
@@ -555,7 +555,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
             <Button
               disabled={busy}
               onClick={handleGoLive}
-              className="h-12 rounded-full bg-rose-500 px-8 text-base font-bold hover:bg-rose-400"
+              className="h-12 rounded-full px-8 text-base font-bold"
             >
               {busy ? <Spinner className="mr-2 h-4 w-4" /> : <Mic className="mr-2 h-4 w-4" />}
               Start audio room
@@ -563,11 +563,11 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
           </div>
         )}
         {connectingMedia && isLive && !isOwner && !hasRemote && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-            <Spinner className="h-8 w-8 text-rose-400" />
+          <div className="absolute inset-0 flex items-center justify-center bg-background/60">
+            <Spinner className="h-8 w-8 text-primary" />
           </div>
         )}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/55 via-transparent to-black/70" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background/60 via-transparent to-background/80" />
       </div>
 
       {/* Top bar */}
@@ -576,14 +576,14 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
           <button
             type="button"
             onClick={() => router.push("/streams")}
-            className="rounded-full bg-black/40 p-2 backdrop-blur"
+            className="rounded-full border border-border bg-card/85 p-2 text-foreground backdrop-blur"
             aria-label="Back"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
           <Link
             href={streamer?.username ? `/profile/${streamer.username}` : "/streams"}
-            className="flex min-w-0 items-center gap-2 rounded-full bg-black/45 py-1 pl-1 pr-3 backdrop-blur"
+            className="flex min-w-0 items-center gap-2 rounded-full border border-border bg-card/90 py-1 pl-1 pr-3 text-foreground backdrop-blur"
           >
             <VideoAvatar
               src={streamer?.avatar_url}
@@ -597,7 +597,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
               <p className="truncate text-sm font-semibold leading-tight">
                 {streamer?.display_name || "Host"}
               </p>
-              <p className="truncate text-[11px] text-white/70">@{streamer?.username || "loop"}</p>
+              <p className="truncate text-[11px] text-muted-foreground">@{streamer?.username || "loop"}</p>
             </div>
           </Link>
         </div>
@@ -609,21 +609,21 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
               AUDIO LIVE
             </span>
           ) : (
-            <span className="rounded-md bg-white/15 px-2 py-1 text-[11px] font-semibold uppercase">
+            <span className="rounded-md bg-muted px-2 py-1 text-[11px] font-semibold uppercase text-muted-foreground">
               {stream.status}
             </span>
           )}
-          <span className="inline-flex items-center gap-1 rounded-md bg-black/45 px-2 py-1 text-[11px] font-semibold backdrop-blur">
+          <span className="inline-flex items-center gap-1 rounded-md border border-border bg-card/90 px-2 py-1 text-[11px] font-semibold text-foreground backdrop-blur">
             <Eye className="h-3.5 w-3.5" />
             {viewerCount.toLocaleString()}
           </span>
           {isOwner && isLive && (
-            <span className="hidden items-center gap-1 rounded-md bg-violet-500/90 px-2 py-1 text-[11px] font-bold sm:inline-flex">
+            <span className="hidden items-center gap-1 rounded-md bg-primary/90 px-2 py-1 text-[11px] font-bold text-primary-foreground sm:inline-flex">
               <Zap className="h-3 w-3" /> Audio room
             </span>
           )}
           {audioOnly ? (
-            <span className="hidden items-center gap-1 rounded-md bg-rose-500/80 px-2 py-1 text-[11px] font-bold sm:inline-flex">
+            <span className="hidden items-center gap-1 rounded-md bg-primary/80 px-2 py-1 text-[11px] font-bold text-primary-foreground sm:inline-flex">
               <Mic className="h-3.5 w-3.5" /> AUDIO
             </span>
           ) : null}
@@ -632,7 +632,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
               <MonitorUp className="h-3.5 w-3.5" /> Screen
             </span>
           )}
-          <button type="button" onClick={handleShare} className="rounded-full bg-black/40 p-2 backdrop-blur">
+          <button type="button" onClick={handleShare} className="rounded-full border border-border bg-card/85 p-2 text-foreground backdrop-blur">
             <Share2 className="h-4 w-4" />
           </button>
           {isOwner && isLive && (
@@ -675,21 +675,21 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
       {/* Chat overlay */}
       <div className="absolute bottom-24 left-0 z-20 w-full max-w-md px-3 sm:bottom-28">
         <div className="mb-2 max-h-44 space-y-1.5 overflow-y-auto pr-10 [mask-image:linear-gradient(to_bottom,transparent,black_18%,black)]">
-          <p className="text-xs font-medium text-white/80 drop-shadow">{stream.title}</p>
+          <p className="text-xs font-medium text-foreground drop-shadow">{stream.title}</p>
           {chatMessages.slice(-40).map((msg) => (
             <div
               key={msg.id}
               className={cn(
                 "max-w-[92%] rounded-2xl px-2.5 py-1.5 text-[13px] leading-snug backdrop-blur-md",
                 msg.is_tip
-                  ? "bg-amber-400/20 text-amber-100"
-                  : "bg-black/35 text-white",
+                  ? "border border-warning/30 bg-warning-surface text-warning"
+                  : "border border-border bg-card/95 text-foreground",
               )}
             >
-              <span className={cn("mr-1.5 font-semibold", msg.is_host ? "text-rose-300" : "text-sky-200")}>
+              <span className={cn("mr-1.5 font-semibold", msg.is_host ? "text-primary" : "text-info")}>
                 {msg.display_name}
               </span>
-              <span className="text-white/95">{msg.message}</span>
+              <span className="text-foreground/90">{msg.message}</span>
             </div>
           ))}
           <div ref={chatEndRef} />
@@ -725,12 +725,12 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
             onChange={(e) => setChatInput(e.target.value)}
             placeholder={user ? "Say something…" : "Log in to chat"}
             disabled={!user}
-            className="h-11 flex-1 rounded-full border-white/15 bg-black/45 text-white placeholder:text-white/50 backdrop-blur"
+            className="h-11 flex-1 rounded-full border-border bg-card/95 text-foreground placeholder:text-muted-foreground backdrop-blur"
           />
           <button
             type="submit"
             disabled={!user || !chatInput.trim()}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15 backdrop-blur disabled:opacity-40"
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card/95 text-foreground backdrop-blur disabled:opacity-40"
           >
             <Send className="h-4 w-4" />
           </button>
@@ -746,15 +746,15 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
           <button
             type="button"
             onClick={() => void sendReaction("❤️")}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-rose-500/90"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-primary"
           >
-            <Heart className="h-4 w-4 fill-white" />
+            <Heart className="h-4 w-4 fill-primary-foreground" />
           </button>
           {!isOwner && (
             <button
               type="button"
               onClick={() => setMuted((m) => !m)}
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15 backdrop-blur"
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card/95 text-foreground backdrop-blur"
             >
               {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
             </button>
@@ -767,14 +767,14 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
               key={emoji}
               type="button"
               onClick={() => void sendReaction(emoji)}
-              className="rounded-full bg-black/35 px-2.5 py-1 text-base backdrop-blur"
+              className="rounded-full border border-border bg-card/85 px-2.5 py-1 text-base backdrop-blur"
             >
               {emoji}
             </button>
           ))}
           {isOwner && isLive ? (
-            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-[11px] text-white/80">
-              <Zap className="h-3 w-3 text-amber-300" />
+            <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-border bg-card/90 px-3 py-1 text-[11px] text-muted-foreground">
+              <Zap className="h-3 w-3 text-warning" />
               Audio host
             </span>
           ) : null}
@@ -835,7 +835,11 @@ function IconBtn({
       onClick={onClick}
       className={cn(
         "flex h-10 w-10 items-center justify-center rounded-full backdrop-blur transition",
-        active === false ? "bg-rose-600/80" : active ? "bg-sky-500/90" : "bg-black/45",
+        active === false
+          ? "bg-destructive text-destructive-foreground"
+          : active
+            ? "bg-primary text-primary-foreground"
+            : "border border-border bg-card/90 text-foreground",
       )}
     >
       {children}

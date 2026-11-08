@@ -121,7 +121,7 @@ export default function DramaProviderPage() {
               <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
                 {stream.title ?? activeTitle}
               </h1>
-              <p className="mt-1 text-[13px] text-white/45">
+              <p className="mt-1 text-[13px] text-muted-foreground">
                 Episode {episode}
                 {stream.engine ? ` · ${stream.engine}` : ""}
               </p>
@@ -130,7 +130,7 @@ export default function DramaProviderPage() {
                   type="button"
                   onClick={() => step(-1)}
                   disabled={episode <= 1 || status === "loading"}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white/[0.06] px-3.5 text-[12px] font-semibold text-white ring-1 ring-white/10 transition hover:bg-white/[0.1] disabled:opacity-40"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-muted px-3.5 text-[12px] font-semibold text-foreground ring-1 ring-border transition hover:bg-accent disabled:opacity-40"
                 >
                   <SkipBack className="h-3.5 w-3.5" />
                   Previous
@@ -139,7 +139,7 @@ export default function DramaProviderPage() {
                   type="button"
                   onClick={() => step(1)}
                   disabled={status === "loading"}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white px-3.5 text-[12px] font-bold text-black transition hover:bg-white/90 disabled:opacity-40"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-foreground px-3.5 text-[12px] font-bold text-background transition hover:bg-foreground/90 disabled:opacity-40"
                 >
                   Next episode
                   <SkipForward className="h-3.5 w-3.5" />
@@ -150,7 +150,7 @@ export default function DramaProviderPage() {
 
           <form onSubmit={onSubmit} className="space-y-3">
             <div className="space-y-1.5">
-              <label htmlFor="drama-title" className="block text-[12px] font-semibold text-white/60">
+              <label htmlFor="drama-title" className="block text-[12px] font-semibold text-muted-foreground">
                 Drama title
               </label>
               <input
@@ -158,7 +158,7 @@ export default function DramaProviderPage() {
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="e.g. Hidden Love"
-                className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3.5 text-sm text-white placeholder:text-white/30 focus:border-white/25 focus:outline-none"
+                className="h-11 w-full rounded-xl border border-border bg-background px-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/40 focus:outline-none"
               />
             </div>
 
@@ -166,7 +166,7 @@ export default function DramaProviderPage() {
               <div className="w-24 space-y-1.5">
                 <label
                   htmlFor="drama-episode"
-                  className="block text-[12px] font-semibold text-white/60"
+                  className="block text-[12px] font-semibold text-muted-foreground"
                 >
                   Episode
                 </label>
@@ -176,18 +176,18 @@ export default function DramaProviderPage() {
                   min={1}
                   value={episode}
                   onChange={(event) => setEpisode(Number(event.target.value) || 1)}
-                  className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 text-sm text-white focus:border-white/25 focus:outline-none"
+                  className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground focus:border-primary/40 focus:outline-none"
                 />
               </div>
               <button
                 type="submit"
                 disabled={status === "loading"}
-                className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-white text-[14px] font-bold text-black transition hover:bg-white/90 disabled:opacity-60"
+                className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-primary text-[14px] font-bold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60"
               >
                 {status === "loading" ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <Play className="h-4 w-4 fill-black" />
+                  <Play className="h-4 w-4 fill-primary-foreground" />
                 )}
                 Resolve episode
               </button>
@@ -212,7 +212,7 @@ export default function DramaProviderPage() {
 
           <Link
             href="/channels"
-            className="inline-flex h-11 items-center gap-2 rounded-full bg-white/[0.06] px-4 text-[13px] font-semibold text-white ring-1 ring-white/10 transition hover:bg-white/[0.1]"
+            className="inline-flex h-11 items-center gap-2 rounded-full bg-muted px-4 text-[13px] font-semibold text-foreground ring-1 ring-border transition hover:bg-accent"
           >
             <ChevronLeft className="h-4 w-4" />
             Back to the guide

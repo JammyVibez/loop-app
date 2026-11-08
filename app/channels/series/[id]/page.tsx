@@ -87,7 +87,7 @@ export default function SeriesPage() {
               description={error ?? "It may have been unpublished or removed from the library."}
               tone="warning"
             >
-              <Link href="/channels?tab=series" className="mt-2 inline-block text-xs font-semibold text-white underline decoration-white/30 underline-offset-4">
+              <Link href="/channels?tab=series" className="mt-2 inline-block text-xs font-semibold text-primary underline decoration-primary/30 underline-offset-4">
                 Browse shows
               </Link>
             </ChannelNotice>
@@ -97,18 +97,18 @@ export default function SeriesPage() {
             <>
               <div>
                 <h1 className="text-2xl font-black tracking-tight sm:text-3xl">{show.title}</h1>
-                <p className="mt-1.5 text-[13px] text-white/50">
+                <p className="mt-1.5 text-[13px] text-muted-foreground">
                   {meta}
                   {show.genres.length ? `${meta ? " · " : ""}${show.genres.join(", ")}` : ""}
                 </p>
                 {selected ? (
-                  <p className="mt-2 text-[13px] font-semibold text-white/80">
+                  <p className="mt-2 text-[13px] font-semibold text-foreground">
                     Now playing: {episodeLabel(selected)}
                     {selected.name ? ` — ${selected.name}` : ""}
                   </p>
                 ) : null}
                 {show.synopsis ? (
-                  <p className="mt-3 text-[14px] leading-relaxed text-white/70">{show.synopsis}</p>
+                  <p className="mt-3 text-[14px] leading-relaxed text-muted-foreground">{show.synopsis}</p>
                 ) : null}
               </div>
 
@@ -116,7 +116,7 @@ export default function SeriesPage() {
                 <div className="space-y-5">
                   {seasons.map(([season, episodes]) => (
                     <section key={season}>
-                      <h2 className="mb-2 text-[13px] font-bold uppercase tracking-wide text-white/45">
+                      <h2 className="mb-2 text-[13px] font-bold uppercase tracking-wide text-muted-foreground">
                         Season {season}
                       </h2>
                       <div className="space-y-1.5">
@@ -131,20 +131,20 @@ export default function SeriesPage() {
                               className={cn(
                                 "flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition",
                                 active
-                                  ? "border-white/25 bg-white/[0.10]"
-                                  : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.07]",
+                                  ? "border-primary/40 bg-accent"
+                                  : "border-border bg-card hover:border-primary/30 hover:bg-accent",
                               )}
                             >
-                              <span className="w-16 shrink-0 text-[11px] font-bold text-white/45">
+                              <span className="w-16 shrink-0 text-[11px] font-bold text-muted-foreground">
                                 {episodeLabel(episode)}
                               </span>
-                              <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-white">
+                              <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-foreground">
                                 {episode.name || `Episode ${episode.episode}`}
                               </span>
                               <Play
                                 className={cn(
                                   "h-4 w-4 shrink-0",
-                                  active ? "fill-white text-white" : "text-white/40",
+                                  active ? "fill-foreground text-foreground" : "text-muted-foreground",
                                 )}
                               />
                             </button>
@@ -167,7 +167,7 @@ export default function SeriesPage() {
 
           <Link
             href="/channels?tab=series"
-            className="inline-flex h-11 items-center gap-2 rounded-full bg-white/[0.06] px-4 text-[13px] font-semibold text-white ring-1 ring-white/10 transition hover:bg-white/[0.1]"
+            className="inline-flex h-11 items-center gap-2 rounded-full bg-muted px-4 text-[13px] font-semibold text-foreground ring-1 ring-border transition hover:bg-accent"
           >
             <ChevronLeft className="h-4 w-4" />
             All shows

@@ -107,23 +107,23 @@ export function ChannelDiscussion({ titleId, title, kind }: { titleId: string; t
   }
 
   const renderComment = (comment: ChannelComment, depth = 0) => (
-    <article key={comment.id} className="space-y-2 border-l border-white/10 pl-3" style={{ marginLeft: depth ? 10 : 0 }}>
+    <article key={comment.id} className="space-y-2 border-l border-border pl-3" style={{ marginLeft: depth ? 10 : 0 }}>
       <div className="flex items-baseline gap-2 text-xs">
-        <Link className="font-semibold text-white hover:underline" href={`/profile/${encodeURIComponent(comment.author?.username || "")}`}>
+        <Link className="font-semibold text-foreground hover:underline" href={`/profile/${encodeURIComponent(comment.author?.username || "")}`}>
           {comment.author?.display_name || "Loop member"}
         </Link>
-        <span className="text-white/40">@{comment.author?.username || "member"}</span>
-        <time className="text-white/35" dateTime={comment.created_at}>{new Date(comment.created_at).toLocaleDateString()}</time>
+        <span className="text-muted-foreground">@{comment.author?.username || "member"}</span>
+        <time className="text-muted-foreground/80" dateTime={comment.created_at}>{new Date(comment.created_at).toLocaleDateString()}</time>
       </div>
-      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-white/80">{comment.content}</p>
+      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/90">{comment.content}</p>
       {user ? (
-        <button type="button" onClick={() => { setReplyTo(comment.id); setReplyContent("") }} className="inline-flex items-center gap-1 text-xs font-semibold text-white/50 hover:text-white">
+        <button type="button" onClick={() => { setReplyTo(comment.id); setReplyContent("") }} className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
           <Reply className="h-3.5 w-3.5" /> Reply
         </button>
       ) : null}
       {replyTo === comment.id ? (
         <div className="space-y-2">
-          <MentionTextarea value={replyContent} onChange={setReplyContent} placeholder={`Reply to @${comment.author?.username || "member"}…`} className="min-h-20 border-white/10 bg-white/[0.04] text-white placeholder:text-white/35" />
+          <MentionTextarea value={replyContent} onChange={setReplyContent} placeholder={`Reply to @${comment.author?.username || "member"}…`} className="min-h-20 border-border bg-background text-foreground placeholder:text-muted-foreground" />
           <div className="flex gap-2">
             <Button size="sm" onClick={() => void post(replyContent, comment.id)} disabled={posting || !replyContent.trim()}>{posting ? "Replying…" : "Reply"}</Button>
             <Button size="sm" variant="ghost" onClick={() => setReplyTo(null)}>Cancel</Button>
@@ -135,15 +135,15 @@ export function ChannelDiscussion({ titleId, title, kind }: { titleId: string; t
   )
 
   return (
-    <section className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5" aria-labelledby="channel-discussion-title">
+    <section className="space-y-4 rounded-2xl border border-border bg-card p-4 sm:p-5" aria-labelledby="channel-discussion-title">
       <div className="flex items-center gap-2">
-        <MessageCircle className="h-4 w-4 text-white/55" />
+        <MessageCircle className="h-4 w-4 text-muted-foreground" />
         <h2 id="channel-discussion-title" className="text-lg font-bold">Discussion</h2>
-        <span className="text-xs text-white/40">{comments.length}</span>
+        <span className="text-xs text-muted-foreground">{comments.length}</span>
       </div>
 
       <div className="space-y-2">
-        <MentionTextarea value={content} onChange={setContent} placeholder="Add a comment… use @ to tag someone" className="min-h-20 border-white/10 bg-white/[0.04] text-white placeholder:text-white/35" />
+        <MentionTextarea value={content} onChange={setContent} placeholder="Add a comment… use @ to tag someone" className="min-h-20 border-border bg-background text-foreground placeholder:text-muted-foreground" />
         <div className="flex justify-end">
           {user ? (
             <Button size="sm" onClick={() => void post(content)} disabled={posting || !content.trim()}>{posting ? "Posting…" : "Comment"}</Button>
@@ -151,19 +151,19 @@ export function ChannelDiscussion({ titleId, title, kind }: { titleId: string; t
         </div>
       </div>
 
-      {loading ? <p className="text-sm text-white/45">Loading comments…</p> : null}
-      {error ? <ChannelNotice title="Discussion unavailable" description={error}><button type="button" onClick={() => void load()} className="mt-2 text-xs font-semibold text-white underline">Try again</button></ChannelNotice> : null}
+      {loading ? <p className="text-sm text-muted-foreground">Loading comments…</p> : null}
+      {error ? <ChannelNotice title="Discussion unavailable" description={error}><button type="button" onClick={() => void load()} className="mt-2 text-xs font-semibold text-primary underline">Try again</button></ChannelNotice> : null}
       {!loading && !error && comments.length ? <div className="space-y-5">{comments.map((comment) => renderComment(comment))}</div> : null}
-      {!loading && !error && !comments.length ? <p className="text-sm text-white/45">Start the conversation about this {kind}.</p> : null}
+      {!loading && !error && !comments.length ? <p className="text-sm text-muted-foreground">Start the conversation about this {kind}.</p> : null}
 
-      <div className="border-t border-white/10 pt-4">
-        <div className="mb-2 flex items-center gap-2 text-sm font-semibold"><Share2 className="h-4 w-4 text-white/55" />Share to your feed</div>
+      <div className="border-t border-border pt-4">
+        <div className="mb-2 flex items-center gap-2 text-sm font-semibold"><Share2 className="h-4 w-4 text-muted-foreground" />Share to your feed</div>
         {user ? (
           <>
-            <MentionTextarea value={shareNote} onChange={setShareNote} placeholder={`Say something about ${title} (optional)…`} className="min-h-16 border-white/10 bg-white/[0.04] text-white placeholder:text-white/35" />
+            <MentionTextarea value={shareNote} onChange={setShareNote} placeholder={`Say something about ${title} (optional)…`} className="min-h-16 border-border bg-background text-foreground placeholder:text-muted-foreground" />
             <div className="mt-2 flex justify-end"><Button size="sm" variant="outline" onClick={() => void shareToFeed()} disabled={sharing}>{sharing ? "Sharing…" : "Share to feed"}</Button></div>
           </>
-        ) : <Link href="/login" className="text-xs font-semibold text-white/60 underline">Sign in to share this title.</Link>}
+        ) : <Link href="/login" className="text-xs font-semibold text-muted-foreground underline">Sign in to share this title.</Link>}
       </div>
     </section>
   )

@@ -174,16 +174,16 @@ const HmsStreamStageInner = forwardRef<HmsStreamStageHandle, HmsStreamStageProps
 
     if (error) {
       return (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/70">
-          <p className="rounded-xl bg-black/60 px-4 py-2 text-sm text-white/80 backdrop-blur">{error}</p>
+        <div className="absolute inset-0 flex items-center justify-center bg-background/70">
+          <p className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground backdrop-blur">{error}</p>
         </div>
       )
     }
 
     if (!isConnected || !joined) {
       return (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-          <Spinner className="h-8 w-8 text-rose-400" />
+        <div className="absolute inset-0 flex items-center justify-center bg-background/60">
+          <Spinner className="h-8 w-8 text-primary" />
         </div>
       )
     }
@@ -226,11 +226,11 @@ function StageVideo({
 
   if (audioOnly) {
     return (
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-gradient-to-br from-zinc-950 via-[#11131a] to-rose-950/60 text-white">
-        <Mic className="h-16 w-16 text-rose-200" />
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-gradient-to-br from-muted via-background to-card text-foreground">
+        <Mic className="h-16 w-16 text-primary/80" />
         <div className="text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-rose-200/70">Audio room</p>
-          <p className="mt-1 text-sm text-white/55">Listen live, chat and send gifts</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Audio room</p>
+          <p className="mt-1 text-sm text-muted-foreground">Listen live, chat and send gifts</p>
         </div>
       </div>
     )
@@ -242,8 +242,8 @@ function StageVideo({
 
   if (!peer) {
     return (
-      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-zinc-950 via-black to-zinc-900">
-        <p className="text-sm text-white/60">Waiting for the host…</p>
+      <div className="absolute inset-0 flex items-center justify-center bg-muted">
+        <p className="text-sm text-muted-foreground">Waiting for the host…</p>
       </div>
     )
   }
