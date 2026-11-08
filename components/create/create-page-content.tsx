@@ -33,52 +33,40 @@ export function CreatePageContent({ defaultTab = "loop" }: { defaultTab?: Create
   return (
     <div className="bg-background text-foreground">
       <Header />
-      <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 lg:pb-14">
-        <section className="relative mb-5 overflow-hidden rounded-3xl border border-border/70 bg-card/50">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(520px 240px at 4% -20%, rgba(245,184,61,0.14), transparent 60%), radial-gradient(460px 240px at 76% -30%, rgba(139,92,246,0.16), transparent 62%)",
-            }}
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/40 to-transparent"
-          />
+      <main className="create-studio mx-auto w-full max-w-[1440px] px-3 pb-24 pt-4 sm:px-6 sm:pb-14 sm:pt-7 lg:px-8">
+        <section className="create-studio-hero relative mb-5 overflow-hidden rounded-[28px] border border-border/70">
+          <div aria-hidden className="create-studio-hero-glow pointer-events-none absolute inset-0" />
+          <div aria-hidden className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-violet-300/50 to-cyan-200/40" />
 
-          <div className="relative flex flex-col gap-6 p-5 sm:p-7 md:flex-row md:items-end md:justify-between">
-            <div className="flex min-w-0 items-start gap-3.5">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-amber-300/30 bg-gradient-to-br from-amber-300/25 to-violet-500/20 shadow-[0_10px_30px_-12px_rgba(245,184,61,0.5)]">
-                <Sparkles className="h-5 w-5 text-amber-200" />
+          <div className="relative flex flex-col gap-5 p-5 sm:p-7 lg:flex-row lg:items-end lg:justify-between lg:px-9 lg:py-8">
+            <div className="flex min-w-0 items-start gap-4">
+              <span className="create-studio-mark flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-br from-violet-400/25 via-indigo-400/15 to-cyan-300/15 shadow-[0_12px_36px_-16px_rgba(124,92,255,0.75)]">
+                <Sparkles className="h-5 w-5 text-violet-200" />
               </span>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-muted-foreground">
-                  Creator studio
+                <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                  Creator studio <span aria-hidden className="hidden h-px w-6 bg-gradient-to-r from-violet-400/70 to-cyan-300/70 sm:block" />
+                  <span className="hidden tracking-[0.14em] sm:inline">A space for the unfinished</span>
                 </p>
-                <h1 className="mt-1 text-2xl font-semibold tracking-[-0.02em] text-foreground sm:text-[2rem]">
-                  Make something worth replying to.
+                <h1 className="mt-2 max-w-3xl text-[clamp(1.65rem,3vw,2.65rem)] font-semibold leading-[1.06] tracking-[-0.045em] text-foreground">
+                  Make something <span className="bg-gradient-to-r from-violet-300 via-indigo-200 to-cyan-200 bg-clip-text text-transparent">worth replying to.</span>
                 </h1>
-                <p className="mt-1.5 max-w-xl text-[12.5px] leading-6 text-muted-foreground sm:text-[13px]">
-                  Write a Loop, cut a Reel, drop a Moment or open a room. Media gets a proper edit step
-                  before it publishes — crop, colour, trim, mute.
+                <p className="mt-2 max-w-2xl text-[12.5px] leading-6 text-muted-foreground sm:text-[13px]">
+                  A thought, a frame, a room full of people. Start with the format that fits — refine it before it goes live.
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-card/70 px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
-                <Save className="h-3.5 w-3.5 text-emerald-400" />
-                Drafts autosave
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-[10.5px] font-medium text-muted-foreground backdrop-blur-xl">
+                <Save className="h-3.5 w-3.5 text-emerald-300" /> Drafts autosave
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-card/70 px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
-                <Layers className="h-3.5 w-3.5 text-violet-400" />
-                5 formats
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-[10.5px] font-medium text-muted-foreground backdrop-blur-xl">
+                <Layers className="h-3.5 w-3.5 text-violet-300" /> 5 formats
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1.5 text-[11px] font-semibold text-amber-700 dark:text-amber-200">
+              <span className="inline-flex items-center gap-2 rounded-full border border-violet-300/20 bg-violet-300/[0.08] px-3 py-2 text-[10.5px] font-semibold text-violet-100">
                 <Wand2 className="h-3.5 w-3.5" />
-                {user.is_premium ? "Pro: up to 10 files" : "Up to 4 files"}
+                {user.is_premium ? "Pro · up to 10 files" : user.is_verified ? "Up to 4 files" : "Up to 1 file"}
               </span>
             </div>
           </div>

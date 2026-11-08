@@ -50,7 +50,7 @@ export function CreateHub({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
 
   return (
     <Tabs value={tab} onValueChange={(v) => setTab(v as CreateTab)}>
-      <div className="grid gap-5 lg:grid-cols-[236px_minmax(0,1fr)] xl:grid-cols-[236px_minmax(0,1fr)_286px] xl:gap-6">
+      <div className="create-hub-grid grid gap-5 lg:grid-cols-[210px_minmax(0,1fr)] xl:grid-cols-[210px_minmax(0,1fr)_270px] xl:gap-6">
         {/* Mode rail. A vertical editorial index on desktop, swipeable chips on
             phones — the same five destinations, no truncation. */}
         <div className="min-w-0">
@@ -60,9 +60,9 @@ export function CreateHub({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
             </p>
             <TabsList
               className={cn(
-                "-mx-4 flex h-auto w-[calc(100%_+_2rem)] items-stretch gap-1.5 overflow-x-auto rounded-none border-0 bg-transparent p-0",
-                "px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-                "lg:mx-0 lg:w-full lg:flex-col lg:overflow-visible lg:rounded-2xl lg:border lg:border-border/70 lg:bg-card/60 lg:p-1.5",
+                "-mx-3 flex h-auto w-[calc(100%_+_1.5rem)] items-center gap-1 overflow-x-auto rounded-full border border-white/10 bg-card/55 p-1.5 shadow-[0_18px_44px_-34px_rgba(0,0,0,0.8)] backdrop-blur-xl",
+                "px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:w-full sm:justify-center sm:px-1.5",
+                "lg:flex-col lg:items-stretch lg:justify-start lg:rounded-[22px] lg:p-2",
               )}
             >
               {TABS.map((item) => {
@@ -72,16 +72,16 @@ export function CreateHub({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
                     key={item.value}
                     value={item.value}
                     className={cn(
-                      "group relative flex min-w-[6.5rem] shrink-0 items-center justify-center gap-1.5 rounded-full border border-border/70 bg-card/60 px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors",
-                      "data-[state=active]:border-amber-300/40 data-[state=active]:bg-amber-300/10 data-[state=active]:text-foreground",
-                      "lg:w-full lg:justify-start lg:gap-2.5 lg:rounded-xl lg:border-transparent lg:bg-transparent lg:px-2.5 lg:py-2.5 lg:text-left",
-                      "lg:data-[state=active]:border-transparent lg:data-[state=active]:bg-white/[0.05]",
+                      "group relative flex min-h-10 min-w-[5.7rem] shrink-0 items-center justify-center gap-1.5 rounded-full border border-transparent bg-transparent px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-all",
+                      "data-[state=active]:border-violet-300/25 data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-400/20 data-[state=active]:to-cyan-300/10 data-[state=active]:text-foreground data-[state=active]:shadow-[0_8px_24px_-16px_rgba(124,92,255,0.9)]",
+                      "lg:min-h-[68px] lg:w-full lg:justify-start lg:gap-3 lg:rounded-[16px] lg:border-transparent lg:bg-transparent lg:px-3 lg:py-3 lg:text-left",
+                      "lg:data-[state=active]:border-violet-300/15 lg:data-[state=active]:bg-gradient-to-r lg:data-[state=active]:from-violet-400/[0.12] lg:data-[state=active]:to-cyan-300/[0.04]",
                     )}
                   >
                     <span
                       className={cn(
-                        "flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors lg:h-8 lg:w-8 lg:rounded-lg lg:border lg:border-border/70",
-                        "group-data-[state=active]:text-amber-300 lg:group-data-[state=active]:border-amber-300/40 lg:group-data-[state=active]:bg-amber-300/10",
+                        "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors lg:h-9 lg:w-9 lg:rounded-xl lg:border lg:border-border/70 lg:bg-white/[0.025]",
+                        "group-data-[state=active]:text-violet-200 lg:group-data-[state=active]:border-violet-300/25 lg:group-data-[state=active]:bg-violet-300/10",
                       )}
                     >
                       <Icon className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
@@ -97,7 +97,7 @@ export function CreateHub({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
               })}
             </TabsList>
 
-            <div className="mt-3 hidden rounded-2xl border border-border/70 bg-gradient-to-b from-white/[0.04] to-transparent p-3.5 lg:block">
+            <div className="mt-3 hidden rounded-[18px] border border-emerald-300/15 bg-gradient-to-br from-emerald-300/[0.07] via-white/[0.025] to-transparent p-4 lg:block">
               <p className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
                 Autosave is on
@@ -133,8 +133,8 @@ export function CreateHub({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
 
         <aside className="hidden xl:block">
           <div className="sticky top-20 space-y-3">
-            <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/60">
-              <div className="flex items-center gap-2 border-b border-border/60 bg-gradient-to-r from-amber-300/[0.09] to-transparent px-4 py-3">
+            <div className="overflow-hidden rounded-[22px] border border-white/10 bg-card/45 shadow-[0_22px_60px_-46px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+              <div className="flex items-center gap-2 border-b border-white/[0.07] bg-gradient-to-r from-violet-300/[0.09] via-cyan-300/[0.035] to-transparent px-4 py-3.5">
                 <Lightbulb className="h-4 w-4 text-amber-300" />
                 <p className="text-[12px] font-semibold">Studio notes</p>
               </div>
@@ -148,7 +148,7 @@ export function CreateHub({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
               </ul>
             </div>
 
-            <div className="rounded-2xl border border-border/70 bg-card/60 p-4">
+            <div className="rounded-[22px] border border-white/10 bg-card/45 p-4 shadow-[0_22px_60px_-46px_rgba(0,0,0,0.9)] backdrop-blur-xl">
               <p className="flex items-center gap-1.5 text-[12px] font-semibold">
                 <Sparkles className="h-3.5 w-3.5 text-violet-400" />
                 Good to know

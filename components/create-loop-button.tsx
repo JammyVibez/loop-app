@@ -537,7 +537,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
       <>
         {LoginGateDialog}
         <Card
-          className="cursor-pointer border-border/70 bg-card/60 transition hover:bg-muted/40"
+          className="create-loop-launch cursor-pointer border-white/10 bg-card/45 transition hover:border-violet-300/30 hover:bg-card/70"
           onClick={() => {
             if (!requireAuth("post")) return
             setIsOpen(true)
@@ -545,7 +545,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
         >
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-sky-600 to-violet-600">
+              <div className="create-loop-launch-mark flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-400 via-indigo-500 to-cyan-400 shadow-[0_10px_28px_-12px_rgba(124,92,255,0.8)]">
                 {isGuest ? <LogIn className="h-5 w-5 text-white" /> : <Plus className="h-5 w-5 text-white" />}
               </div>
               <div>
@@ -568,15 +568,17 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
   return (
     <>
       {LoginGateDialog}
-    <Card className="overflow-hidden rounded-3xl border-border/60 bg-card/80 shadow-[0_24px_70px_-45px_rgba(0,0,0,0.7)]">
-      <CardContent className="space-y-5 p-4 sm:p-6">
-        <div className="flex items-start justify-between gap-3">
+    <Card className="create-loop-composer relative overflow-hidden rounded-[28px] border border-white/10 bg-card/55 shadow-[0_34px_100px_-58px_rgba(0,0,0,0.9)] backdrop-blur-2xl">
+      <span aria-hidden className="create-loop-composer-topline pointer-events-none absolute inset-x-10 top-0 z-20 h-px" />
+      <span aria-hidden className="create-loop-composer-light pointer-events-none absolute inset-0 z-0" />
+      <CardContent className="relative z-10 space-y-6 p-4 sm:p-7 lg:p-8">
+        <div className="create-loop-composer-head flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-cyan-500 shadow-md shadow-violet-900/20 ring-1 ring-white/20">
-              <FileText className="h-[18px] w-[18px] text-white" />
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-br from-violet-400/25 via-indigo-400/15 to-cyan-300/20 shadow-[0_12px_30px_-14px_rgba(124,92,255,0.8)]">
+              <FileText className="h-[18px] w-[18px] text-violet-200" />
             </span>
             <div className="min-w-0">
-              <h2 className="truncate text-[15px] font-bold tracking-tight text-foreground">Create a Loop</h2>
+              <h2 className="truncate text-[16px] font-semibold tracking-[-0.02em] text-foreground">Create a Loop</h2>
               <p className="truncate text-[11px] text-muted-foreground">
                 {mediaType === "code"
                   ? "Share a forkable snippet"
@@ -587,7 +589,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <span className="mr-1 hidden items-center gap-1 rounded-full bg-muted/60 px-2.5 py-1 text-[10px] font-semibold text-muted-foreground sm:inline-flex">
+            <span className="mr-1 hidden items-center gap-1.5 rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] px-3 py-2 text-[10px] font-medium text-muted-foreground sm:inline-flex">
               <Save className="h-3 w-3" />
               Draft saved
             </span>
@@ -595,16 +597,18 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
               type="button"
               size="sm"
               variant="outline"
-              className="h-8 rounded-full px-3 text-xs"
+              className="h-10 rounded-full border-white/10 bg-white/[0.035] px-3.5 text-[11px]"
               onClick={() => setShowPreview((v) => !v)}
+              aria-label={showPreview ? "Edit loop" : "Preview loop"}
             >
-              <Eye className="mr-1 h-3.5 w-3.5" /> {showPreview ? "Edit" : "Preview"}
+              <Eye className="mr-1 h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{showPreview ? "Edit" : "Preview"}</span>
             </Button>
             <Button
               type="button"
               size="icon"
               variant="ghost"
-              className="h-8 w-8 rounded-full"
+              className="h-10 w-10 rounded-full border border-white/10 bg-white/[0.035]"
               onClick={() => setDiscardOpen(true)}
               title="Close composer"
             >
@@ -614,7 +618,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
         </div>
 
         {showPreview ? (
-          <div className="rounded-2xl border border-border bg-muted/30 p-4">
+          <div className="create-loop-preview-panel rounded-[22px] border border-white/10 bg-white/[0.035] p-5 sm:p-6">
             <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Preview</p>
             <p className="mb-3 whitespace-pre-wrap text-foreground">{content || "No text yet"}</p>
             <div className="mb-3 flex flex-wrap gap-2">
@@ -667,14 +671,14 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
             ) : (
               <>
                 {/* Markdown Formatting Quick Toolbar */}
-                <div className="flex flex-wrap items-center gap-1 rounded-xl border border-border/60 bg-muted/40 p-1.5 text-xs">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-500 flex items-center gap-1 mr-1 px-1">
+                <div className="create-loop-format-toolbar flex flex-wrap items-center gap-1 rounded-[16px] border border-white/[0.08] bg-white/[0.035] p-1.5 text-xs backdrop-blur-xl sm:flex-nowrap sm:gap-1.5">
+                  <span className="mr-1 flex items-center gap-1 px-1 text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground sm:text-[10px]">
                     <Zap className="h-3.5 w-3.5" /> Markdown
                   </span>
                   <button
                     type="button"
                     onClick={() => setContent((prev) => prev + " **bold**")}
-                    className="rounded px-2 py-0.5 font-bold hover:bg-muted border border-border/50 text-foreground"
+                    className="min-h-9 min-w-9 rounded-lg border border-white/[0.08] px-2 font-bold text-foreground transition-colors hover:bg-white/[0.07]"
                     title="Bold (**text**)"
                   >
                     B
@@ -682,7 +686,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                   <button
                     type="button"
                     onClick={() => setContent((prev) => prev + " *italic*")}
-                    className="rounded px-2 py-0.5 italic hover:bg-muted border border-border/50 text-foreground"
+                    className="min-h-9 min-w-9 rounded-lg border border-white/[0.08] px-2 italic text-foreground transition-colors hover:bg-white/[0.07]"
                     title="Italic (*text*)"
                   >
                     I
@@ -690,7 +694,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                   <button
                     type="button"
                     onClick={() => setContent((prev) => prev + "\n# Heading")}
-                    className="rounded px-2 py-0.5 font-extrabold hover:bg-muted border border-border/50 text-foreground"
+                    className="min-h-9 min-w-9 rounded-lg border border-white/[0.08] px-2 font-extrabold text-foreground transition-colors hover:bg-white/[0.07]"
                     title="Heading (# text)"
                   >
                     H1
@@ -698,7 +702,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                   <button
                     type="button"
                     onClick={() => setContent((prev) => prev + " ~~strikethrough~~")}
-                    className="rounded px-2 py-0.5 line-through hover:bg-muted border border-border/50 text-foreground"
+                    className="min-h-9 min-w-9 rounded-lg border border-white/[0.08] px-2 line-through text-foreground transition-colors hover:bg-white/[0.07]"
                     title="Strikethrough (~~text~~)"
                   >
                     S
@@ -706,7 +710,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                   <button
                     type="button"
                     onClick={() => setContent((prev) => prev + "\n> blockquote")}
-                    className="rounded px-2 py-0.5 hover:bg-muted border border-border/50 text-foreground font-serif"
+                    className="min-h-9 min-w-9 rounded-lg border border-white/[0.08] px-2 font-serif text-foreground transition-colors hover:bg-white/[0.07]"
                     title="Blockquote (> text)"
                   >
                     &ldquo;
@@ -714,7 +718,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                   <button
                     type="button"
                     onClick={() => setContent((prev) => prev + " `code`")}
-                    className="rounded px-2 py-0.5 font-mono text-[10px] hover:bg-muted border border-border/50 text-foreground"
+                    className="min-h-9 min-w-10 rounded-lg border border-white/[0.08] px-2 font-mono text-[10px] text-foreground transition-colors hover:bg-white/[0.07]"
                     title="Inline Code (`text`)"
                   >
                     &lt;/&gt;
@@ -722,7 +726,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                   <button
                     type="button"
                     onClick={() => setContent((prev) => prev + "\n---\n")}
-                    className="rounded px-2 py-0.5 hover:bg-muted border border-border/50 text-foreground"
+                    className="min-h-9 min-w-9 rounded-lg border border-white/[0.08] px-2 text-foreground transition-colors hover:bg-white/[0.07]"
                     title="Horizontal Divider (---)"
                   >
                     &mdash;
@@ -733,11 +737,11 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                   value={content}
                   onChange={setContent}
                   placeholder="Share a story, idea, or tag someone with @username… (Markdown supported)"
-                  className="min-h-[140px] border-border bg-muted"
+                  className="create-loop-writing min-h-[168px] border-0 bg-transparent px-0 py-3 text-[15px] leading-7 shadow-none placeholder:text-muted-foreground/80 focus-visible:ring-0 sm:min-h-[190px] sm:text-base"
                   maxLength={user?.is_premium ? 10000 : 3000}
                 />
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className={content.trim().split(/\s+/).filter(Boolean).length > (user?.is_premium ? 1800 : 500) ? "text-rose-500 font-bold" : ""}>
+                <div className="create-loop-writing-meta flex items-center justify-between gap-3 border-t border-white/[0.07] pt-2 text-[10.5px] text-muted-foreground">
+                  <span className={content.trim().split(/\s+/).filter(Boolean).length > (user?.is_premium ? 1800 : 500) ? "font-bold text-rose-400" : ""}>
                     {content.trim() ? content.trim().split(/\s+/).filter(Boolean).length : 0} / {user?.is_premium ? "1800" : "500"} words
                     {user?.is_premium ? " (Pro Limit)" : " (500 Word Limit)"}
                   </span>
@@ -746,23 +750,23 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
               </>
             )}
 
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Hash className="h-4 w-4 text-cyan-300" />
+            <div className="create-loop-topics space-y-2.5 rounded-[18px] border border-white/[0.07] bg-white/[0.025] p-3.5 sm:p-4">
+              <div className="flex items-center gap-2.5">
+                <Hash className="h-4 w-4 text-cyan-200" />
                 <Input
                   value={hashtags}
                   onChange={(e) => setHashtags(e.target.value)}
                   placeholder="design creativity storytelling"
-                  className="border-border bg-muted"
+                  className="h-10 rounded-xl border-white/10 bg-white/[0.035] text-sm placeholder:text-muted-foreground/70"
                 />
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {suggestions.map((tag) => (
                   <button
                     key={tag}
                     type="button"
                     onClick={() => addSuggestion(tag)}
-                    className="rounded-full border border-border bg-muted px-2.5 py-1 text-muted-foreground hover:bg-muted"
+                    className="rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:border-violet-300/25 hover:bg-violet-300/[0.07] hover:text-violet-100"
                   >
                     #{tag}
                   </button>
@@ -770,7 +774,14 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex items-end justify-between gap-3 px-1 pt-1">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-muted-foreground">Choose a format</p>
+                <p className="mt-0.5 text-[10px] text-muted-foreground/75">A different way to tell it</p>
+              </div>
+              <span className="pb-0.5 text-[9px] text-muted-foreground/75">7 ways to create</span>
+            </div>
+            <div className="create-loop-type-grid grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-3 2xl:grid-cols-4">
               {[
                 { type: "text" as const, icon: FileText, label: "Text" },
                 { type: "image" as const, icon: ImageIcon, label: "Image" },
@@ -787,8 +798,8 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                   variant={mediaType === item.type ? "default" : "outline"}
                   className={
                     mediaType === item.type
-                      ? "h-8 rounded-full border-transparent bg-gradient-to-r from-violet-600 to-cyan-500 px-3 text-xs text-white shadow-md shadow-violet-900/20"
-                      : "h-8 rounded-full border-border px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                      ? "h-11 justify-start rounded-[14px] border-violet-300/25 bg-gradient-to-r from-violet-400/20 to-cyan-300/10 px-3.5 text-[11px] font-semibold text-violet-50 shadow-[0_10px_26px_-18px_rgba(124,92,255,0.9)]"
+                      : "h-11 justify-start rounded-[14px] border-white/[0.08] bg-white/[0.025] px-3.5 text-[11px] font-medium text-muted-foreground hover:border-white/15 hover:bg-white/[0.05] hover:text-foreground"
                   }
                   onClick={() => setMediaType(item.type)}
                 >
@@ -797,25 +808,26 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                 </Button>
               ))}
 
+            </div>
+
+            <div className="create-loop-featured-grid grid grid-cols-2 gap-2">
               <Button
                 type="button"
-                size="sm"
                 variant="outline"
-                className="h-8 rounded-full border-amber-500/40 px-3 text-xs text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
+                className="h-auto min-h-[68px] justify-start gap-3 rounded-[16px] border-amber-300/20 bg-gradient-to-br from-amber-300/[0.09] to-orange-400/[0.025] px-3.5 py-3 text-left text-foreground shadow-[0_12px_28px_-24px_rgba(245,185,66,0.6)] transition-all hover:border-amber-300/35 hover:from-amber-300/[0.14] hover:to-orange-400/[0.05]"
                 onClick={() => setDuelDialogOpen(true)}
               >
-                <Swords className="mr-1 h-4 w-4 text-amber-400" />
-                Duel
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-300/25 bg-amber-300/10 text-amber-200"><Swords className="h-4 w-4" /></span>
+                <span className="flex min-w-0 flex-col items-start gap-0.5"><span className="text-[11px] font-semibold">Duel</span><span className="text-[9px] font-normal text-muted-foreground">Go head-to-head</span></span>
               </Button>
               <Button
                 type="button"
-                size="sm"
                 variant="outline"
-                className="h-8 rounded-full border-violet-500/50 bg-violet-500/10 px-3 text-xs text-violet-700 shadow-[0_0_12px_rgba(139,92,246,0.25)] hover:bg-violet-500/25 dark:text-violet-300"
+                className="h-auto min-h-[68px] justify-start gap-3 rounded-[16px] border-indigo-300/20 bg-gradient-to-br from-indigo-400/[0.1] to-cyan-300/[0.025] px-3.5 py-3 text-left text-foreground shadow-[0_12px_28px_-24px_rgba(99,102,241,0.65)] transition-all hover:border-indigo-300/35 hover:from-indigo-400/[0.15] hover:to-cyan-300/[0.05]"
                 onClick={() => setClutchDuelDialogOpen(true)}
               >
-                <Zap className="mr-1 h-4 w-4 fill-amber-400 text-amber-400" />
-                Clutch Duel
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-indigo-300/25 bg-indigo-300/10 text-indigo-200"><Zap className="h-4 w-4" /></span>
+                <span className="flex min-w-0 flex-col items-start gap-0.5"><span className="text-[11px] font-semibold">Clutch</span><span className="text-[9px] font-normal text-muted-foreground">High-stakes round</span></span>
               </Button>
             </div>
 
@@ -863,14 +875,14 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
 
             <div className="space-y-3">
               {mediaType === "code" ? (
-                <p className="rounded-xl border border-border/70 bg-muted/30 p-4 text-center text-[13px] leading-6 text-muted-foreground">
+                <p className="rounded-[18px] border border-white/[0.08] bg-white/[0.025] p-5 text-center text-[13px] leading-6 text-muted-foreground">
                   Code loops publish as text snippets — no media upload needed. Peers can fork your code into their profile.
                 </p>
               ) : (
                 <>
                   <MagneticDropZone onFiles={handleSelectedFiles}>
-                    <label className="group flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border border-dashed border-border/80 bg-muted/20 p-5 text-center transition-colors hover:border-primary/40 hover:bg-muted/50">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-background shadow-sm ring-1 ring-border/70 transition-colors group-hover:ring-violet-400/50">
+                    <label className="create-loop-dropzone group relative flex min-h-[148px] cursor-pointer flex-col items-center justify-center gap-2 rounded-[20px] border border-dashed border-white/15 bg-white/[0.025] p-6 text-center transition-colors hover:border-violet-300/40 hover:bg-violet-300/[0.035]">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-violet-300/20 bg-gradient-to-br from-violet-300/15 to-cyan-300/10 shadow-[0_12px_30px_-16px_rgba(124,92,255,0.8)] transition-colors group-hover:border-violet-300/40">
                         <Upload className="h-4 w-4 text-violet-400" />
                       </span>
                       <span className="text-[13px] font-semibold text-foreground">
@@ -912,7 +924,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                           <span className="ml-1.5 text-muted-foreground/70">· hover a tile to edit</span>
                         </span>
                         {mediaFiles.length < getMaxFiles() && (
-                          <label className="cursor-pointer text-violet-400 font-semibold hover:underline">
+                          <label className="cursor-pointer text-violet-300 font-semibold hover:text-cyan-200 hover:underline">
                             + Add more files
                             <input
                               type="file"
@@ -962,13 +974,13 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
               </div>
             )}
 
-            <div className="flex flex-col-reverse items-stretch justify-end gap-2 border-t border-border/60 pt-4 sm:flex-row sm:items-center">
+            <div className="create-loop-submit-row flex flex-col-reverse items-stretch justify-end gap-2.5 border-t border-white/[0.08] pt-5 sm:flex-row sm:items-center">
               <span className="hidden flex-1 items-center gap-1.5 text-[11px] text-muted-foreground sm:flex">
                 <Zap className="h-3 w-3 text-violet-400" />
                 Drafts save automatically — nothing gets lost while you write.
               </span>
               <div className="flex gap-2">
-                <Button type="button" variant="outline" className="border-border" onClick={() => setDiscardOpen(true)}>
+                <Button type="button" variant="outline" className="h-11 rounded-full border-white/10 bg-white/[0.025] px-5 text-[11px] text-muted-foreground hover:bg-white/[0.06] hover:text-foreground" onClick={() => setDiscardOpen(true)}>
                   Cancel
                 </Button>
                 <DynamicButton
@@ -977,7 +989,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                   stateKey={creating ? uploadStatus || "publishing" : "create"}
                   icon={creating ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent" /> : <ArrowNarrowRightIcon size={16} /> }
                   disabled={creating || (!content.trim() && mediaFiles.length === 0)}
-                  className="bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+                  className="create-loop-submit h-11 rounded-full border-0 bg-gradient-to-r from-violet-400 via-indigo-400 to-cyan-300 px-5 text-[11.5px] font-semibold text-[#090813] shadow-[0_14px_34px_-12px_rgba(124,92,255,0.75)] hover:brightness-105"
                 >
                   {creating ? uploadStatus || "Publishing..." : "Create Loop"}
                 </DynamicButton>
