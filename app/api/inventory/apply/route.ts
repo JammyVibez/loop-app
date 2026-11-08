@@ -237,14 +237,35 @@ export async function POST(request: NextRequest) {
 
     if (themeLike) {
       themePayload = themePayloadFromShopItem(shopItem)
+      // Keep everything the owner set that is not part of the theme bundle
+      // (post presentation, chat wallpaper, appearance hints). A newly equipped
+      // theme turns its soundtrack back on, since that is the point of buying it.
+      const { data: currentProfile } = await supabase
+        .from("profiles")
+        .select("theme_preferences")
+        .eq("id", user.id)
+        .maybeSingle()
+      const existingPrefs =
+        currentProfile?.theme_preferences &&
+        typeof currentProfile.theme_preferences === "object" &&
+        !Array.isArray(currentProfile.theme_preferences)
+          ? (currentProfile.theme_preferences as Record<string, unknown>)
+          : {}
       await supabase
         .from("profiles")
         .update({
           active_theme: shopItem.id,
           theme_preferences: {
+            ...existingPrefs,
             ...themePayload,
             ...(profileTheme?.backgroundUrl ? { profile_background: profileTheme.backgroundUrl } : {}),
-            ...(profileTheme?.audioUrl ? { profile_audio: profileTheme.audioUrl } : {}),
+            ...(profileTheme?.audioUrl
+              ? {
+                  profile_audio: profileTheme.audioUrl,
+                  profile_audio_enabled: true,
+                  profile_audio_autoplay: true,
+                }
+              : {}),
             ...(profileTheme?.audioTitle ? { profile_audio_title: profileTheme.audioTitle } : {}),
           },
           // Switching to a plain colour theme clears the previous profile CSS

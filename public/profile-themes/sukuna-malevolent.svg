@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Crimson cursed shrine artwork">
+  <defs>
+    <linearGradient id="night" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#080304"/>
+      <stop offset="0.45" stop-color="#180507"/>
+      <stop offset="1" stop-color="#2a0608"/>
+    </linearGradient>
+    <radialGradient id="moon" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff6a4a" stop-opacity="0.95"/>
+      <stop offset="0.55" stop-color="#c81f22" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#c81f22" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ember" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#ff3b1f" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#ff3b1f" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="bleed" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="24"/>
+    </filter>
+    <filter id="slash" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.4"/>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#night)"/>
+  <!-- Blood moon -->
+  <circle cx="1140" cy="250" r="260" fill="url(#moon)"/>
+  <circle cx="1140" cy="250" r="118" fill="#ff5a3c" opacity="0.82"/>
+  <circle cx="1140" cy="250" r="118" fill="none" stroke="#ffd0b0" stroke-width="2" opacity="0.35"/>
+  <g fill="#7d1013" opacity="0.55">
+    <circle cx="1098" cy="214" r="14"/>
+    <circle cx="1176" cy="272" r="20"/>
+    <circle cx="1120" cy="300" r="10"/>
+    <circle cx="1198" cy="196" r="8"/>
+  </g>
+
+  <!-- Shrine lattice: stacked beams receding into the dark -->
+  <g stroke="#3c0a0c" fill="none">
+    <path d="M120 900 L120 520 L1480 520 L1480 900" stroke-width="3" opacity="0.8"/>
+    <path d="M120 560 L1480 560" stroke-width="10" opacity="0.85"/>
+    <path d="M120 640 L1480 640" stroke-width="6" opacity="0.6"/>
+    <path d="M120 740 L1480 740" stroke-width="5" opacity="0.45"/>
+    <path d="M120 860 L1480 860" stroke-width="4" opacity="0.35"/>
+    <g stroke-width="2" opacity="0.4">
+      <path d="M220 560 L220 900"/><path d="M320 560 L320 900"/><path d="M420 560 L420 900"/>
+      <path d="M520 560 L520 900"/><path d="M620 560 L620 900"/><path d="M720 560 L720 900"/>
+      <path d="M820 560 L820 900"/><path d="M920 560 L920 900"/><path d="M1020 560 L1020 900"/>
+      <path d="M1120 560 L1120 900"/><path d="M1220 560 L1220 900"/><path d="M1320 560 L1320 900"/>
+      <path d="M1420 560 L1420 900"/>
+    </g>
+    <path d="M120 560 L220 640 L320 560 L420 640 L520 560 L620 640 L720 560 L820 640 L920 560 L1020 640 L1120 560 L1220 640 L1320 560 L1420 640 L1480 560" stroke-width="2" opacity="0.28"/>
+  </g>
+
+  <!-- Slashes: the shrine's cutting edges -->
+  <g fill="none" stroke-linecap="round" filter="url(#slash)">
+    <path d="M180 180 L640 520" stroke="#ff2d21" stroke-width="14" opacity="0.85"/>
+    <path d="M240 120 L700 460" stroke="#ff7a4a" stroke-width="3" opacity="0.6"/>
+    <path d="M420 90 L900 470" stroke="#ff2d21" stroke-width="7" opacity="0.5"/>
+    <path d="M980 620 L1380 860" stroke="#ff4a2a" stroke-width="9" opacity="0.4"/>
+  </g>
+
+  <!-- Embers -->
+  <g fill="#ff6a3c">
+    <circle cx="300" cy="380" r="3" opacity="0.8"/>
+    <circle cx="520" cy="620" r="2" opacity="0.6"/>
+    <circle cx="760" cy="300" r="2.4" opacity="0.7"/>
+    <circle cx="900" cy="700" r="2" opacity="0.5"/>
+    <circle cx="1080" cy="520" r="2.6" opacity="0.65"/>
+    <circle cx="1320" cy="640" r="2" opacity="0.45"/>
+    <circle cx="1440" cy="360" r="2.2" opacity="0.5"/>
+    <circle cx="640" cy="240" r="1.8" opacity="0.55"/>
+  </g>
+
+  <rect x="0" y="700" width="1600" height="200" fill="url(#ember)" filter="url(#bleed)"/>
+  <rect width="1600" height="900" fill="#050203" opacity="0.12"/>
+</svg>

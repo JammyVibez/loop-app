@@ -74,11 +74,35 @@ export async function POST(request: NextRequest) {
     const isTheme = /theme/i.test(itemType) || /theme/i.test(inventoryItem.category || "")
 
     if (isTheme) {
+      // Drop only what the theme contributed. Owner choices that are not theme
+      // assets — post presentation, chat wallpaper — survive unequipping.
+      const { data: currentProfile } = await supabase
+        .from("profiles")
+        .select("theme_preferences")
+        .eq("id", user.id)
+        .maybeSingle()
+      const remainingPrefs =
+        currentProfile?.theme_preferences &&
+        typeof currentProfile.theme_preferences === "object" &&
+        !Array.isArray(currentProfile.theme_preferences)
+          ? { ...(currentProfile.theme_preferences as Record<string, unknown>) }
+          : null
+      if (remainingPrefs) {
+        for (const key of [
+          "profile_background",
+          "profile_audio",
+          "profile_audio_title",
+          "profile_audio_enabled",
+          "profile_audio_autoplay",
+        ]) {
+          delete remainingPrefs[key]
+        }
+      }
       await supabase
         .from("profiles")
         .update({
           active_theme: null,
-          theme_preferences: null,
+          theme_preferences: remainingPrefs && Object.keys(remainingPrefs).length ? remainingPrefs : null,
           // A profile theme's CSS, background and soundtrack all live with the
           // equipped item, so unequipping it restores the plain profile.
           profile_design_css: "",

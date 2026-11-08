@@ -259,7 +259,7 @@ export function Header() {
                   this row is the phone-only path to the same destination. */}
               <div className="lg:hidden">
                 <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
-                  <Link href={`/profile/${user.username || user.id}`} scroll={false} className="flex items-center gap-2">
+                  <Link href={`/profile/${user.username || user.id}`} className="flex items-center gap-2">
                     <User className="h-4 w-4 text-muted-foreground" />
                     <span className="text-xs font-medium">Your profile</span>
                   </Link>

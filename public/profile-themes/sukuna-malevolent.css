@@ -1,0 +1,218 @@
+/*
+ * Malevolent Shrine — a Loop Pro profile theme built on crimson lacquer,
+ * black timber and a blood moon. Scoped to .loop-profile-custom-css.
+ */
+
+.loop-profile-custom-css {
+  --sk-blood: #ff3a1f;
+  --sk-ember: #ff9a6a;
+  --sk-bone: #ffe6d6;
+  --sk-lacquer: #1a0507;
+  --sk-glass: linear-gradient(160deg, rgba(38, 8, 10, 0.93), rgba(10, 2, 3, 0.96));
+  --sk-hairline: rgba(255, 74, 44, 0.3);
+  padding-bottom: 2.5rem;
+}
+
+.loop-profile-custom-css .loop-profile-layout-cover {
+  position: relative;
+}
+
+.loop-profile-custom-css .loop-profile-layout-cover > div:first-child {
+  box-shadow:
+    0 0 0 1px rgba(255, 96, 60, 0.4),
+    0 0 70px -26px rgba(255, 48, 24, 0.55),
+    0 46px 90px -64px rgba(0, 0, 0, 0.95);
+}
+
+/* A single crimson glint crossing the shrine. */
+.loop-profile-custom-css .loop-profile-layout-cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  border-radius: 28px;
+  background-image: linear-gradient(100deg, transparent 40%, rgba(255, 74, 44, 0.26) 49%, transparent 57%);
+  background-size: 240% 100%;
+  animation: shrineGlint 10s ease-in-out infinite;
+}
+
+@keyframes shrineGlint {
+  0%,
+  100% {
+    background-position: 150% 0;
+  }
+  50% {
+    background-position: -30% 0;
+  }
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column {
+  position: relative;
+  padding-inline: 1rem;
+  color: rgba(255, 230, 214, 0.78);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column::before {
+  content: "";
+  position: absolute;
+  inset: 3.25rem 0 -0.25rem;
+  border-radius: 4px 26px 4px 26px;
+  background-image: var(--sk-glass);
+  border: 1px solid var(--sk-hairline);
+  box-shadow:
+    0 34px 80px -56px rgba(0, 0, 0, 0.98),
+    inset 0 1px 0 rgba(255, 154, 106, 0.12);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  pointer-events: none;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar,
+.loop-profile-custom-css .loop-profile-sidebar-blocks {
+  position: relative;
+  z-index: 1;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar {
+  padding-bottom: 0.9rem;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column .text-foreground {
+  color: var(--sk-bone);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column .text-muted-foreground {
+  color: rgba(255, 196, 170, 0.62);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column [class*="border-border"] {
+  border-color: var(--sk-hairline);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column .bg-muted {
+  background-color: rgba(255, 154, 106, 0.14);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column .bg-card {
+  background-color: rgba(255, 154, 106, 0.05);
+}
+
+/* Name: lacquered crimson, cut with a brushstroke edge. */
+.loop-profile-custom-css .loop-profile-sidebar-column h2 {
+  font-family: "Didot", "Bodoni MT", "Playfair Display", Georgia, serif;
+  letter-spacing: 0.012em;
+  background-image: linear-gradient(108deg, #fff1e8, #ff9a6a 38%, #ff3a1f 72%, #b8141a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 30px rgba(255, 58, 31, 0.3);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column [data-profile-block="identity"] {
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid rgba(255, 74, 44, 0.28);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column .bg-foreground {
+  background-image: linear-gradient(118deg, #ff8a5c, #ff3a1f 58%, #b8141a);
+  background-color: #ff3a1f;
+  color: #fff6f0;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column button {
+  border-color: rgba(255, 74, 44, 0.4);
+  color: #ffe6d6;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column button:hover {
+  background-color: rgba(255, 74, 44, 0.16);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column a {
+  text-underline-offset: 3px;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column [data-profile-block="progress"] div[class*="h-full"] {
+  background-image: linear-gradient(90deg, #b8141a, #ff3a1f 55%, #ff9a6a);
+  box-shadow: 0 0 20px rgba(255, 58, 31, 0.6);
+}
+
+/* Content column: black lacquer with a crimson rule. */
+.loop-profile-custom-css .loop-profile-layout-main {
+  position: relative;
+  padding: 0 0.5rem 0.75rem;
+  border-radius: 4px 26px 4px 26px;
+  border: 1px solid rgba(255, 74, 44, 0.28);
+  background-color: var(--background);
+  box-shadow:
+    0 34px 80px -60px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(255, 154, 106, 0.05);
+}
+
+.loop-profile-custom-css [data-profile-tab] {
+  color: color-mix(in srgb, var(--foreground) 56%, transparent);
+  font-family: "Didot", "Bodoni MT", Georgia, serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.loop-profile-custom-css [data-profile-tab][data-state="active"] {
+  color: var(--foreground);
+  border-bottom-color: var(--sk-blood);
+  background-image: linear-gradient(180deg, rgba(255, 58, 31, 0.16), transparent);
+}
+
+.loop-profile-custom-css [data-profile-post-tile] {
+  outline: 1px solid rgba(255, 74, 44, 0.14);
+  outline-offset: -1px;
+}
+
+.loop-profile-custom-css [data-profile-post-tile]:hover {
+  outline-color: rgba(255, 120, 80, 0.55);
+}
+
+.loop-profile-custom-css [data-profile-post-row] {
+  border-bottom-color: rgba(255, 74, 44, 0.2);
+}
+
+.loop-profile-custom-css [data-profile-post-row]:hover {
+  background-color: rgba(255, 58, 31, 0.06);
+}
+
+.loop-profile-custom-css [data-profile-post-card] > * {
+  border-color: rgba(255, 74, 44, 0.28) !important;
+  box-shadow:
+    0 18px 44px -34px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(255, 154, 106, 0.06) !important;
+}
+
+.loop-profile-custom-css [data-profile-post-card] > *:hover {
+  border-color: rgba(255, 120, 80, 0.5) !important;
+}
+
+.loop-profile-custom-css .loop-profile-layout-main [class*="border-border"] {
+  border-color: color-mix(in srgb, var(--border) 70%, #ff3a1f);
+}
+
+.loop-profile-custom-css .loop-profile-layout-main a:hover {
+  color: var(--sk-blood);
+}
+
+@media (max-width: 1023px) {
+  .loop-profile-custom-css .loop-profile-sidebar-column::before {
+    inset: 2.75rem -0.25rem -0.25rem;
+  }
+
+  .loop-profile-custom-css .loop-profile-layout-main {
+    padding: 0 0.25rem 0.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loop-profile-custom-css .loop-profile-layout-cover::after {
+    animation: none;
+  }
+}

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Calendar, Coins, Flame, Gift, Heart, Link as LinkIcon, Lock, MapPin, MessageCircle, MoreHorizontal, Plus, Palette, Share2, Wand2, Zap, Trophy, Upload, Users, Package, Building2, } from "lucide-react"
+import { ArrowLeft, Calendar, Coins, Flame, Gift, Heart, Link as LinkIcon, Lock, MapPin, MessageCircle, MoreHorizontal, Music2, Plus, Palette, Share2, Wand2, Zap, Trophy, Upload, Users, Package, Building2, } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +19,8 @@ import { LoopCard } from "@/components/loop-card"
 import { useAuth } from "@/hooks/use-auth"
 import { ProfileShareCard } from "@/components/profile/profile-share-card"
 import { ProfileThemeAudio } from "@/components/profile/profile-theme-audio"
-import { readProfileThemePreferences } from "@/lib/profile-theme"
+import { ProfileAtmosphereDialog } from "@/components/profile/profile-atmosphere"
+import { readProfileAtmosphere, readProfileThemePreferences } from "@/lib/profile-theme"
 import { ProfileSkeleton } from "@/components/loading-states"
 import { EmptyState as PageEmptyState } from "@/components/ui/empty-state"
 import { ProxyImg } from "@/components/ui/proxy-img"
@@ -161,6 +162,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   const [coverCrop, setCoverCrop] = useState<File | null>(null)
   const [showGiftModal, setShowGiftModal] = useState(false)
   const [designerOpen, setDesignerOpen] = useState(false)
+  const [atmosphereOpen, setAtmosphereOpen] = useState(false)
   // Tapping the profile photo or cover opens it full-screen (zoom / swipe).
   const [photoViewer, setPhotoViewer] = useState<{
     url: string
@@ -549,8 +551,15 @@ export function Enhanced3DProfile({ username }: { username: string }) {
     setActiveTab(value)
     const bar = tabsBarRef.current
     if (!bar) return
+    // Keep the tab strip under the site header instead of letting the shorter
+    // panel clamp the scroll position. The bar is sticky at the header's
+    // height, so aligning it to the viewport top would hide it underneath.
+    const headerOffset = 64
     const { top } = bar.getBoundingClientRect()
-    if (top < 0) bar.scrollIntoView({ block: "start" })
+    if (top < headerOffset) {
+      const target = window.scrollY + top - headerOffset
+      requestAnimationFrame(() => window.scrollTo({ top: Math.max(0, target), behavior: "auto" }))
+    }
   }
 
   if (loading) return <ProfileSkeleton />
@@ -583,6 +592,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   const isOwnProfile = Boolean(user && (user.id === profile.id || user.username === profile.username))
   const displayName = profile.display_name || profile.username
   const profileTheme = readProfileThemePreferences(profile.theme_preferences)
+  const atmosphere = readProfileAtmosphere(profile.theme_preferences)
   const profileLayout = normalizeProfileLayout(profile.profile_layout)
   const sectionOrder = (id: string) => profileLayout.sections.indexOf(id)
   const sidebarOrder = (id: string) => profileLayout.sidebar.indexOf(id)
@@ -606,7 +616,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   return (
     <div
       className={cn(
-        "loop-profile-custom-css relative mx-auto w-full max-w-6xl",
+        "loop-profile-custom-css loop-profile-page relative mx-auto w-full max-w-6xl",
         profileTheme.backgroundUrl ? "bg-transparent" : "bg-background",
       )}
     >
@@ -619,7 +629,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       {/* A purchased theme paints its artwork behind the whole profile, then
           smokes the lower half so names and text always keep their contrast. */}
       {profileTheme.backgroundUrl ? (
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div aria-hidden="true" className="loop-profile-background pointer-events-none absolute inset-0 overflow-hidden">
           <div
             className="absolute inset-0 bg-cover bg-top bg-no-repeat"
             style={{ backgroundImage: `url("${profileTheme.backgroundUrl}")` }}
@@ -876,6 +886,10 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                     <DropdownMenuItem className="rounded-xl" onClick={() => setDesignerOpen(true)}>
                       <Palette className="mr-2 h-4 w-4 text-muted-foreground" />
                       Design studio
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="rounded-xl" onClick={() => setAtmosphereOpen(true)}>
+                      <Music2 className="mr-2 h-4 w-4 text-muted-foreground" />
+                      Profile atmosphere
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild className="rounded-xl">
                       <Link href="/inventory">
@@ -1340,6 +1354,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
             onTogglePin={handleTogglePin}
             onHide={handleHidePost}
             busyId={hidingId || pinningId}
+            defaultView={atmosphere.postView}
           />
         </TabsContent>
 
@@ -1436,8 +1451,26 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         />
       ) : null}
 
+      {isOwnProfile ? (
+        <ProfileAtmosphereDialog
+          open={atmosphereOpen}
+          onOpenChange={setAtmosphereOpen}
+          initial={atmosphere}
+          onSaved={(preferences) =>
+            setProfile((current) =>
+              current ? { ...current, theme_preferences: preferences as UserProfile["theme_preferences"] } : current,
+            )
+          }
+        />
+      ) : null}
+
       {profileTheme.audioUrl ? (
-        <ProfileThemeAudio src={profileTheme.audioUrl} title={profileTheme.audioTitle} />
+        <ProfileThemeAudio
+          src={profileTheme.audioUrl}
+          title={profileTheme.audioTitle}
+          enabled={atmosphere.audioEnabled}
+          autoplay={atmosphere.audioAutoplay}
+        />
       ) : null}
 
       {photoViewer && (

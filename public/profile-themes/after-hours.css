@@ -1,0 +1,225 @@
+/*
+ * After Hours — a Loop Pro profile theme of neon, rain and a midnight drive.
+ * Scoped to .loop-profile-custom-css.
+ */
+
+.loop-profile-custom-css {
+  --ah-rose: #ff2e63;
+  --ah-pink: #ff8fb1;
+  --ah-blue: #7fb2ff;
+  --ah-cream: #ffe9f0;
+  --ah-glass: linear-gradient(158deg, rgba(34, 12, 44, 0.92), rgba(9, 4, 16, 0.96));
+  --ah-hairline: rgba(255, 110, 150, 0.3);
+  padding-bottom: 2.5rem;
+}
+
+.loop-profile-custom-css .loop-profile-layout-cover {
+  position: relative;
+}
+
+.loop-profile-custom-css .loop-profile-layout-cover > div:first-child {
+  box-shadow:
+    0 0 0 1px rgba(255, 143, 177, 0.4),
+    0 0 70px -24px rgba(255, 46, 99, 0.55),
+    0 46px 90px -64px rgba(0, 0, 0, 0.92);
+}
+
+/* Neon sweep, like a sign dragging across a wet window. */
+.loop-profile-custom-css .loop-profile-layout-cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  border-radius: 28px;
+  background-image: linear-gradient(
+    100deg,
+    transparent 36%,
+    rgba(127, 178, 255, 0.18) 44%,
+    rgba(255, 143, 177, 0.28) 50%,
+    transparent 60%
+  );
+  background-size: 260% 100%;
+  animation: neonDrive 13s ease-in-out infinite;
+}
+
+@keyframes neonDrive {
+  0%,
+  100% {
+    background-position: 145% 0;
+  }
+  50% {
+    background-position: -45% 0;
+  }
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column {
+  position: relative;
+  padding-inline: 1rem;
+  color: rgba(255, 233, 240, 0.78);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column::before {
+  content: "";
+  position: absolute;
+  inset: 3.25rem 0 -0.25rem;
+  border-radius: 26px;
+  background-image: var(--ah-glass);
+  border: 1px solid var(--ah-hairline);
+  box-shadow:
+    0 34px 80px -56px rgba(0, 0, 0, 0.96),
+    inset 0 1px 0 rgba(255, 143, 177, 0.12),
+    0 0 40px -26px rgba(255, 46, 99, 0.5);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  pointer-events: none;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar,
+.loop-profile-custom-css .loop-profile-sidebar-blocks {
+  position: relative;
+  z-index: 1;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar {
+  padding-bottom: 0.9rem;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column .text-foreground {
+  color: var(--ah-cream);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column .text-muted-foreground {
+  color: rgba(255, 205, 220, 0.64);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column [class*="border-border"] {
+  border-color: var(--ah-hairline);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column .bg-muted {
+  background-color: rgba(255, 233, 240, 0.14);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column .bg-card {
+  background-color: rgba(255, 143, 177, 0.06);
+}
+
+/* Name: chrome under a neon sign. */
+.loop-profile-custom-css .loop-profile-sidebar-column h2 {
+  font-family: "Optima", "Candara", "Segoe UI", sans-serif;
+  letter-spacing: 0.004em;
+  background-image: linear-gradient(104deg, #fff4f8, #ff8fb1 42%, #ff2e63 68%, #7fb2ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 28px rgba(255, 46, 99, 0.28);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column [data-profile-block="identity"] {
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid rgba(255, 110, 150, 0.26);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column .bg-foreground {
+  background-image: linear-gradient(118deg, #ffb3c8, #ff2e63 58%, #c2185b);
+  background-color: #ff2e63;
+  color: #fff5f8;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column button {
+  border-color: rgba(255, 110, 150, 0.38);
+  color: #ffe9f0;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column button:hover {
+  background-color: rgba(255, 46, 99, 0.16);
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column a {
+  text-underline-offset: 3px;
+}
+
+.loop-profile-custom-css .loop-profile-sidebar-column [data-profile-block="progress"] div[class*="h-full"] {
+  background-image: linear-gradient(90deg, #7fb2ff, #ff8fb1 50%, #ff2e63);
+  box-shadow: 0 0 20px rgba(255, 46, 99, 0.55);
+}
+
+/* Content column. */
+.loop-profile-custom-css .loop-profile-layout-main {
+  position: relative;
+  padding: 0 0.5rem 0.75rem;
+  border-radius: 26px;
+  border: 1px solid rgba(255, 110, 150, 0.26);
+  background-color: var(--background);
+  box-shadow:
+    0 34px 80px -60px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(255, 143, 177, 0.05);
+}
+
+.loop-profile-custom-css [data-profile-tab] {
+  color: color-mix(in srgb, var(--foreground) 56%, transparent);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.loop-profile-custom-css [data-profile-tab][data-state="active"] {
+  color: var(--foreground);
+  border-bottom-color: var(--ah-rose);
+  background-image: linear-gradient(180deg, rgba(255, 46, 99, 0.16), transparent);
+}
+
+.loop-profile-custom-css [data-profile-post-tile] {
+  outline: 1px solid rgba(255, 110, 150, 0.14);
+  outline-offset: -1px;
+}
+
+.loop-profile-custom-css [data-profile-post-tile]:hover {
+  outline-color: rgba(255, 143, 177, 0.55);
+}
+
+.loop-profile-custom-css [data-profile-post-row] {
+  border-bottom-color: rgba(255, 110, 150, 0.2);
+}
+
+.loop-profile-custom-css [data-profile-post-row]:hover {
+  background-color: rgba(255, 46, 99, 0.06);
+}
+
+.loop-profile-custom-css [data-profile-post-card] > * {
+  border-color: rgba(255, 110, 150, 0.28) !important;
+  box-shadow:
+    0 18px 44px -34px rgba(0, 0, 0, 0.85),
+    0 0 34px -30px rgba(255, 46, 99, 0.7),
+    inset 0 1px 0 rgba(255, 143, 177, 0.07) !important;
+}
+
+.loop-profile-custom-css [data-profile-post-card] > *:hover {
+  border-color: rgba(255, 143, 177, 0.5) !important;
+}
+
+.loop-profile-custom-css .loop-profile-layout-main [class*="border-border"] {
+  border-color: color-mix(in srgb, var(--border) 70%, #ff2e63);
+}
+
+.loop-profile-custom-css .loop-profile-layout-main a:hover {
+  color: var(--ah-rose);
+}
+
+@media (max-width: 1023px) {
+  .loop-profile-custom-css .loop-profile-sidebar-column::before {
+    inset: 2.75rem -0.25rem -0.25rem;
+  }
+
+  .loop-profile-custom-css .loop-profile-layout-main {
+    padding: 0 0.25rem 0.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loop-profile-custom-css .loop-profile-layout-cover::after {
+    animation: none;
+  }
+}

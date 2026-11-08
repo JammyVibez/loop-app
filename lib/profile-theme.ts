@@ -14,6 +14,29 @@ export type ProfileThemeAssets = {
   audioTitle: string | null
 }
 
+export const PROFILE_POST_VIEWS = ["grid", "list", "cards"] as const
+export type ProfilePostView = (typeof PROFILE_POST_VIEWS)[number]
+
+/**
+ * The atmosphere the profile owner chose: artwork, soundtrack and how their
+ * posts are laid out for visitors. Audio is on unless the owner or the visitor
+ * turns it off, so a purchased theme is heard by default.
+ */
+export type ProfileAtmosphere = {
+  backgroundUrl: string | null
+  audioUrl: string | null
+  audioTitle: string | null
+  audioEnabled: boolean
+  audioAutoplay: boolean
+  postView: ProfilePostView | null
+}
+
+export function normalizeProfilePostView(value: unknown): ProfilePostView | null {
+  return typeof value === "string" && (PROFILE_POST_VIEWS as readonly string[]).includes(value)
+    ? (value as ProfilePostView)
+    : null
+}
+
 const EMPTY: ProfileThemeAssets = {
   css: "",
   backgroundUrl: null,
@@ -50,15 +73,36 @@ export function readProfileThemeItemData(itemData: unknown): ProfileThemeAssets 
 
 /** Read the active theme's profile extras off `profiles.theme_preferences`. */
 export function readProfileThemePreferences(themePreferences: unknown): ProfileThemeAssets {
+  const atmosphere = readProfileAtmosphere(themePreferences)
+  return {
+    css: "",
+    backgroundUrl: atmosphere.backgroundUrl,
+    audioUrl: atmosphere.audioUrl,
+    audioTitle: atmosphere.audioTitle,
+  }
+}
+
+/** Read the owner's profile atmosphere, applying the sensible defaults. */
+export function readProfileAtmosphere(themePreferences: unknown): ProfileAtmosphere {
   if (!themePreferences || typeof themePreferences !== "object" || Array.isArray(themePreferences)) {
-    return EMPTY
+    return {
+      backgroundUrl: null,
+      audioUrl: null,
+      audioTitle: null,
+      audioEnabled: true,
+      audioAutoplay: true,
+      postView: null,
+    }
   }
   const prefs = themePreferences as Record<string, unknown>
   return {
-    css: "",
     backgroundUrl: safeThemeAssetUrl(prefs.profile_background),
     audioUrl: safeThemeAssetUrl(prefs.profile_audio),
     audioTitle: title(prefs.profile_audio_title),
+    audioEnabled: prefs.profile_audio_enabled !== false,
+    // Only an explicit `false` opts out of autoplay; missing means on.
+    audioAutoplay: prefs.profile_audio_autoplay !== false,
+    postView: normalizeProfilePostView(prefs.profile_post_view),
   }
 }
 

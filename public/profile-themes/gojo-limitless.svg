@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Limitless blue infinity artwork">
+  <defs>
+    <linearGradient id="void" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#050b1c"/>
+      <stop offset="0.42" stop-color="#0a1430"/>
+      <stop offset="0.72" stop-color="#122a55"/>
+      <stop offset="1" stop-color="#081226"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.46" r="0.55">
+      <stop offset="0" stop-color="#e8fbff" stop-opacity="0.95"/>
+      <stop offset="0.22" stop-color="#9fe8ff" stop-opacity="0.5"/>
+      <stop offset="0.55" stop-color="#4aa8ff" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#4aa8ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="corner" cx="0.08" cy="0.1" r="0.7">
+      <stop offset="0" stop-color="#7b5cff" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#7b5cff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.4" stop-color="#bdefff"/>
+      <stop offset="0.7" stop-color="#5fb8ff"/>
+      <stop offset="1" stop-color="#3b6bff" stop-opacity="0.25"/>
+    </linearGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#void)"/>
+  <rect width="1600" height="900" fill="url(#corner)"/>
+  <ellipse cx="800" cy="430" rx="620" ry="420" fill="url(#halo)" opacity="0.8"/>
+
+  <!-- Horizon haze -->
+  <ellipse cx="800" cy="880" rx="900" ry="220" fill="#6ec8ff" opacity="0.16" filter="url(#soft)"/>
+
+  <!-- Infinity mark: two loops drawn as glowing ribbons -->
+  <g fill="none" stroke="url(#ring)" stroke-linecap="round" filter="url(#glow)">
+    <path d="M800 430 C690 320 520 320 520 430 C520 540 690 540 800 430" stroke-width="10" opacity="0.95"/>
+    <path d="M800 430 C910 320 1080 320 1080 430 C1080 540 910 540 800 430" stroke-width="10" opacity="0.95"/>
+    <path d="M800 430 C700 350 560 350 560 430 C560 510 700 510 800 430" stroke-width="2.4" opacity="0.7"/>
+    <path d="M800 430 C900 350 1040 350 1040 430 C1040 510 900 510 800 430" stroke-width="2.4" opacity="0.7"/>
+  </g>
+
+  <!-- Concentric arcs -->
+  <g fill="none" stroke="#b9ecff" stroke-linecap="round">
+    <circle cx="800" cy="430" r="250" stroke-width="1.2" opacity="0.24"/>
+    <circle cx="800" cy="430" r="330" stroke-width="0.9" opacity="0.16"/>
+    <circle cx="800" cy="430" r="420" stroke-width="0.7" opacity="0.1"/>
+  </g>
+
+  <!-- Star field -->
+  <g fill="#eaf9ff">
+    <circle cx="140" cy="120" r="2" opacity="0.8"/>
+    <circle cx="320" cy="210" r="1.4" opacity="0.6"/>
+    <circle cx="520" cy="96" r="1.8" opacity="0.7"/>
+    <circle cx="1180" cy="150" r="2.2" opacity="0.75"/>
+    <circle cx="1370" cy="260" r="1.3" opacity="0.55"/>
+    <circle cx="1460" cy="96" r="1.7" opacity="0.65"/>
+    <circle cx="260" cy="700" r="1.6" opacity="0.45"/>
+    <circle cx="1320" cy="690" r="1.9" opacity="0.5"/>
+    <circle cx="980" cy="120" r="1.1" opacity="0.6"/>
+    <circle cx="700" cy="150" r="1.2" opacity="0.5"/>
+  </g>
+
+  <!-- Light streak through the void -->
+  <path d="M0 640 C360 520 520 560 800 470 C1080 380 1260 430 1600 300" fill="none" stroke="#a7e6ff" stroke-width="2" opacity="0.35" filter="url(#glow)"/>
+  <path d="M0 690 C380 600 560 620 820 540 C1100 452 1300 500 1600 380" fill="none" stroke="#6ea8ff" stroke-width="1.2" opacity="0.28"/>
+
+  <!-- Vignette -->
+  <rect width="1600" height="900" fill="url(#void)" opacity="0.18"/>
+  <rect x="0" y="760" width="1600" height="140" fill="#040a18" opacity="0.45"/>
+</svg>

@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { BarChart3, Eye, EyeOff, Heart, LayoutGrid, List, MessageCircle, Pin, PinOff, Vote, Swords, Users, Play } from "lucide-react"
+import { BarChart3, Eye, EyeOff, Heart, LayoutGrid, List, MessageCircle, Newspaper, Pin, PinOff, Vote, Swords, Users, Play } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { PostAnalyticsDialog } from "@/components/analytics/post-analytics-dialog"
+import { LoopCard } from "@/components/loop-card"
+import type { ProfilePostView } from "@/lib/profile-theme"
 
 const VIEW_STORAGE_KEY = "loop:profile-post-view"
-type PostView = "grid" | "list"
+type PostView = ProfilePostView
 
 interface ProfilePost {
   id: string
@@ -67,7 +69,7 @@ function PostTile({
   const isCoLoop = Boolean(loop.is_co_loop || (Array.isArray(loop.co_authors) && loop.co_authors.length > 0))
 
   return (
-    <div className={cn("group relative aspect-square overflow-hidden bg-muted", muted && "opacity-60")}>
+    <div data-profile-post-tile className={cn("group relative aspect-square overflow-hidden bg-muted", muted && "opacity-60")}>
       <Link
         href={`/loop/${loop.id}`}
         className="absolute inset-0 block"
@@ -222,6 +224,7 @@ function PostRow({
 
   return (
     <div
+      data-profile-post-row
       className={cn(
         "group relative flex items-start gap-3 border-b border-border/60 px-3 py-3 transition-colors hover:bg-muted/40",
         muted && "opacity-60",
@@ -338,6 +341,7 @@ export function ProfilePostGrid({
   onTogglePin,
   onHide,
   busyId,
+  defaultView = "grid",
 }: {
   loops: ProfilePost[]
   hiddenLoops?: ProfilePost[]
@@ -345,18 +349,21 @@ export function ProfilePostGrid({
   onTogglePin?: (loopId: string, next: boolean) => void
   onHide?: (loopId: string, hidden: boolean) => void
   busyId?: string | null
+  /** The owner's chosen presentation, shown to visitors until they pick one. */
+  defaultView?: PostView | null
 }) {
   const [showHidden, setShowHidden] = useState(false)
-  const [view, setView] = useState<PostView>("grid")
+  const [view, setView] = useState<PostView>(defaultView || "grid")
   const [analyticsLoopId, setAnalyticsLoopId] = useState<string | null>(null)
 
-  // Read the saved preference after mount so server and client markup match.
+  // A visitor's own choice beats the owner's default, and is remembered after
+  // mount so server and client markup stay identical on first paint.
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(VIEW_STORAGE_KEY)
-      if (saved === "grid" || saved === "list") setView(saved)
+      if (saved === "grid" || saved === "list" || saved === "cards") setView(saved)
     } catch {
-      /* storage blocked — the default grid is fine */
+      /* storage blocked — the owner's default is fine */
     }
   }, [])
 
@@ -380,8 +387,22 @@ export function ProfilePostGrid({
     )
   }
 
-  const renderLoops = (items: ProfilePost[], muted = false) =>
-    view === "grid" ? (
+  const renderLoops = (items: ProfilePost[], muted = false) => {
+    if (view === "cards") {
+      return (
+        <div data-profile-post-card className={cn("space-y-3 px-1 py-3 sm:px-0", muted && "opacity-60")}>
+          {items.map((loop) => (
+            <LoopCard
+              key={loop.id}
+              loop={loop}
+              surface="profile"
+              className="rounded-2xl border border-border/70 bg-card/95 shadow-sm backdrop-blur-sm"
+            />
+          ))}
+        </div>
+      )
+    }
+    return view === "grid" ? (
       <div className="grid grid-cols-3 gap-0.5">
         {items.map((loop) => (
           <PostTile
@@ -412,6 +433,7 @@ export function ProfilePostGrid({
         ))}
       </div>
     )
+  }
 
   return (
     <div>
@@ -442,6 +464,19 @@ export function ProfilePostGrid({
           )}
         >
           <List className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => changeView("cards")}
+          aria-pressed={view === "cards"}
+          aria-label="Post cards"
+          title="Post cards"
+          className={cn(
+            "flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+            view === "cards" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <Newspaper className="h-3.5 w-3.5" />
         </button>
       </div>
 
