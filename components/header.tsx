@@ -35,6 +35,7 @@ import {
   Flower2,
   TreePine,
   Palette,
+  Plus,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { AnimatedIconView } from "@/components/icons/animated/animated-icon-view"
@@ -159,14 +160,15 @@ export function Header() {
               </Button>
             </form>
           ) : (
-            <form onSubmit={handleSearch} className="hidden md:flex relative w-48 lg:w-72 transition-all">
-              <Search className="absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted-foreground" />                <Input
-                  type="text"
-                  placeholder="Search Loops, people, Circles"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-10 rounded-full border-border bg-muted/40 pl-9 pr-3 text-sm placeholder:text-muted-foreground"
-                />
+            <form onSubmit={handleSearch} className="relative hidden w-56 md:flex lg:w-80">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search Loops, people, Circles"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-10 rounded-full border-border bg-muted/40 pl-9 pr-3 text-sm placeholder:text-muted-foreground transition-colors focus-visible:border-primary/40 focus-visible:bg-background"
+              />
             </form>
           )}
         </div>
@@ -197,6 +199,16 @@ export function Header() {
           >
             <Coins className="h-4 w-4 text-[hsl(var(--warning))]" />
             {Number(user.loop_coins || 0).toLocaleString()}
+          </Link>
+
+          {/* Desktop primary action: the rail has Create too, but the bar is
+              where laptop users reach for it after scrolling the feed. */}
+          <Link
+            href="/create"
+            className="hidden h-9 items-center gap-1.5 rounded-full bg-foreground px-3.5 text-xs font-semibold text-background transition-opacity hover:opacity-90 lg:inline-flex"
+          >
+            <Plus className="h-4 w-4" />
+            New
           </Link>
 
           {/* Notifications — a compact dropdown on desktop, a full-height

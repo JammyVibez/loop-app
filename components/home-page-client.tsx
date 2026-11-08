@@ -66,12 +66,15 @@ function HomePageInteractive() {
   const isGuest = !user
 
   return (
-    <div data-home-hydrated="true" className="min-h-screen bg-background text-foreground transition-colors duration-300">
+    <div data-home-hydrated="true" className="min-h-dvh bg-background text-foreground transition-colors duration-300">
       <Header />
 
-      <main className="container mx-auto px-2 pb-24 pt-3 sm:px-4 sm:py-6 lg:pb-6">
-        <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="min-w-0 space-y-2.5 sm:space-y-3">
+      <main className="mx-auto w-full max-w-6xl px-3 pb-24 pt-3 sm:px-6 sm:py-6 lg:pb-8">
+        {/* The rail only appears at xl: between 1024–1279px it left the feed a
+            ~440px column next to the 264px sidebar, so the feed keeps the full
+            width there and the rail returns when there is room for it. */}
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0 space-y-3">
             {isGuest ? (
               <section className="rounded-2xl border border-border/60 bg-card/50 overflow-hidden">
                 <div className="p-5 sm:p-6">
@@ -149,13 +152,13 @@ function HomePageInteractive() {
             <FeedTabs guestMode={isGuest} />
 
             {!isGuest && (
-              <div className="lg:hidden">
+              <div className="xl:hidden">
                 <UserSuggestions title="Who to follow" limit={4} compact />
               </div>
             )}
           </div>
 
-          <aside className="hidden lg:block">
+          <aside className="hidden xl:block">
             <div className="sticky top-20 space-y-4">
               {isGuest ? (
                 <div className="rounded-2xl border border-border/60 bg-card/50 p-4">

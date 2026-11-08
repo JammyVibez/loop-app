@@ -119,9 +119,13 @@
   pointer-events: none;
 }
 
-.btn-3d:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+/* Hover lift is a pointer affordance only. On touch screens `:hover` sticks
+   after a tap, which left every tapped button raised until the next tap. */
+@media (hover: hover) and (pointer: fine) {
+  .btn-3d:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  }
 }
 
 .btn-3d:hover::before {
@@ -210,9 +214,11 @@
   transition: left 0.5s ease;
 }
 
-.nav-item-3d:hover {
-  transform: translateZ(4px);
-  background: rgba(255, 255, 255, 0.1);
+@media (hover: hover) and (pointer: fine) {
+  .nav-item-3d:hover {
+    transform: translateZ(4px);
+    background: rgba(255, 255, 255, 0.1);
+  }
 }
 
 .nav-item-3d:hover::before {
@@ -250,9 +256,11 @@
   animation: avatarRotate 3s linear infinite;
 }
 
-.avatar-3d:hover {
-  transform: scale(1.1) rotateY(15deg);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+@media (hover: hover) and (pointer: fine) {
+  .avatar-3d:hover {
+    transform: scale(1.1) rotateY(15deg);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  }
 }
 
 /* =============================================
@@ -475,14 +483,6 @@
     --theme-hover-lift: 6px;
     --perspective: 800px;
   }
-  
-  .card-3d:hover {
-    transform: translateY(-4px) scale(1.01);
-  }
-  
-  .btn-3d:hover {
-    transform: translateY(-1px) scale(1.01);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -517,8 +517,10 @@
 .translate-z-20 { transform: translateZ(20px); }
 .translate-z-n10 { transform: translateZ(-10px); }
 
-.hover-lift:hover { transform: translateY(-8px); }
-.hover-tilt:hover { transform: rotateX(5deg) rotateY(5deg); }
-.hover-scale:hover { transform: scale(1.05); }
+@media (hover: hover) and (pointer: fine) {
+  .hover-lift:hover { transform: translateY(-8px); }
+  .hover-tilt:hover { transform: rotateX(5deg) rotateY(5deg); }
+  .hover-scale:hover { transform: scale(1.05); }
+}
 
 /* Theme-specific overrides will be injected here by the theme engine */

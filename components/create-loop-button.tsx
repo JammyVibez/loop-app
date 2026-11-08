@@ -471,15 +471,15 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
   return (
     <>
       {LoginGateDialog}
-    <Card>
-      <CardContent className="space-y-4 p-5">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-cyan-500 shadow-md shadow-violet-900/30">
-              <FileText className="h-4 w-4 text-white" />
+    <Card className="overflow-hidden border-border/70 bg-card/70 shadow-sm">
+      <CardContent className="space-y-5 p-4 sm:p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-cyan-500 shadow-md shadow-violet-900/20 ring-1 ring-white/20">
+              <FileText className="h-[18px] w-[18px] text-white" />
             </span>
             <div className="min-w-0">
-              <h3 className="truncate text-sm font-bold text-foreground">Create a Loop</h3>
+              <h2 className="truncate text-[15px] font-bold tracking-tight text-foreground">Create a Loop</h2>
               <p className="truncate text-[11px] text-muted-foreground">
                 {mediaType === "code"
                   ? "Share a forkable snippet"
@@ -489,11 +489,28 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
               </p>
             </div>
           </div>
-          <div className="flex shrink-0 gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={() => setShowPreview((v) => !v)}>
-              <Eye className="mr-1 h-4 w-4" /> {showPreview ? "Edit" : "Preview"}
+          <div className="flex shrink-0 items-center gap-1.5">
+            <span className="mr-1 hidden items-center gap-1 rounded-full bg-muted/60 px-2.5 py-1 text-[10px] font-semibold text-muted-foreground sm:inline-flex">
+              <Save className="h-3 w-3" />
+              Draft saved
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 rounded-full px-3 text-xs"
+              onClick={() => setShowPreview((v) => !v)}
+            >
+              <Eye className="mr-1 h-3.5 w-3.5" /> {showPreview ? "Edit" : "Preview"}
             </Button>
-            <Button type="button" size="icon" variant="ghost" onClick={() => setDiscardOpen(true)} title="Close composer">
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 rounded-full"
+              onClick={() => setDiscardOpen(true)}
+              title="Close composer"
+            >
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -673,12 +690,12 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                   variant={mediaType === item.type ? "default" : "outline"}
                   className={
                     mediaType === item.type
-                      ? "border-transparent bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-md shadow-violet-900/20"
-                      : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+                      ? "h-8 rounded-full border-transparent bg-gradient-to-r from-violet-600 to-cyan-500 px-3 text-xs text-white shadow-md shadow-violet-900/20"
+                      : "h-8 rounded-full border-border px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                   }
                   onClick={() => setMediaType(item.type)}
                 >
-                  <item.icon className="mr-1 h-4 w-4" />
+                  <item.icon className="mr-1.5 h-3.5 w-3.5" />
                   {item.label}
                 </Button>
               ))}
@@ -687,7 +704,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                 type="button"
                 size="sm"
                 variant="outline"
-                className="border-amber-500/40 text-amber-300 hover:bg-amber-500/20"
+                className="h-8 rounded-full border-amber-500/40 px-3 text-xs text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
                 onClick={() => setDuelDialogOpen(true)}
               >
                 <Swords className="mr-1 h-4 w-4 text-amber-400" />
@@ -697,7 +714,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                 type="button"
                 size="sm"
                 variant="outline"
-                className="border-violet-500/50 bg-violet-500/10 text-violet-300 shadow-[0_0_12px_rgba(139,92,246,0.25)] hover:bg-violet-500/25"
+                className="h-8 rounded-full border-violet-500/50 bg-violet-500/10 px-3 text-xs text-violet-700 shadow-[0_0_12px_rgba(139,92,246,0.25)] hover:bg-violet-500/25 dark:text-violet-300"
                 onClick={() => setClutchDuelDialogOpen(true)}
               >
                 <Zap className="mr-1 h-4 w-4 fill-amber-400 text-amber-400" />
@@ -706,9 +723,9 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
             </div>
 
             {mediaType === "poll" && (
-              <div className="p-4 rounded-xl border border-cyan-500/30 bg-cyan-950/20 space-y-3">
+              <div className="space-y-3 rounded-xl border border-cyan-500/30 bg-cyan-500/5 p-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-cyan-300">Poll Question</label>
+                  <label className="text-xs font-bold text-cyan-700 dark:text-cyan-300">Poll Question</label>
                   <Input
                     value={pollQuestion}
                     onChange={(e) => setPollQuestion(e.target.value)}
@@ -747,25 +764,33 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
               </div>
             )}
 
-            <div className="rounded-xl border border-dashed border-border p-4">
+            <div className="space-y-3">
               {mediaType === "code" ? (
-                <p className="text-center text-sm text-muted-foreground">
+                <p className="rounded-xl border border-border/70 bg-muted/30 p-4 text-center text-[13px] leading-6 text-muted-foreground">
                   Code loops publish as text snippets — no media upload needed. Peers can fork your code into their profile.
                 </p>
               ) : (
                 <>
                   <MagneticDropZone onFiles={handleSelectedFiles}>
-                    <label className="flex cursor-pointer flex-col items-center gap-2 text-sm text-muted-foreground border border-dashed border-border rounded-2xl p-4 hover:bg-muted/60 transition-colors">
-                    <Upload className="h-5 w-5 text-violet-400" />
-                    <span>Upload media ({getMaxFiles()} file limit{user?.is_premium ? " · Pro" : ""})</span>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*,video/*,audio/*"
-                      multiple={getMaxFiles() > 1}
-                      onChange={handleFileChange}
-                    />
-                  </label>
+                    <label className="group flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border border-dashed border-border/80 bg-muted/20 p-5 text-center transition-colors hover:border-primary/40 hover:bg-muted/50">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-background shadow-sm ring-1 ring-border/70">
+                        <Upload className="h-4 w-4 text-violet-500" />
+                      </span>
+                      <span className="text-[13px] font-semibold text-foreground">
+                        Drop media or click to upload
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        Images, video, or audio · up to {getMaxFiles()} file{getMaxFiles() > 1 ? "s" : ""}
+                        {user?.is_premium ? " · Pro" : ""}
+                      </span>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*,video/*,audio/*"
+                        multiple={getMaxFiles() > 1}
+                        onChange={handleFileChange}
+                      />
+                    </label>
                   </MagneticDropZone>
                   {(mediaType === "audio" || mediaType === "text") && (
                     <div className="mt-3 flex justify-center">
@@ -849,13 +874,13 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                   <EyeOff className="h-3.5 w-3.5" />
                 </button>
                 <div className="flex-1">
-                  <p className="text-xs font-semibold text-amber-300">Mark as Spoiler</p>
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">Mark as Spoiler</p>
                   <p className="text-[10px] text-muted-foreground">Media will be blurred until tapped</p>
                 </div>
               </div>
             )}
 
-            <div className="flex flex-col-reverse items-stretch justify-end gap-2 border-t border-border/60 pt-3 sm:flex-row sm:items-center">
+            <div className="flex flex-col-reverse items-stretch justify-end gap-2 border-t border-border/60 pt-4 sm:flex-row sm:items-center">
               <span className="hidden flex-1 items-center gap-1.5 text-[11px] text-muted-foreground sm:flex">
                 <Zap className="h-3 w-3 text-violet-400" />
                 Drafts save automatically — nothing gets lost while you write.

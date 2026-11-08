@@ -9,6 +9,9 @@ import "./globals.css"
 import "../styles/3d-framework.css"
 import "../styles/responsive.css"
 import "../styles/cosmetics.css"
+// Desktop-only refinements (max-width, gutters, scrollbars). Every rule is
+// gated behind min-width: 1024px + a fine pointer, so mobile is untouched.
+import "../styles/desktop.css"
 import { AuthProvider } from "../providers/auth-provider"
 import { ThemeProvider } from "../providers/theme-provider"
 import { ThemeSync } from "../providers/theme-sync"
@@ -261,9 +264,12 @@ export default function RootLayout({
                 <MaintenanceGate>
                   <OnboardingRedirect>
                     <DataSaverProvider>
-                    <div className="min-h-screen bg-background text-foreground">
+                    {/* min-h-dvh, not min-h-screen: 100vh on phones is taller than
+                        the visible viewport, so the document always had a little
+                        phantom scroll that every tap nudged. */}
+                    <div className="min-h-dvh bg-background text-foreground">
                       <div id="theme-environment" className="fixed inset-0 pointer-events-none z-[-1]" />
-                      <div className="relative z-10 flex min-h-screen">
+                      <div className="relative z-10 flex min-h-dvh">
                         <LeftSidebar />
                         <AppChrome>{children}</AppChrome>
                       </div>

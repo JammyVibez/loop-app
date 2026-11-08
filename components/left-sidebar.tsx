@@ -18,6 +18,7 @@ import PenIcon from "@/components/icons/animated/pen-icon"
 import UsersIcon from "@/components/icons/animated/users-icon"
 import MessageCircleIcon from "@/components/icons/animated/message-circle-icon"
 import RadioIcon from "@/components/icons/animated/radio-icon"
+import TvIcon from "@/components/icons/animated/tv-icon"
 import WalletIcon from "@/components/icons/animated/wallet-icon"
 import CodeIcon from "@/components/icons/animated/code-icon"
 import ChartLineIcon from "@/components/icons/animated/chart-line-icon"
@@ -49,6 +50,7 @@ const NAV_ICONS: Record<string, AnimatedIconComponent> = {
   "/communities": UsersIcon,
   "/messages": MessageCircleIcon,
   "/streams": RadioIcon,
+  "/channels": TvIcon,
   "/wallet": WalletIcon,
   "/quests": ChartLineIcon,
   "/co-loop/studio": CodeIcon,
@@ -125,7 +127,7 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
     <div className="flex h-full flex-col justify-between overflow-hidden">
       <div className="flex flex-col flex-1 min-h-0">
         {/* Brand Logo Header */}
-        <div className="flex items-center gap-2 px-3 py-2 shrink-0">
+        <div className="flex shrink-0 items-center gap-2 px-2 py-2">
           <Link href="/" onClick={onLinkClick} className="flex items-center gap-2.5 group">
             <AppLogo showWordmark className="rounded-xl shadow-md transition-transform group-hover:scale-105" />
           </Link>
@@ -134,6 +136,9 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
         <ScrollArea className="flex-1 my-2 pr-2 scrollbar-thin">
           {/* The rail is navigation and nothing else: five core destinations,
               one disclosure, then your account. */}
+          <p className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/60">
+            Menu
+          </p>
           <div className="space-y-0.5">
             {primaryNav.map((item) => {
               const Icon = NAV_ICONS[item.href]
@@ -148,14 +153,14 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
                   href={item.href}
                   onClick={onLinkClick}
                   data-tour={NAV_TOUR_ANCHORS[item.href]}
-                  className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${navItemClasses(item.href, isActive)}`}
+                  className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-[13px] font-semibold transition-colors ${navItemClasses(item.href, isActive)}`}
                 >
                   <div className="flex items-center gap-3">
                     {Icon ? <AnimatedIconView component={Icon} size={16} className="h-4 w-4" /> : null}
                     <span>{item.label}</span>
                   </div>
                   {item.badge ? (
-                    <Badge className="bg-rose-500 text-[9px] px-1.5 py-0 text-white font-bold animate-pulse">
+                    <Badge className="bg-rose-500 px-1.5 py-0 text-[9px] font-bold text-white">
                       {item.badge}
                     </Badge>
                   ) : null}
@@ -171,7 +176,7 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
                 onClick={toggleMore}
                 aria-expanded={moreOpen}
                 aria-controls={morePanelId}
-                className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${
+                className={`mt-1 flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[13px] font-semibold transition-colors ${
                   secondaryNav.some(
                     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
                   )
@@ -204,7 +209,7 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
                       key={item.href}
                       href={item.href}
                       onClick={onLinkClick}
-                      className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${navItemClasses(item.href, isActive)}`}
+                      className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-[13px] font-semibold transition-colors ${navItemClasses(item.href, isActive)}`}
                     >
                       <div className="flex items-center gap-3">
                         {Icon ? <AnimatedIconView component={Icon} size={16} className="h-4 w-4" /> : null}
@@ -235,7 +240,7 @@ export function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
       </div>
 
       {/* Footer User Profile & Logout */}
-      <div className="border-t border-border/60 pt-3 shrink-0 flex items-center justify-between">
+      <div className="mt-2 flex shrink-0 items-center justify-between rounded-2xl border border-border/60 bg-muted/30 p-2">
         <Link href={`/profile/${user.username || user.id}`} onClick={onLinkClick} className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-80 transition-opacity">
           <AvatarWithFrame
             avatarUrl={user.avatar_url || user.user_metadata?.avatar_url}
@@ -286,7 +291,7 @@ export function LeftSidebar() {
   if (!user) return null
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-64 flex-col border-r border-border/60 bg-card/50 p-4 lg:flex">
+    <aside className="sticky top-0 hidden h-dvh w-[264px] flex-col border-r border-border/60 bg-card/50 p-3.5 lg:flex">
       <SidebarContent />
     </aside>
   )
