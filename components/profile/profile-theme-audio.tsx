@@ -58,8 +58,11 @@ export function ProfileThemeAudio({
     setReady(true)
   }, [])
 
+  // The element stays alive while the visitor has sound off, so switching it
+  // back on can play inside the tap gesture instead of being blocked by the
+  // browser's autoplay policy.
   useEffect(() => {
-    if (!ready || !enabled || muted) return
+    if (!ready || !enabled) return
 
     const audio = new Audio(src)
     audio.loop = true
@@ -98,7 +101,7 @@ export function ProfileThemeAudio({
         .catch(() => setPlaying(false))
     }
 
-    if (autoplay) {
+    if (autoplay && !readStoredMuted()) {
       void audio
         .play()
         .then(() => {
@@ -120,7 +123,7 @@ export function ProfileThemeAudio({
       audioRef.current = null
       setPlaying(false)
     }
-  }, [src, enabled, autoplay, muted, ready])
+  }, [src, enabled, autoplay, ready])
 
   const setSoundOn = (next: boolean) => {
     setMuted(!next)
@@ -128,7 +131,15 @@ export function ProfileThemeAudio({
     if (!next) {
       audioRef.current?.pause()
       setPlaying(false)
+      return
     }
+    const audio = audioRef.current
+    if (!audio) return
+    audio.volume = TARGET_VOLUME
+    void audio
+      .play()
+      .then(() => setPlaying(true))
+      .catch(() => setPlaying(false))
   }
 
   if (!enabled) {
@@ -150,17 +161,19 @@ export function ProfileThemeAudio({
       return
     }
     const audio = audioRef.current
-    if (!audio) return
-    if (audio.paused) {
-      audio.volume = TARGET_VOLUME
-      void audio
-        .play()
-        .then(() => setPlaying(true))
-        .catch(() => setPlaying(false))
-    } else {
-      setPlaying(false)
+    if (!audio) {
       setSoundOn(false)
+      return
     }
+    if (!audio.paused) {
+      setSoundOn(false)
+      return
+    }
+    audio.volume = TARGET_VOLUME
+    void audio
+      .play()
+      .then(() => setPlaying(true))
+      .catch(() => setPlaying(false))
   }
 
   const label = title ? `${title} — profile soundtrack` : "Profile soundtrack"
