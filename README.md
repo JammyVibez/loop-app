@@ -35,6 +35,8 @@ Required keys — add them in `.env.local` or your hosting dashboard:
 | `STRIPE_SECRET_KEY` | Stripe secret key |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook secret |
 | `CRON_SECRET` | Secret for cron endpoints |
+| `ULTRASRC_API_URL` | Base URL of the UltraSrc API instance powering Channels |
+| `ULTRASRC_API_KEY` | Bearer token for that UltraSrc instance |
 
 See `.env.example` for the full list.
 
@@ -55,6 +57,16 @@ components/           # React components
 lib/                  # Shared utilities
 convex/               # Convex backend (if used)
 ```
+
+## Channels
+
+`/channels` is a guide for live TV, Asian dramas and web novels. It reads from
+an [UltraSrc API](https://tangled.org/ultrasrc.tngl.sh/ultrasrc-api) instance
+through `/api/channels`, which keeps `ULTRASRC_API_KEY` on the server. Without
+`ULTRASRC_API_URL` the page renders a connect state instead of content.
+
+The guide supports live channel browse/search and HLS playback, drama episode
+resolution per title, and novel search, details and chapter reading.
 
 ## Key Features
 

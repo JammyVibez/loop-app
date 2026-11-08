@@ -39,6 +39,7 @@ describe("sidebar navigation split", () => {
         "/",
         "/bookmarks",
         "/chains",
+        "/channels",
         "/create",
         "/co-loop/studio",
         "/collections",
@@ -50,12 +51,12 @@ describe("sidebar navigation split", () => {
         "/explore",
         "/invite",
         "/loopadmin",
-        "/messages",
         "/lounge",
+        "/messages",
         "/organization",
+        "/quests",
         "/streams",
         "/team",
-        "/wallet",
       ].sort(),
     )
   })

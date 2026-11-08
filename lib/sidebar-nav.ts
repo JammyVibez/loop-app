@@ -55,6 +55,7 @@ export const SIDEBAR_NAV: SidebarNavItem[] = [
   { href: "/quests", label: "Quests", group: "secondary" },
   { href: "/chains", label: "Chains", badge: "NEW", group: "secondary" },
   { href: "/streams", label: "Live", badge: "LIVE", group: "secondary" },
+  { href: "/channels", label: "Channels", badge: "NEW", group: "secondary" },
   { href: "/co-loop/studio", label: "Co-Loop Studio", badge: "NEW", group: "secondary" },
   { href: "/events", label: "Events", group: "secondary" },
   { href: "/drops", label: "Drops", badge: "NEW", group: "secondary" },

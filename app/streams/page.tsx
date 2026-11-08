@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { Eye, Radio, Search, Zap } from "lucide-react"
+import { Eye, Radio, Search, Tv, Zap } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
@@ -167,12 +167,23 @@ export default function StreamsPage() {
               Watch creators in real time — chat, react, gift, and join the vibe.
             </p>
           </div>
-          <Link href={user ? "/create/stream" : "/login"}>
-            <Button className="h-11 rounded-full bg-rose-500 px-6 font-bold hover:bg-rose-400">
-              <Radio className="mr-2 h-4 w-4" />
-              Go Live
-            </Button>
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href="/channels">
+              <Button
+                variant="outline"
+                className="h-11 rounded-full border-white/15 bg-white/5 px-5 font-semibold text-white hover:bg-white/10 hover:text-white"
+              >
+                <Tv className="mr-2 h-4 w-4" />
+                Channels
+              </Button>
+            </Link>
+            <Link href={user ? "/create/stream" : "/login"}>
+              <Button className="h-11 rounded-full bg-rose-500 px-6 font-bold hover:bg-rose-400">
+                <Radio className="mr-2 h-4 w-4" />
+                Go Live
+              </Button>
+            </Link>
+          </div>
         </div>
 
         <form
