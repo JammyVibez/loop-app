@@ -39,23 +39,19 @@ describe("blendForYouFeed", () => {
     expect(counts.discovery).toBeLessThanOrEqual(12)
   })
 
-  it("deduplicates across sources and skips session-seen posts", () => {
+  it("deduplicates across sources without hiding previously viewed posts", () => {
     const shared: Item = { id: "shared", author_id: "a1", created_at: new Date().toISOString() }
     const sources = {
       following: [shared, ...makeItems("f", 10)],
       trending: [shared, ...makeItems("t", 10)],
       discovery: makeItems("d", 10),
     }
-    const { items } = blendForYouFeed({
-      sources,
-      limit: 20,
-      seenIds: ["f-0", "t-0"],
-    })
+    const { items } = blendForYouFeed({ sources, limit: 20 })
     const ids = items.map((item) => item.id)
 
     expect(new Set(ids).size).toBe(ids.length)
-    expect(ids).not.toContain("f-0")
-    expect(ids).not.toContain("t-0")
+    expect(ids).toContain("f-0")
+    expect(ids).toContain("t-0")
     expect(ids.filter((id) => id === "shared")).toHaveLength(1)
   })
 

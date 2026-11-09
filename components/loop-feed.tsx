@@ -20,7 +20,6 @@ import { cn } from "@/lib/utils"
 import { useFeedPreload } from "@/hooks/use-media-preload"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { Spinner } from "@/components/ui/skeletons"
-import { useSessionViewedLoops } from "@/hooks/use-session-viewed-loops"
 import { SuggestedAccountsCard } from "@/components/users/suggested-accounts-card"
 
 const PAGE_SIZE = 20
@@ -79,7 +78,6 @@ export function LoopFeed({
   const [moments, setMoments] = useState<FeedMoment[]>([])
   const viewedMomentsRef = useRef<Set<string>>(new Set())
   const { user, getAuthHeader } = useAuth()
-  const { markViewed, getViewedIds } = useSessionViewedLoops(user?.id || "guest")
 
   // Media preloading for next 3 posts
   useFeedPreload(loops, 0, 3)
@@ -157,13 +155,6 @@ export function LoopFeed({
   const newestSeenAt = useRef<string | null>(null)
   const loopsLenRef = useRef(0)
   loopsLenRef.current = loops.length
-  /**
-   * Snapshot of prior-session views. We intentionally do not add posts viewed
-   * *during* this scroll to the pagination request: excluding them while also
-   * offsetting by the rendered count would skip a page. The snapshot refreshes
-   * on every reset (reload, tab switch, hard refresh).
-   */
-  const sessionSeenRef = useRef<string[]>([])
 
   const authToken = user?.access_token || user?.token
 
@@ -213,7 +204,6 @@ export function LoopFeed({
       }
 
       if (reset) {
-        sessionSeenRef.current = getViewedIds()
         setLoading(true)
         setError(null)
         setPendingNew([])
@@ -233,8 +223,6 @@ export function LoopFeed({
         })
         if (feedType === "personalized") {
           params.set("allow_sensitive", allowSensitive ? "1" : "0")
-          const viewed = sessionSeenRef.current
-          if (viewed.length) params.set("session_seen", viewed.join(","))
         }
 
         const response = await fetch(`/api/loops/feed?${params.toString()}`, {
@@ -271,7 +259,7 @@ export function LoopFeed({
         setLoadingMore(false)
       }
     },
-    [authToken, feedType, getAuthHeader, toast, guestMode, allowSensitive, getViewedIds],
+    [authToken, feedType, getAuthHeader, toast, guestMode, allowSensitive],
   )
 
   /** Fetch only loops newer than current top — prepend, don't reshuffle */
@@ -553,44 +541,6 @@ export function LoopFeed({
     nodes.forEach((node) => observer.observe(node))
     return () => observer.disconnect()
   }, [moments, feedType, user?.id, getAuthHeader])
-
-  // Track For You posts the viewer has actually looked at. A short dwell
-  // prevents fast scrolling from marking everything as "seen".
-  useEffect(() => {
-    if (feedType !== "personalized") return
-    const root = feedRef.current
-    if (!root) return
-    const timers = new Map<string, number>()
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          const loopId = (entry.target as HTMLElement).dataset.loopId
-          if (!loopId) continue
-          if (!entry.isIntersecting) {
-            const timer = timers.get(loopId)
-            if (timer) window.clearTimeout(timer)
-            timers.delete(loopId)
-            continue
-          }
-          if (timers.has(loopId)) continue
-          timers.set(
-            loopId,
-            window.setTimeout(() => {
-              markViewed(loopId)
-              timers.delete(loopId)
-            }, 900),
-          )
-        }
-      },
-      { threshold: 0.6 },
-    )
-    const nodes = root.querySelectorAll<HTMLElement>("[data-loop-card][data-loop-id]")
-    nodes.forEach((node) => observer.observe(node))
-    return () => {
-      observer.disconnect()
-      timers.forEach((timer) => window.clearTimeout(timer))
-    }
-  }, [feedType, loops, markViewed])
 
   // Pull-to-refresh (touch)
   useEffect(() => {

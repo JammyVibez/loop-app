@@ -37,18 +37,6 @@ const FOR_YOU_SELECT_FALLBACK = `
   loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
 `
 
-function parseIdList(raw: string | null, max = 120): string[] {
-  if (!raw) return []
-  const ids = new Set<string>()
-  for (const value of raw.split(",")) {
-    const id = value.trim()
-    if (!id || id.length > 80) continue
-    ids.add(id)
-    if (ids.size >= max) break
-  }
-  return [...ids]
-}
-
 function isSensitiveLoop(loop: any): boolean {
   const metadata = loop?.content_metadata || {}
   return Boolean(
@@ -202,7 +190,6 @@ export async function GET(request: NextRequest) {
     if (type === "personalized" || type === "for_you") {
       const safeLimit = Math.max(1, Math.min(limit || 20, 50))
       const safeOffset = Math.max(0, offset || 0)
-      const seenIds = parseIdList(searchParams.get("session_seen"))
       const allowSensitive = ["1", "true"].includes((searchParams.get("allow_sensitive") || "").toLowerCase())
 
       const followingIds = new Set<string>()
@@ -248,11 +235,10 @@ export async function GET(request: NextRequest) {
       let candidates = candidateRows || []
       candidates = await filterPrivateContent(supabase, candidates, user?.id || null, followingIds)
       candidates = await filterCircleScopedContent(supabase, candidates, user?.id || null)
-      candidates = candidates.filter((loop: any) => {
-        if (seenIds.includes(loop.id)) return false
-        if (!allowSensitive && isSensitiveLoop(loop)) return false
-        return true
-      })
+      // For You never drops a post merely because the viewer already saw it.
+      // Refresh and back-navigation should keep the feed stable; pagination is
+      // handled by the offset below, and the client dedupes appended pages.
+      candidates = candidates.filter((loop: any) => allowSensitive || !isSensitiveLoop(loop))
 
       const now = Date.now()
       const ranked: Array<any> = candidates.map((loop: any) => {
@@ -303,7 +289,6 @@ export async function GET(request: NextRequest) {
         sources: { following, trending, discovery },
         limit: safeLimit,
         offset: safeOffset,
-        seenIds,
       })
 
       // Do not remove items after blending: dropping an intervening post could

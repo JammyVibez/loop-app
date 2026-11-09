@@ -98,8 +98,8 @@ export function recencyDecay(
 /**
  * Merge already-scored source lists into one feed.
  *
- * - Deduplicates by post id across sources.
- * - Excludes posts in `seenIds` (the viewer's current-session history).
+ * - Deduplicates by post id across sources and pages.
+ * - Never removes a post just because the viewer already saw it.
  * - Never emits more than `maxConsecutivePerAuthor` posts by one author.
  * - Uses weighted fair scheduling, so a page of 20 with 40/35/25 lands close
  *   to 8 following, 7 trending and 5 discovery.
@@ -108,21 +108,19 @@ export function blendForYouFeed<T extends ForYouRankable>({
   sources,
   limit,
   offset = 0,
-  seenIds = [],
   config = FOR_YOU_CONFIG,
   maxConsecutivePerAuthor = config.maxConsecutivePerAuthor,
 }: {
   sources: Record<ForYouSource, T[]>
   limit: number
   offset?: number
-  seenIds?: Iterable<string>
   config?: ForYouConfig
   maxConsecutivePerAuthor?: number
 }): { items: T[]; hasMore: boolean } {
   const safeLimit = Math.max(1, Math.floor(limit))
   const safeOffset = Math.max(0, Math.floor(offset))
   const weights = normalizeWeights(config.mix)
-  const used = new Set(seenIds)
+  const used = new Set<string>()
   const picked: ForYouMix = { following: 0, trending: 0, discovery: 0 }
   const items: T[] = []
   const order: ForYouSource[] = ["following", "trending", "discovery"]
