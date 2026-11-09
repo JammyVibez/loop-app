@@ -36,9 +36,9 @@ function statusFor(startsAt: string | null, endsAt: string | null) {
   const now = Date.now()
   const start = startsAt ? new Date(startsAt).getTime() : null
   const end = endsAt ? new Date(endsAt).getTime() : null
-  if (end && end < now) return "ended" as const
-  if (start && start <= now && (!end || end >= now)) return "live" as const
-  if (start && start > now) return "upcoming" as const
+  if (end !== null && end < now) return "ended" as const
+  if (start !== null && start <= now && (end === null || end >= now)) return "live" as const
+  if (start !== null && start > now) return "upcoming" as const
   return "active" as const
 }
 
@@ -63,6 +63,15 @@ export async function GET(request: NextRequest) {
   const liveOnly = searchParams.get("live") === "true"
   const upcomingOnly = searchParams.get("upcoming") === "true"
   const sort = searchParams.get("sort") || "recommended"
+  if (search.length > 120 || (liveOnly && upcomingOnly)) {
+    return NextResponse.json({ error: "invalid_drop_filters", message: "Search is limited to 120 characters; choose either live or upcoming activity." }, { status: 400 })
+  }
+  if (!(["recommended", "upcoming", "popular", "recent"] as const).includes(sort as "recommended" | "upcoming" | "popular" | "recent")) {
+    return NextResponse.json({ error: "invalid_drop_sort", message: "Choose a supported sort order." }, { status: 400 })
+  }
+  if (kind && kind !== "event" && kind !== "challenge") {
+    return NextResponse.json({ error: "invalid_drop_kind", message: "Kind must be event or challenge." }, { status: 400 })
+  }
 
   try {
     const { rows } = await authDbPool.query<Row>(
@@ -70,7 +79,7 @@ export async function GET(request: NextRequest) {
       SELECT * FROM (
         SELECT
           'event'::text AS kind,
-          'global'::text AS source,
+          'official_event'::text AS source,
           event.id::text AS id,
           event.title,
           event.description,
@@ -91,7 +100,7 @@ export async function GET(request: NextRequest) {
 
         SELECT
           'event'::text AS kind,
-          'circle'::text AS source,
+          'hosted_event'::text AS source,
           circle_event.id::text AS id,
           circle_event.title,
           circle_event.description,

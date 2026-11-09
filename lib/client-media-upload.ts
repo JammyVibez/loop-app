@@ -29,6 +29,76 @@ export type UploadMediaResult = {
   format?: string
 }
 
+type CloudinarySignedUpload = {
+  cloudName: string
+  apiKey: string
+  timestamp: number
+  signature: string
+  folder: string
+  resourceType: string
+}
+
+async function uploadSignedToCloudinary(file: File, sign: CloudinarySignedUpload): Promise<UploadMediaResult> {
+  const endpoint = `https://api.cloudinary.com/v1_1/${sign.cloudName}/${sign.resourceType}/upload`
+  const appendSignature = (form: FormData) => {
+    form.append("api_key", sign.apiKey)
+    form.append("timestamp", String(sign.timestamp))
+    form.append("signature", sign.signature)
+    form.append("folder", sign.folder)
+  }
+
+  if (file.size <= 100 * 1024 * 1024) {
+    const form = new FormData()
+    form.append("file", file)
+    appendSignature(form)
+    const response = await fetch(endpoint, { method: "POST", body: form })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok || !payload.secure_url) {
+      throw new Error(payload.error?.message || `Cloudinary upload failed (${response.status})`)
+    }
+    return {
+      url: payload.secure_url,
+      public_id: payload.public_id,
+      width: payload.width,
+      height: payload.height,
+      duration: payload.duration,
+      format: payload.format,
+    }
+  }
+
+  const chunkSize = 20_000_000
+  const uploadId = crypto.randomUUID()
+  let result: any = null
+  for (let start = 0; start < file.size; start += chunkSize) {
+    const end = Math.min(start + chunkSize, file.size)
+    const form = new FormData()
+    form.append("file", file.slice(start, end, file.type), file.name)
+    appendSignature(form)
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Range": `bytes ${start}-${end - 1}/${file.size}`,
+        "X-Unique-Upload-Id": uploadId,
+      },
+      body: form,
+    })
+    result = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(result.error?.message || `Cloudinary chunk upload failed (${response.status})`)
+    }
+  }
+
+  if (!result?.secure_url) throw new Error("Cloudinary did not finish processing the uploaded video")
+  return {
+    url: result.secure_url,
+    public_id: result.public_id,
+    width: result.width,
+    height: result.height,
+    duration: result.duration,
+    format: result.format,
+  }
+}
+
 function mediaTypeFromFile(file: File, explicit?: UploadMediaOptions["type"]): UploadMediaOptions["type"] {
   if (explicit) return explicit
   if (file.type.startsWith("video/")) return "video"
@@ -100,38 +170,17 @@ export async function uploadMediaFile(
       body: JSON.stringify({ type, folder }),
     })
     const { data: sign } = await parseJsonResponse<any>(signRes)
-    if (signRes.ok && sign?.signature && sign?.cloudName) {
-      const form = new FormData()
-      form.append("file", file)
-      form.append("api_key", sign.apiKey)
-      form.append("timestamp", String(sign.timestamp))
-      form.append("signature", sign.signature)
-      form.append("folder", sign.folder)
-
-      const cloudRes = await fetch(
-        `https://api.cloudinary.com/v1_1/${sign.cloudName}/${sign.resourceType}/upload`,
-        { method: "POST", body: form },
-      )
-      const cloudRaw = await cloudRes.text()
-      let cloudData: any = {}
-      try {
-        cloudData = cloudRaw ? JSON.parse(cloudRaw) : {}
-      } catch {
-        // ignore parse error
-      }
-      if (cloudRes.ok && cloudData.secure_url) {
-        return {
-          url: cloudData.secure_url as string,
-          public_id: cloudData.public_id,
-          width: cloudData.width,
-          height: cloudData.height,
-          duration: cloudData.duration,
-          format: cloudData.format,
-        }
-      }
+    if (!signRes.ok || !sign?.signature || !sign?.cloudName) {
+      throw new Error(sign.error || "Could not authorize the media upload")
     }
-  } catch (err) {
-    console.warn("Direct Cloudinary upload failed, attempting proxy fallback...", err)
+    return await uploadSignedToCloudinary(file, sign as CloudinarySignedUpload)
+  } catch (error) {
+    // Large assets cannot use the serverless proxy fallback, and attempting it
+    // turns a useful Cloudinary error into a generic 413/HTML response.
+    if (file.size > PROXY_SAFE_BYTES) {
+      throw error instanceof Error ? error : new Error("Direct upload failed")
+    }
+    console.warn("Direct Cloudinary upload failed, attempting proxy fallback...", error)
   }
 
   // Fallback to /api/upload proxy

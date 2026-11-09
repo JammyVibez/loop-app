@@ -1,12 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { UserBadges } from "@/components/user-badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { TrendingUp, Hash, Users, GitBranch, RefreshCw } from "lucide-react"
@@ -58,8 +57,9 @@ export function TrendingContent() {
   const [users, setUsers] = useState<TrendingUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
     const days = TIMEFRAMES.find((t) => t.id === selectedTimeframe)?.days || 7
@@ -70,37 +70,44 @@ export function TrendingContent() {
         fetch(`/api/explore/trending?type=users&limit=9`),
       ])
 
+      const failures: string[] = []
       if (hashtagsRes.ok) {
         const data = await hashtagsRes.json()
         setHashtags(data.data || data.hashtags || [])
-      }
+      } else failures.push("hashtags")
       if (loopsRes.ok) {
         const data = await loopsRes.json()
         setLoops(data.data || data.loops || [])
-      }
+      } else failures.push("Loops")
       if (usersRes.ok) {
         const data = await usersRes.json()
         setUsers(data.data || [])
-      }
+      } else failures.push("creators")
+      if (failures.length) setError(`Couldn’t load ${failures.join(", ")}. Try again.`)
+      else setLastUpdated(new Date())
     } catch (err) {
       console.error("Failed to load trending data:", err)
       setError("Couldn't load trending right now. Try again in a moment.")
     } finally {
       setLoading(false)
     }
-  }
+  }, [getAuthHeader, selectedTimeframe])
 
   useEffect(() => {
-    fetchData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTimeframe])
+    void fetchData()
+  }, [fetchData])
 
   return (
     <div className="space-y-6">
       {/* Timeframe Selector */}
-      <div className="flex justify-center">
+      <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Trending</p>
+          <h1 className="mt-1 text-xl font-semibold tracking-tight">What people are into</h1>
+          {lastUpdated ? <p className="mt-1 text-[11px] text-muted-foreground">Updated {lastUpdated.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</p> : null}
+        </div>
         <Tabs value={selectedTimeframe} onValueChange={setSelectedTimeframe} className="w-auto">
-          <TabsList>
+          <TabsList className="w-full sm:w-auto">
             {TIMEFRAMES.map((tf) => (
               <TabsTrigger key={tf.id} value={tf.id}>
                 {tf.label}
@@ -120,7 +127,7 @@ export function TrendingContent() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-3 rounded-xl bg-muted/70 p-1">
           <TabsTrigger value="hashtags" className="flex items-center space-x-2">
             <Hash className="w-4 h-4" />
             <span>Hashtags</span>
@@ -146,19 +153,19 @@ export function TrendingContent() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {hashtags.map((hashtag, index) => (
                 <Link key={hashtag.tag} href={`/hashtag/${encodeURIComponent(hashtag.tag)}`}>
-                  <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                  <Card className="h-full cursor-pointer rounded-2xl border-border/70 transition-all hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-lg">
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center space-x-2">
                           <span className="text-2xl font-bold text-muted-foreground">#{index + 1}</span>
-                          <Hash className="w-5 h-5 text-purple-600" />
+                          <Hash className="w-5 h-5 text-primary" />
                         </div>
-                        <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                        <Badge variant="secondary" className="bg-success-surface text-success">
                           <TrendingUp className="w-3 h-3 mr-1" />
                           Live
                         </Badge>
                       </div>
-                      <h3 className="text-lg font-bold text-purple-600">#{hashtag.tag}</h3>
+                      <h3 className="text-lg font-bold text-foreground">#{hashtag.tag}</h3>
                       <p className="text-sm text-muted-foreground">{formatNumber(hashtag.usage_count || hashtag.count)} loops</p>
                     </CardContent>
                   </Card>
@@ -182,15 +189,15 @@ export function TrendingContent() {
             <div className="space-y-6">
               {loops.map((loop, index) => (
                 <div key={loop.id} className="relative">
-                  <div className="absolute -left-4 top-4 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm z-10">
+                  <div className="absolute left-2 top-3 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-primary/20 bg-background text-xs font-semibold text-primary shadow-sm sm:left-2">
                     #{index + 1}
                   </div>
-                  <div className="ml-8">
+                  <div className="ml-0 pl-10">
                     <LoopCard loop={loop} />
                     {loop.hashtags?.length > 0 && (
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         {loop.hashtags.map((tag: string) => (
-                          <Badge key={tag} variant="outline" className="text-purple-600">
+                          <Badge key={tag} variant="outline" className="border-primary/25 text-primary">
                             #{tag}
                           </Badge>
                         ))}
@@ -212,7 +219,7 @@ export function TrendingContent() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {users.map((user, index) => (
                 <Link key={user.id} href={`/profile/${user.username}`}>
-                  <Card className="hover:shadow-lg transition-shadow h-full">
+                  <Card className="h-full rounded-2xl border-border/70 transition-all hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-lg">
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
@@ -220,7 +227,7 @@ export function TrendingContent() {
                           <VideoAvatar src={user.avatar_url} className="w-12 h-12" fallback={(user.display_name || user.username).charAt(0).toUpperCase()} />
                         </div>
                         {(user.followers_count || 0) > 0 && (
-                          <Badge variant="secondary" className="bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300">
+                          <Badge variant="secondary" className="bg-warning-surface text-warning">
                             <TrendingUp className="w-3 h-3 mr-1" />
                             Trending
                           </Badge>
@@ -256,8 +263,8 @@ export function TrendingContent() {
                       </div>
 
                       {user.bio && (
-                        <div className="bg-purple-50 dark:bg-purple-950/30 rounded-lg p-3">
-                          <p className="text-sm text-purple-700 dark:text-purple-300 font-medium line-clamp-2">
+                        <div className="rounded-lg bg-muted/70 p-3">
+                          <p className="line-clamp-2 text-sm font-medium text-foreground">
                             {stripCircleBioTokens(user.bio)}
                           </p>
                         </div>

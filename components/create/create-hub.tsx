@@ -49,7 +49,7 @@ export function CreateHub({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
 
   return (
     <Tabs value={tab} onValueChange={(v) => setTab(v as CreateTab)}>
-      <div className="create-hub-grid grid gap-5 lg:grid-cols-[210px_minmax(0,1fr)] xl:grid-cols-[210px_minmax(0,1fr)_270px] xl:gap-6">
+      <div className="create-hub-grid grid gap-6 lg:grid-cols-[190px_minmax(0,1fr)] xl:grid-cols-[190px_minmax(0,1fr)_240px] xl:gap-8">
         {/* Mode rail. A vertical editorial index on desktop, swipeable chips on
             phones — the same five destinations, no truncation. */}
         <div className="min-w-0">
@@ -64,8 +64,8 @@ export function CreateHub({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
             </div>
             <TabsList
               className={cn(
-                "-mx-4 flex h-auto w-[calc(100%_+_2rem)] items-stretch justify-start gap-5 overflow-x-auto border-b border-white/[0.09] bg-transparent p-0 px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-                "lg:mx-0 lg:w-full lg:flex-col lg:gap-0 lg:overflow-visible lg:border-b-0",
+                "-mx-4 flex h-auto w-[calc(100%_+_2rem)] items-stretch justify-start gap-6 overflow-x-auto border-b border-border/70 bg-transparent p-0 px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+                "lg:mx-0 lg:w-full lg:flex-col lg:gap-1 lg:overflow-visible lg:border-b-0",
               )}
             >
               {TABS.map((item, index) => (
@@ -74,12 +74,12 @@ export function CreateHub({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
                   value={item.value}
                   className={cn(
                     "group relative flex min-h-11 shrink-0 items-center gap-2.5 rounded-none border-0 border-b-2 border-transparent bg-transparent px-0 pb-3 pt-1 text-[12px] font-medium text-muted-foreground shadow-none transition-colors",
-                    "data-[state=active]:border-lime-300 data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none",
-                    "lg:min-h-0 lg:w-full lg:items-start lg:gap-3.5 lg:border-b-0 lg:border-l-2 lg:border-l-transparent lg:px-0 lg:pb-4 lg:pl-4 lg:pt-3 lg:text-left",
-                    "lg:data-[state=active]:border-lime-300",
+                    "data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none",
+                    "lg:min-h-0 lg:w-full lg:items-start lg:gap-3.5 lg:rounded-lg lg:border-b-0 lg:border-l-2 lg:border-l-transparent lg:px-3 lg:pb-3 lg:pl-4 lg:pt-3 lg:text-left",
+                    "lg:data-[state=active]:border-primary",
                   )}
                 >
-                  <span className="font-mono text-[9px] tracking-[0.08em] text-muted-foreground/55 transition-colors group-data-[state=active]:text-lime-300">
+                  <span className="font-mono text-[9px] tracking-[0.08em] text-muted-foreground/55 transition-colors group-data-[state=active]:text-primary">
                     {String(index + 1).padStart(2, "0")}
                   </span>
                   <span className="flex min-w-0 flex-col items-start gap-0.5">

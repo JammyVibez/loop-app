@@ -41,9 +41,9 @@ export const RARITY_STYLE: Record<
   },
   legendary: {
     label: "Legendary",
-    chip: "border-amber-300/35 bg-amber-300/10 text-amber-200",
+    chip: "border-warning-border bg-warning-surface text-warning",
     edge: "from-amber-300/70",
-    dot: "bg-amber-300",
+    dot: "bg-warning",
     glow: "rgba(251,191,36,0.28)",
   },
 }
@@ -108,7 +108,7 @@ export function ShopItemCard({
   return (
     <article
       className={cn(
-        "shop-item-card group relative flex flex-col overflow-hidden rounded-[20px] border border-white/[0.07] bg-[#0d0c11] transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-white/[0.14] hover:shadow-[0_24px_60px_-40px_rgba(0,0,0,0.95)]",
+        "shop-item-card group relative flex flex-col overflow-hidden rounded-[20px] border border-border/70 bg-card text-card-foreground transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_24px_60px_-40px_rgba(0,0,0,0.55)]",
         className,
       )}
     >
@@ -117,7 +117,7 @@ export function ShopItemCard({
       <button
         type="button"
         onClick={() => onPreview(item)}
-        className="relative block w-full cursor-pointer overflow-hidden border-b border-white/[0.07] bg-[#0a0910] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-300/70"
+        className="relative block w-full cursor-pointer overflow-hidden border-b border-border/70 bg-muted/70 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         aria-label={`Preview ${item.name}`}
       >
         <div className="relative aspect-square w-full overflow-hidden">
@@ -132,7 +132,7 @@ export function ShopItemCard({
             item={item}
             className="relative z-10 p-4 transition-transform duration-500 ease-out group-hover:scale-[1.035]"
           />
-          <span className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-12 bg-gradient-to-t from-black/35 to-transparent" />
+          <span className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-12 bg-gradient-to-t from-black/30 to-transparent" />
           <span className="absolute left-2.5 top-2.5 z-20">
             <RarityChip rarity={item.rarity} />
           </span>
@@ -141,12 +141,12 @@ export function ShopItemCard({
         {/* One badge in the top-right corner, never two: ownership is the more
             useful fact than "Pro", so it wins. */}
         {owned ? (
-          <span className="absolute right-2.5 top-2.5 z-20 inline-flex items-center gap-1 rounded-full border border-emerald-300/35 bg-emerald-400/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-emerald-200 backdrop-blur-sm">
+          <span className="absolute right-2.5 top-2.5 z-20 inline-flex items-center gap-1 rounded-full border border-emerald-400/35 bg-background/85 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-emerald-700 backdrop-saturate-150 dark:text-emerald-200 backdrop-blur-sm">
             <Check className="h-2.5 w-2.5" />
             Owned
           </span>
         ) : item.premium_only ? (
-          <span className="absolute right-2.5 top-2.5 z-20 inline-flex items-center gap-1 rounded-full border border-amber-300/35 bg-amber-300/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-amber-200 backdrop-blur-sm">
+          <span className="absolute right-2.5 top-2.5 z-20 inline-flex items-center gap-1 rounded-full border border-warning-border bg-background/85 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-warning backdrop-saturate-150 backdrop-blur-sm">
             {locked ? <Lock className="h-2.5 w-2.5" /> : <Crown className="h-2.5 w-2.5" />}
             Pro
           </span>
@@ -162,16 +162,16 @@ export function ShopItemCard({
           </p>
         </div>
 
-        <div className="mt-auto flex items-end justify-between gap-2 border-t border-white/[0.06] pt-3">
+        <div className="mt-auto flex items-end justify-between gap-2 border-t border-border/70 pt-3">
           <span className="flex min-w-0 items-center gap-1.5 text-[12.5px] font-semibold tabular-nums text-foreground">
             {isCoinPack ? (
               <>
-                <span className="text-emerald-300">${usd || coins}</span>
+                <span className="text-primary">${usd || coins}</span>
                 <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-muted-foreground/60">USD</span>
               </>
             ) : (
               <>
-                <Coins className="h-3.5 w-3.5 shrink-0 text-amber-300" />
+                <Coins className="h-3.5 w-3.5 shrink-0 text-primary" />
                 <span className="truncate">{coins.toLocaleString()}</span>
               </>
             )}
@@ -179,7 +179,7 @@ export function ShopItemCard({
 
           <div className="flex shrink-0 flex-col items-end gap-0.5">
             {owned && !isCoinPack ? (
-              <Button asChild size="sm" variant="outline" className="h-9 rounded-full border-white/15 px-3.5 text-[10px]">
+              <Button asChild size="sm" variant="outline" className="h-9 rounded-full border-border px-3.5 text-[10px]">
                 <Link href="/inventory">
                   Equip
                   <ArrowUpRight className="ml-1 h-3 w-3" />
@@ -190,7 +190,7 @@ export function ShopItemCard({
                 size="sm"
                 onClick={() => onBuy?.(item)}
                 disabled={purchasing}
-                className="h-9 rounded-full bg-gradient-to-r from-amber-200 to-amber-300 px-3.5 text-[10px] font-bold text-[#1a1305] shadow-[0_8px_22px_-12px_rgba(245,185,66,0.65)] transition hover:from-amber-100 hover:to-amber-200 disabled:opacity-60"
+                className="h-9 rounded-full bg-primary px-3.5 text-[10px] font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-60"
               >
                 {purchasing ? (
                   <Lottie animation={itemArt} className="h-4 w-4" />

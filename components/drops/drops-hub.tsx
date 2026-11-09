@@ -7,6 +7,7 @@ import { ArrowUpRight, CalendarDays, CircleDot, Clock3, Flame, Gift, Plus, Radio
 
 import { useAuth } from "@/hooks/use-auth"
 import { rustApiRequest } from "@/lib/rust-api"
+import { safeResponseJson } from "@/lib/safe-response-json"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -15,7 +16,6 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ProxyImg } from "@/components/ui/proxy-img"
 import { AnimatedIconView } from "@/components/icons/animated/animated-icon-view"
 import FlameIcon from "@/components/icons/animated/flame-icon"
-import { safeResponseJson } from "@/lib/safe-response-json"
 
 type DropKind = "event" | "challenge"
 type DropFilter = "all" | "live" | "upcoming" | "event" | "challenge"

@@ -68,7 +68,7 @@ const EMPTY_DRAFT: Draft = {
 }
 
 export function AdminChannelsPanel() {
-  const { user } = useAuth()
+  const { getAuthHeader } = useAuth()
   const { toast } = useToast()
 
   const [titles, setTitles] = useState<AdminTitle[]>([])
@@ -81,9 +81,9 @@ export function AdminChannelsPanel() {
   const authHeaders = useCallback(
     () => ({
       "Content-Type": "application/json",
-      ...(user?.token ? { Authorization: `Bearer ${user.token}` } : {}),
+      ...getAuthHeader(),
     }),
-    [user?.token],
+    [getAuthHeader],
   )
 
   const loadTitles = useCallback(async () => {
@@ -637,6 +637,7 @@ function MediaField({
         type: kind,
         folder: "channel-library",
         authHeaders: authHeaders(),
+        forceDirect: true,
         maxSizeBytes: kind === "video" ? 2 * 1024 * 1024 * 1024 : undefined,
       })
       onChange(result.url)

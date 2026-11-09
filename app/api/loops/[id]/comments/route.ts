@@ -365,14 +365,37 @@ export async function POST(
         const { LOOP_AI_BOT_ID, buildLoopAiReply, ensureLoopAiBot, mentionsLoopAi } = await import(
           "@/lib/loop-ai/mentions"
         )
-        if (mentionsLoopAi(text) && (await ensureLoopAiBot())) {
+        const tagged = mentionsLoopAi(text)
+        const ancestors: Array<{ author_id: string; content: string; parent_comment_id: string | null }> = []
+        let ancestorId = typeof parent_comment_id === "string" ? parent_comment_id : null
+        for (let depth = 0; ancestorId && depth < 8; depth += 1) {
+          const { data: ancestor } = await supabase
+            .from("comments")
+            .select("id, author_id, content, parent_comment_id")
+            .eq("id", ancestorId)
+            .eq("loop_id", loopId)
+            .maybeSingle()
+          if (!ancestor) break
+          ancestors.push(ancestor)
+          ancestorId = ancestor.parent_comment_id
+        }
+        const isAiConversation = Boolean(
+          ancestors.some((ancestor) => ancestor.author_id === LOOP_AI_BOT_ID) &&
+            ancestors.some((ancestor) => mentionsLoopAi(ancestor.content)),
+        )
+        if ((tagged || isAiConversation) && (await ensureLoopAiBot())) {
           const { data: loopContext } = await supabase
             .from("loops")
             .select("content")
             .eq("id", loopId)
             .maybeSingle()
+          const previousAiReply = ancestors.find((ancestor) => ancestor.author_id === LOOP_AI_BOT_ID)
+          const history = previousAiReply
+            ? [{ role: "assistant" as const, content: String(previousAiReply.content || "").slice(0, 900) }]
+            : []
           const answer = await buildLoopAiReply({
             question: text,
+            history,
             context: `The Loop being discussed: "${String((loopContext as any)?.content || "").slice(0, 600)}"`,
           })
 

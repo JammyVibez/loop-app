@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { RefreshCw, ArrowUp, Plus, Zap } from "lucide-react"
+import { ArrowUp, Plus, Zap } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { LoopCard } from "@/components/loop-card"
@@ -774,30 +774,18 @@ export function LoopFeed({
         </div>
       )}
 
-      <div className="flex items-center justify-end gap-2 px-3 sm:px-4">
-        {pendingNew.length > 0 ? (
+      {pendingNew.length > 0 ? (
+        <div className="flex justify-center px-3 sm:px-4">
           <button
             type="button"
             onClick={showPending}
-            className="mx-auto inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground shadow-lg transition hover:opacity-90"
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground shadow-lg transition hover:opacity-90"
           >
             <ArrowUp className="h-3.5 w-3.5" />
             {pendingNew.length} new {pendingNew.length === 1 ? "loop" : "loops"}
           </button>
-        ) : (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="rounded-full text-muted-foreground"
-            disabled={refreshing}
-            onClick={() => void hardRefresh()}
-            title="Refresh feed"
-          >
-            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
-            <span className="ml-1.5 hidden sm:inline">Refresh</span>
-          </Button>
-        )}
-      </div>
+        </div>
+      ) : null}
 
       <div
         className={cn(

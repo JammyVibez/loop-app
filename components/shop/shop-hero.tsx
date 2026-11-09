@@ -40,32 +40,32 @@ export function ShopHero({
 
   if (!hero) {
     return (
-      <section className="relative overflow-hidden rounded-[26px] border border-white/[0.09] bg-[#0b0a10]">
+      <section className="relative overflow-hidden rounded-[26px] border border-border/70 bg-card text-card-foreground">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              "radial-gradient(560px 280px at 8% 0%, rgba(245,184,61,0.14), transparent 64%), radial-gradient(520px 300px at 96% 100%, rgba(139,92,246,0.14), transparent 62%)",
+              "radial-gradient(560px 280px at 8% 0%, hsl(var(--primary) / 0.14), transparent 64%), radial-gradient(520px 300px at 96% 100%, hsl(var(--accent) / 0.14), transparent 62%)",
           }}
         />
         <div className="relative flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-9">
           <div className="min-w-0">
-            <p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-amber-200/75">Loop Store</p>
+            <p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-primary">Loop Store</p>
             <h1 className="mt-3 font-serif text-[clamp(2rem,4vw,3.2rem)] leading-[0.98] tracking-[-0.035em]">
               A shelf for the way you show up.
             </h1>
-            <p className="mt-3 max-w-md text-[12px] leading-6 text-white/55">
+            <p className="mt-3 max-w-md text-[12px] leading-6 text-muted-foreground">
               Themes, frames, badges and effects. Preview everything live before you spend a coin.
             </p>
           </div>
-          <div className="shrink-0 rounded-2xl border border-white/[0.09] bg-black/25 p-5 text-center">
+          <div className="shrink-0 rounded-2xl border border-border/70 bg-muted/40 p-5 text-center">
             <Lottie animation={COIN} className="mx-auto h-20 w-20" />
-            <p className="mt-1 text-[9px] uppercase tracking-[0.18em] text-white/40">Your balance</p>
+            <p className="mt-1 text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Your balance</p>
             <p className="mt-1 text-2xl font-semibold tabular-nums">{coins === null ? "—" : coins.toLocaleString()}</p>
             <Button
               size="sm"
-              className="mt-3 h-9 w-full rounded-full bg-amber-300 text-[10px] font-bold text-[#1a1305] hover:bg-amber-200"
+              className="mt-3 h-9 w-full rounded-full bg-primary text-[10px] font-bold text-primary-foreground hover:bg-primary/90"
               onClick={onBrowseCoins}
             >
               Get Loop Coins
@@ -77,22 +77,22 @@ export function ShopHero({
   }
 
   return (
-    <section className="relative overflow-hidden rounded-[28px] border border-white/[0.09] bg-[#0b0a10] text-foreground">
+    <section className="relative overflow-hidden rounded-[28px] border border-border/70 bg-card text-card-foreground">
       <div aria-hidden className="pointer-events-none absolute inset-0 shop-grid-lines opacity-50" />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(640px 320px at 4% -10%, rgba(245,184,61,0.18), transparent 62%), radial-gradient(560px 300px at 98% 110%, rgba(139,92,246,0.2), transparent 62%)",
+            "radial-gradient(640px 320px at 4% -10%, hsl(var(--primary) / 0.12), transparent 62%), radial-gradient(560px 300px at 98% 110%, hsl(var(--accent) / 0.2), transparent 62%)",
         }}
       />
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/45 to-transparent" />
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/45 to-transparent" />
 
       <div className="relative grid lg:grid-cols-[0.9fr_1.1fr]">
         <div className="flex min-w-0 flex-col justify-between gap-8 p-6 sm:p-8 lg:p-10">
           <div className="min-w-0">
-            <p className="inline-flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.22em] text-amber-200/80">
+            <p className="inline-flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.22em] text-primary">
               <Sparkles className="h-3 w-3" />
               Featured drop
             </p>
@@ -101,18 +101,18 @@ export function ShopHero({
               {hero.name}
             </h1>
 
-            <p className="mt-3 line-clamp-3 max-w-md text-[12px] leading-6 text-white/55">
+            <p className="mt-3 line-clamp-3 max-w-md text-[12px] leading-6 text-muted-foreground">
               {hero.description || "A little something to make your Loop yours."}
             </p>
 
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <RarityChip rarity={hero.rarity} />
-              <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold tabular-nums text-amber-200">
+              <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold tabular-nums text-primary">
                 <Coins className="h-3.5 w-3.5" />
                 {coinPrice(hero).toLocaleString()}
               </span>
               {ownedCount !== null && availableCount !== null ? (
-                <span className="text-[10px] text-white/40">
+                <span className="text-[10px] text-muted-foreground">
                   {ownedCount.toLocaleString()} of {availableCount.toLocaleString()} collected
                 </span>
               ) : null}
@@ -122,7 +122,7 @@ export function ShopHero({
           <div className="flex flex-wrap items-center gap-2">
             <Button
               onClick={() => onPreview(hero)}
-              className="h-10 rounded-full bg-amber-300 px-4 text-[11px] font-bold text-[#1a1305] hover:bg-amber-200"
+              className="h-10 rounded-full bg-primary px-4 text-[11px] font-bold text-primary-foreground hover:bg-primary/90"
             >
               View item
               <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
@@ -130,34 +130,34 @@ export function ShopHero({
             <Button
               variant="outline"
               onClick={onBrowseAll}
-              className="h-10 rounded-full border-white/[0.12] bg-white/[0.025] px-4 text-[11px] text-foreground hover:bg-white/[0.06]"
+              className="h-10 rounded-full border-border bg-background/50 px-4 text-[11px] text-foreground hover:bg-muted"
             >
               Browse all
             </Button>
             <button
               type="button"
               onClick={onBrowseCoins}
-              className="inline-flex h-10 items-center gap-1.5 rounded-full px-2 text-[10.5px] font-medium text-white/45 transition-colors hover:text-white"
+              className="inline-flex h-10 items-center gap-1.5 rounded-full px-2 text-[10.5px] font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
-              <Coins className="h-3.5 w-3.5 text-amber-300/80" />
+              <Coins className="h-3.5 w-3.5 text-primary" />
               {coins === null ? "Sign in for coins" : `${coins.toLocaleString()} coins`}
             </button>
           </div>
         </div>
 
-        <div className="relative flex min-h-[280px] items-center justify-center border-t border-white/[0.08] p-5 lg:min-h-[380px] lg:border-l lg:border-t-0 lg:p-7">
+        <div className="relative flex min-h-[280px] items-center justify-center border-t border-border/70 p-5 lg:min-h-[380px] lg:border-l lg:border-t-0 lg:p-7">
           <button
             type="button"
             onClick={() => onPreview(hero)}
-            className="group relative w-full max-w-[360px] overflow-hidden rounded-[22px] border border-white/[0.12] bg-[#09080c] text-left transition-colors hover:border-amber-300/35"
+            className="group relative w-full max-w-[360px] overflow-hidden rounded-[22px] border border-border bg-muted/50 text-left transition-colors hover:border-primary/40"
           >
             <span className="relative block aspect-square w-full overflow-hidden">
               <ShopItemMiniPreview
                 item={hero}
                 className="p-5 transition-transform duration-500 group-hover:scale-[1.03]"
               />
-              <span className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/45 to-transparent" />
-              <span className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/50 px-2.5 py-1 text-[9px] font-medium text-white/80 backdrop-blur-md">
+              <span className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background/70 to-transparent" />
+              <span className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/85 px-2.5 py-1 text-[9px] font-medium text-foreground backdrop-blur-md">
                 Live preview
                 <ArrowUpRight className="h-2.5 w-2.5" />
               </span>
@@ -173,7 +173,7 @@ export function ShopHero({
                   onClick={() => onPreview(item)}
                   aria-label={`Preview ${item.name}`}
                   title={item.name}
-                  className="h-11 w-11 overflow-hidden rounded-xl border border-white/[0.12] bg-[#09080c] transition-colors hover:border-amber-300/40"
+                  className="h-11 w-11 overflow-hidden rounded-xl border border-border bg-muted transition-colors hover:border-primary/40"
                 >
                   <ShopItemMiniPreview item={item} className="scale-[0.82]" />
                 </button>
