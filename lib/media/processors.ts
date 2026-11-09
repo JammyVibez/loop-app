@@ -323,15 +323,90 @@ export type VideoResult = {
   posterPath: string | null
 }
 
-/** Transcode to H.264/AAC MP4, capped at 720p, with a poster frame. */
+type StreamInfo = { video: string | null; audio: string | null; height: number }
+
+/** Stream codecs via ffprobe; used to skip a pointless re-encode. */
+async function probeStreams(file: string): Promise<StreamInfo | null> {
+  return new Promise((resolve) => {
+    const child = spawn(
+      FFPROBE_BIN,
+      ["-v", "error", "-show_entries", "stream=codec_type,codec_name,height", "-of", "json", file],
+      { stdio: ["ignore", "pipe", "ignore"] },
+    )
+    let out = ""
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL")
+      resolve(null)
+    }, 8000)
+    child.stdout?.on("data", (chunk) => {
+      out += String(chunk)
+    })
+    child.on("error", () => {
+      clearTimeout(timer)
+      resolve(null)
+    })
+    child.on("exit", () => {
+      clearTimeout(timer)
+      try {
+        const streams = JSON.parse(out)?.streams || []
+        const video = streams.find((stream: any) => stream.codec_type === "video")
+        const audio = streams.find((stream: any) => stream.codec_type === "audio")
+        resolve({
+          video: video?.codec_name ? String(video.codec_name) : null,
+          audio: audio?.codec_name ? String(audio.codec_name) : null,
+          height: Number(video?.height) || 0,
+        })
+      } catch {
+        resolve(null)
+      }
+    })
+  })
+}
+
+/**
+ * Transcode to H.264/AAC MP4, capped at 720p, with a poster frame.
+ *
+ * A phone- or admin-supplied MP4 that is already H.264/AAC at ≤720p does not
+ * need a second generation: remuxing the streams (`-c copy`) finishes in
+ * seconds instead of re-encoding an entire movie frame by frame.
+ */
 export async function transcodeVideo(inputPath: string, outDir: string, base: string): Promise<VideoResult> {
   if (!(await isFfmpegAvailable())) {
     throw new Error("Video processing is unavailable on this server (ffmpeg is not installed).")
   }
   await fs.mkdir(outDir, { recursive: true })
   const outPath = path.join(outDir, `${base}.mp4`)
-  const posterPath = path.join(outDir, `${base}-poster.jpg`)
 
+  // Queued sources are stored without their real extension, so trust the
+  // streams themselves rather than the filename.
+  const streams = await probeStreams(inputPath)
+  const alreadyWebReady =
+    streams?.video === "h264" &&
+    (!streams.audio || ["aac", "mp3"].includes(streams.audio)) &&
+    streams.height > 0 &&
+    streams.height <= 720
+
+  if (alreadyWebReady) {
+    const remux = await run(
+      FFMPEG_BIN,
+      ["-y", "-i", inputPath, "-c", "copy", "-movflags", "+faststart", outPath],
+      5 * 60 * 1000,
+    )
+    if (remux.code === 0) {
+      const poster = await extractPoster(outPath, outDir, base)
+      const probe = await probeMedia(outPath)
+      return {
+        mainPath: outPath,
+        width: probe?.width || 0,
+        height: probe?.height || 0,
+        duration: probe?.duration || 0,
+        posterPath: poster,
+      }
+    }
+    await fs.rm(outPath, { force: true }).catch(() => {})
+  }
+
+  const posterPath = path.join(outDir, `${base}-poster.jpg`)
   const args = [
     "-y",
     "-i", inputPath,

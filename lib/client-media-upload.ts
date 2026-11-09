@@ -57,8 +57,14 @@ export type UploadMediaResult = {
   error?: string
 }
 
-const CHUNK_BYTES = 8 * 1024 * 1024
+// Fewer, larger chunks keep a movie upload fast: every chunk is a full request
+// (session check + policy + disk write), so 8MB slices paid that overhead 60+
+// times for a 500MB file. 48MB stays well under Cloudflare's 100MB body limit,
+// which is the tightest proxy in front of the VPS.
+const CHUNK_BYTES = 48 * 1024 * 1024
 const MAX_RETRIES = 3
+// A stalled socket must fail over to the retry path instead of hanging forever.
+const CHUNK_TIMEOUT_MS = 5 * 60 * 1000
 
 function mediaTypeFromFile(file: File, explicit?: UploadMediaOptions["type"]): UploadMediaOptions["type"] {
   if (explicit) return explicit
@@ -105,6 +111,7 @@ async function postChunk(options: SendOptions): Promise<{ status: number; body: 
     xhr.open("POST", "/api/media/upload")
     xhr.responseType = "text"
     xhr.withCredentials = true
+    xhr.timeout = CHUNK_TIMEOUT_MS
 
     xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream")
     xhr.setRequestHeader("X-Media-Type", type)
@@ -197,7 +204,7 @@ function toResult(payload: any, fallbackType: string): UploadMediaResult {
 async function settleProcessing(result: UploadMediaResult): Promise<UploadMediaResult> {
   if (result.status !== "processing" || !result.id) return result
   try {
-    const ready = await waitForMediaReady([result.id], { timeoutMs: 10 * 60 * 1000 })
+    const ready = await waitForMediaReady([result.id], { timeoutMs: 15 * 60 * 1000 })
     const finished = ready[result.id]
     if (finished?.url) {
       return {
@@ -336,7 +343,9 @@ export async function waitForMediaReady(
   const pending = new Set(ids.filter(Boolean))
   const results: Record<string, UploadMediaResult> = {}
   const timeout = options.timeoutMs ?? 5 * 60 * 1000
-  const interval = options.intervalMs ?? 2500
+  // Poll a little quicker than before: a finished transcode no longer waits up
+  // to 2.5s before the composer can publish.
+  const interval = options.intervalMs ?? 1200
   const started = Date.now()
 
   while (pending.size && Date.now() - started < timeout) {

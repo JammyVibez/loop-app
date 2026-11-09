@@ -14,9 +14,9 @@ import {
  *
  * Any `uploadMediaFile` call — composer, avatar, DM attachment, admin panel —
  * reports here, so a media upload never looks frozen and the app never needs
- * per-screen progress plumbing. It stays out of the way for quick uploads: the
- * card only appears after 500ms in flight, then shows real progress for chunked
- * uploads and success/failure for a moment before leaving.
+ * per-screen progress plumbing. The card appears after 250ms in flight (late
+ * enough that ordinary image uploads stay quiet), then shows real progress for
+ * chunked uploads and success/failure for a moment before leaving.
  */
 export function UploadActivityHost() {
   const snapshot = useSyncExternalStore(
@@ -36,7 +36,7 @@ export function UploadActivityHost() {
       const timer = window.setTimeout(() => {
         shownOnce.current = true
         setVisible(true)
-      }, 500)
+      }, 250)
       return () => window.clearTimeout(timer)
     }
 
@@ -80,7 +80,7 @@ export function UploadActivityHost() {
       {visible && phase !== "idle" ? (
         <motion.div
           key="upload-activity"
-          className="pointer-events-none fixed bottom-[calc(var(--bottom-nav-height)+0.75rem)] left-1/2 z-[60] w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 sm:bottom-6 sm:left-6 sm:translate-x-0"
+          className="pointer-events-none fixed bottom-[calc(var(--bottom-nav-height)+0.75rem)] left-1/2 z-[75] w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 sm:bottom-6 sm:left-6 sm:translate-x-0"
           initial={{ opacity: 0, y: reduced ? 0 : 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: reduced ? 0 : 8 }}
@@ -90,10 +90,17 @@ export function UploadActivityHost() {
             <ActionFeedback
               phase={phase}
               label={label}
+              detail={
+                phase === "working"
+                  ? snapshot.percent != null
+                    ? `${snapshot.percent}% uploaded — keep this tab open for large files.`
+                    : "Starting the upload — keep this tab open."
+                  : undefined
+              }
               percent={phase === "working" ? snapshot.percent : null}
               error={snapshot.failed || undefined}
               successLabel="Upload complete"
-              delayMs={200}
+              delayMs={0}
               layout="panel"
             />
           </div>

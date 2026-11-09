@@ -70,20 +70,23 @@ export function GiftModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[92dvh] w-[min(96vw,460px)] overflow-hidden border-white/10 bg-[#080910] p-0 text-white shadow-[0_40px_120px_-30px_rgba(0,0,0,0.95)]">
-          <DialogHeader className="border-b border-white/10 px-4 py-3 pr-12 text-left">
-            <DialogTitle className="flex items-center gap-2 text-base font-black tracking-tight text-white">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-500/30 to-rose-500/30 ring-1 ring-white/15">
-                <Gift className="h-4 w-4 text-violet-200" />
+        <DialogContent className="flex max-h-[92svh] w-[calc(100vw-1rem)] max-w-[460px] flex-col gap-0 overflow-hidden rounded-2xl border-border bg-card p-0 text-card-foreground shadow-2xl sm:w-[min(96vw,460px)]">
+          <DialogHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left">
+            <DialogTitle className="flex items-center gap-2 text-base font-black tracking-tight text-card-foreground">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 ring-1 ring-primary/25">
+                <Gift className="h-4 w-4 text-primary" />
               </span>
               Send a gift
             </DialogTitle>
-            <DialogDescription className="text-[11px] text-white/45">
+            <DialogDescription className="text-[11px] text-muted-foreground">
               Pick a gift, add a note, and it plays live for everyone.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="h-[min(76dvh,660px)]">
+          {/* The panel owns its internal scroll (grid + fixed footer), so it must
+              flex to the remaining height instead of a fixed dvh box that gets
+              clipped once the mobile keyboard opens. */}
+          <div className="min-h-0 flex-1 overflow-hidden">
             <GiftPanel
               recipient={recipient}
               context={context}

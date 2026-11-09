@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { Check, Coins, Gift, Info, Lock, RotateCcw, Sparkles, Star } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
@@ -72,32 +72,53 @@ interface GiftPanelProps {
   className?: string
   /** Hide the recipient/balance header when the host already shows it. */
   hideHeader?: boolean
+  /**
+   * `dark` keeps the panel legible on the always-dark live-room surface even
+   * when the app itself is in a light theme. Default follows the app theme.
+   */
+  tone?: "default" | "dark"
 }
+
+// Token values matching the app's dark theme, scoped to the panel so the same
+// markup works over a light modal and a black live room.
+const DARK_SURFACE = {
+  "--background": "210 11% 4%",
+  "--card": "210 6% 6%",
+  "--popover": "210 6% 6%",
+  "--card-foreground": "180 7% 97%",
+  "--foreground": "180 7% 97%",
+  "--muted": "210 6% 10%",
+  "--muted-foreground": "220 5% 62%",
+  "--accent": "220 6% 14%",
+  "--accent-foreground": "0 0% 98%",
+  "--border": "220 6% 16%",
+  "--input": "220 6% 16%",
+} as CSSProperties
 
 const RARITY_STYLES: Record<
   string,
   { chip: string; ring: string; glow: string; label: string }
 > = {
   common: {
-    chip: "border-slate-400/30 bg-slate-400/10 text-slate-200",
+    chip: "border-slate-400/40 bg-slate-400/10 text-foreground",
     ring: "ring-slate-400/25",
     glow: "from-slate-400/20",
     label: "Common",
   },
   rare: {
-    chip: "border-sky-400/35 bg-sky-400/10 text-sky-200",
+    chip: "border-sky-400/40 bg-sky-400/10 text-foreground",
     ring: "ring-sky-400/40",
     glow: "from-sky-400/25",
     label: "Rare",
   },
   epic: {
-    chip: "border-violet-400/40 bg-violet-400/10 text-violet-200",
+    chip: "border-violet-400/40 bg-violet-400/10 text-foreground",
     ring: "ring-violet-400/45",
     glow: "from-violet-400/30",
     label: "Epic",
   },
   legendary: {
-    chip: "border-amber-400/45 bg-amber-400/10 text-amber-200",
+    chip: "border-amber-400/50 bg-amber-400/10 text-foreground",
     ring: "ring-amber-400/50",
     glow: "from-amber-400/35",
     label: "Legendary",
@@ -120,6 +141,7 @@ export function GiftPanel({
   onGiftSent,
   className,
   hideHeader = false,
+  tone = "default",
 }: GiftPanelProps) {
   const { toast } = useToast()
   const { user, getAuthHeader, refreshUser } = useAuth()
@@ -331,22 +353,25 @@ export function GiftPanel({
   const canAfford = selected ? balance >= selected.cost : false
 
   return (
-    <div className={cn("flex h-full min-h-0 flex-col", className)}>
+    <div
+      style={tone === "dark" ? DARK_SURFACE : undefined}
+      className={cn("flex h-full min-h-0 flex-col bg-card text-card-foreground", className)}
+    >
       {!hideHeader ? (
-        <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
-          <Avatar className="h-10 w-10 border border-white/15">
+        <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
+          <Avatar className="h-10 w-10 border border-border">
             <AvatarImage src={recipient.avatar_url} alt="" />
             <AvatarFallback>{recipient.display_name?.charAt(0) || "L"}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold text-white">{recipient.display_name}</p>
-            <p className="truncate text-[11px] text-white/50">@{recipient.username}</p>
+            <p className="truncate text-sm font-bold text-foreground">{recipient.display_name}</p>
+            <p className="truncate text-[11px] text-muted-foreground">@{recipient.username}</p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
               Balance
             </p>
-            <p className="inline-flex items-center gap-1 text-sm font-black text-amber-300">
+            <p className="inline-flex items-center gap-1 text-sm font-black text-warning">
               <Coins className="h-3.5 w-3.5" />
               {balance.toLocaleString()}
             </p>
@@ -354,7 +379,7 @@ export function GiftPanel({
         </div>
       ) : null}
 
-      <div className="flex gap-1.5 overflow-x-auto px-3 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex shrink-0 gap-1.5 overflow-x-auto px-3 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {GIFT_PANEL_TABS.map((item) => {
           const count = grouped.get(item.id)?.length || 0
           const active = tab === item.id
@@ -371,15 +396,15 @@ export function GiftPanel({
               className={cn(
                 "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold transition",
                 active
-                  ? "border-white/25 bg-white/15 text-white shadow-[0_0_20px_-6px_rgba(255,255,255,0.5)]"
-                  : "border-transparent bg-white/[0.04] text-white/55 hover:bg-white/10 hover:text-white/85",
+                  ? "border-primary/30 bg-primary/15 text-foreground shadow-[0_0_20px_-8px_hsl(var(--primary)/0.55)]"
+                  : "border-transparent bg-muted/50 text-muted-foreground hover:bg-accent hover:text-foreground",
               )}
             >
               {item.label}
               <span
                 className={cn(
                   "rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
-                  active ? "bg-white/20 text-white" : "bg-white/10 text-white/50",
+                  active ? "bg-primary/20 text-foreground" : "bg-muted text-muted-foreground",
                 )}
               >
                 {count}
@@ -391,14 +416,14 @@ export function GiftPanel({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
         {loading ? (
-          <div className="flex h-40 items-center justify-center gap-2 text-xs text-white/55">
+          <div className="flex h-40 items-center justify-center gap-2 text-xs text-muted-foreground">
             <Spinner className="h-4 w-4" />
             Loading gifts…
           </div>
         ) : loadError ? (
           <div className="flex h-40 flex-col items-center justify-center gap-2 text-center">
-            <Info className="h-5 w-5 text-amber-300" />
-            <p className="text-xs text-white/65">{loadError}</p>
+            <Info className="h-5 w-5 text-amber-500" />
+            <p className="text-xs text-muted-foreground">{loadError}</p>
             <Button size="sm" variant="secondary" className="rounded-full" onClick={() => void loadGifts()}>
               Try again
             </Button>
@@ -407,9 +432,9 @@ export function GiftPanel({
           <div className="flex h-40 flex-col items-center justify-center gap-2 px-6 text-center">
             {tab === "premium" ? (
               <>
-                <Lock className="h-5 w-5 text-white/35" />
-                <p className="text-sm font-semibold text-white/75">Premium gifts are being curated</p>
-                <p className="text-[11px] leading-relaxed text-white/45">
+                <Lock className="h-5 w-5 text-muted-foreground/70" />
+                <p className="text-sm font-semibold text-foreground/80">Premium gifts are being curated</p>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
                   Exclusive member-only drops will appear here. Badge and animation gifts are ready now.
                 </p>
                 <Button
@@ -423,8 +448,8 @@ export function GiftPanel({
               </>
             ) : (
               <>
-                <Gift className="h-5 w-5 text-white/35" />
-                <p className="text-xs text-white/55">No gifts in this tab yet.</p>
+                <Gift className="h-5 w-5 text-muted-foreground/70" />
+                <p className="text-xs text-muted-foreground">No gifts in this tab yet.</p>
               </>
             )}
           </div>
@@ -446,8 +471,8 @@ export function GiftPanel({
                   className={cn(
                     "group relative flex flex-col overflow-hidden rounded-2xl border p-2.5 text-left transition duration-200",
                     active
-                      ? "border-white/35 bg-white/15 shadow-[0_12px_40px_-16px_rgba(255,255,255,0.45)]"
-                      : "border-white/10 bg-white/[0.035] hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/[0.07]",
+                      ? "border-primary/40 bg-accent shadow-[0_12px_40px_-18px_hsl(var(--primary)/0.5)]"
+                      : "border-border bg-muted/40 hover:-translate-y-0.5 hover:border-primary/30 hover:bg-accent",
                     !affordable && "opacity-60",
                   )}
                 >
@@ -459,7 +484,7 @@ export function GiftPanel({
                   />
                   <div className="relative mb-1.5 flex items-start justify-between">
                     <span
-                      className="relative flex h-16 w-16 items-center justify-center rounded-xl border border-white/10 shadow-inner"
+                      className="relative flex h-16 w-16 items-center justify-center rounded-xl border border-border shadow-inner"
                       style={{
                         background: `radial-gradient(circle at 30% 20%, ${palette.primary}40, rgba(8,10,18,0.9) 72%)`,
                       }}
@@ -477,24 +502,24 @@ export function GiftPanel({
                     </span>
                   </div>
 
-                  <p className="relative truncate text-[12px] font-bold text-white">{gift.name}</p>
-                  <p className="relative mt-0.5 line-clamp-2 min-h-[28px] text-[10px] leading-snug text-white/45">
+                  <p className="relative truncate text-[12px] font-bold text-foreground">{gift.name}</p>
+                  <p className="relative mt-0.5 line-clamp-2 min-h-[28px] text-[10px] leading-snug text-muted-foreground">
                     {gift.description}
                   </p>
 
-                  <div className="relative mt-1.5 flex items-center justify-between gap-1 border-t border-white/10 pt-1.5">
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-white/45">
+                  <div className="relative mt-1.5 flex items-center justify-between gap-1 border-t border-border pt-1.5">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
                       <Sparkles className="h-2.5 w-2.5" />
                       {gift.duration || (gift.duration_ms ? `${Math.round(gift.duration_ms / 1000)}s` : "live")}
                     </span>
-                    <span className="inline-flex items-center gap-0.5 text-[11px] font-black text-amber-300">
+                    <span className="inline-flex items-center gap-0.5 text-[11px] font-black text-warning">
                       <Coins className="h-3 w-3" />
                       {gift.cost.toLocaleString()}
                     </span>
                   </div>
 
                   {active ? (
-                    <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-white text-black">
+                    <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
                       <Check className="h-3 w-3" strokeWidth={3} />
                     </span>
                   ) : null}
@@ -506,10 +531,10 @@ export function GiftPanel({
       </div>
 
       {selected ? (
-        <div className="border-t border-white/10 bg-black/30 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5 backdrop-blur-xl">
+        <div className="shrink-0 border-t border-border bg-muted/40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5 backdrop-blur-xl">
           <div className="mb-2 flex items-center gap-2.5">
             <span
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border"
               style={{
                 background: `radial-gradient(circle at 30% 20%, ${
                   (selected.palette || GIFT_TYPE_PALETTE[giftTypeForTab(selected.type) as keyof typeof GIFT_TYPE_PALETTE]).primary
@@ -519,8 +544,8 @@ export function GiftPanel({
               <GiftArtwork art={selected.art} className="h-8 w-8" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[12px] font-bold text-white">{selected.name}</p>
-              <p className="text-[10px] text-white/45">
+              <p className="truncate text-[12px] font-bold text-foreground">{selected.name}</p>
+              <p className="text-[10px] text-muted-foreground">
                 {selected.cost.toLocaleString()} coins · {selected.duration || "live effect"}
               </p>
             </div>
@@ -540,22 +565,22 @@ export function GiftPanel({
             placeholder="Add a personal message (optional)"
             rows={2}
             maxLength={500}
-            className="mb-2 min-h-[58px] resize-none rounded-xl border-white/10 bg-white/[0.04] text-[12px] text-white placeholder:text-white/35 focus-visible:ring-white/25"
+            className="mb-2 min-h-[58px] resize-none rounded-xl border-border bg-background text-[12px] text-foreground placeholder:text-muted-foreground focus-visible:ring-ring"
           />
 
           <div className="flex items-center justify-between gap-2">
-            <label className="inline-flex cursor-pointer items-center gap-1.5 text-[11px] font-medium text-white/60">
+            <label className="inline-flex cursor-pointer items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
               <input
                 type="checkbox"
                 checked={anonymous}
                 onChange={(event) => setAnonymous(event.target.checked)}
-                className="h-3.5 w-3.5 rounded border-white/20 bg-white/10 accent-violet-500"
+                className="h-3.5 w-3.5 rounded border-input bg-background accent-violet-500"
               />
               Send anonymously
             </label>
-            <span className="text-[10px] text-white/40">
+            <span className="text-[10px] text-muted-foreground">
               After:{" "}
-              <span className={cn("font-bold", canAfford ? "text-white/75" : "text-rose-300")}>
+              <span className={cn("font-bold", canAfford ? "text-foreground/80" : "text-destructive")}>
                 {(balance - selected.cost).toLocaleString()}
               </span>
             </span>
@@ -599,7 +624,7 @@ export function GiftPanel({
             )}
           </Button>
           {!user ? (
-            <p className="mt-1.5 text-center text-[10px] text-white/45">
+            <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
               Sign in to send gifts and join the leaderboard.
             </p>
           ) : null}

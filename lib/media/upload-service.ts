@@ -57,7 +57,16 @@ export class UploadError extends Error {
 
 const ADMIN_ONLY_FAMILIES: MediaFamily[] = ["vector", "animation"]
 
+// A chunked upload is several requests for the same person. Caching the actor
+// briefly removes two database round trips per chunk without weakening the
+// checks on the first/final chunk or the per-request session validation.
+const actorCache = new Map<string, { actor: UploadActor; at: number }>()
+const ACTOR_CACHE_TTL_MS = 120_000
+
 export async function resolveUploadActor(userId: string, supabase?: SupabaseClient): Promise<UploadActor> {
+  const cached = actorCache.get(userId)
+  if (cached && Date.now() - cached.at < ACTOR_CACHE_TTL_MS) return cached.actor
+
   const db = supabase || createServerClient()
   let profile: any = null
   try {
@@ -71,26 +80,38 @@ export async function resolveUploadActor(userId: string, supabase?: SupabaseClie
     /* fall through to the least-privileged actor */
   }
 
+  const staffRole = resolveStaffRole(profile)
+  const isAdmin = staffRole === "admin" || staffRole === "developer"
+
+  // Admins never hit the new-account/post-count gates, so skip that query on
+  // every chunk of an admin upload.
   let postCount = 0
-  try {
-    const { count } = await db
-      .from("loops")
-      .select("id", { count: "exact", head: true })
-      .eq("author_id", userId)
-    postCount = count || 0
-  } catch {
-    postCount = 0
+  if (!isAdmin) {
+    try {
+      const { count } = await db
+        .from("loops")
+        .select("id", { count: "exact", head: true })
+        .eq("author_id", userId)
+      postCount = count || 0
+    } catch {
+      postCount = 0
+    }
   }
 
-  const staffRole = resolveStaffRole(profile)
-  return {
+  const actor: UploadActor = {
     id: userId,
     username: profile?.username || undefined,
-    isAdmin: staffRole === "admin" || staffRole === "developer",
+    isAdmin,
     isPro: Boolean(profile?.is_premium),
     createdAt: profile?.created_at || null,
     postCount,
   }
+  actorCache.set(userId, { actor, at: Date.now() })
+  if (actorCache.size > 500) {
+    const cutoff = Date.now() - ACTOR_CACHE_TTL_MS
+    for (const [key, entry] of actorCache) if (entry.at < cutoff) actorCache.delete(key)
+  }
+  return actor
 }
 
 function sanitizeFolder(folder?: string | null): string {
@@ -132,9 +153,11 @@ export function planUploadLimits(
 
   let maxMb: number
   if (actor.isAdmin) {
+    // Admins curate channel titles, ad creatives and badges, so the per-file
+    // ceiling is the hard cap rather than a member tier. The old `video_pro_mb`
+    // path capped admins at 250MB, which rejected feature-length uploads after
+    // the whole file had already travelled over the network.
     if (family === "image") maxMb = policy.admin_image_max_mb
-    else if (family === "video") maxMb = policy.video_pro_mb
-    else if (family === "audio") maxMb = policy.hard_max_mb
     else maxMb = policy.hard_max_mb
   } else if (family === "image") {
     maxMb = policy.image_max_mb

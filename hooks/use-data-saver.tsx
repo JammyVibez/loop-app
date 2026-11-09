@@ -1,10 +1,12 @@
 "use client"
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
-import { WifiOff } from "lucide-react"
+import { WifiOff, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 const STORAGE_KEY = "loop-data-saver"
+// "Not now" has to survive a reload, otherwise the nudge reappears forever.
+const DISMISS_KEY = "loop-data-saver-dismissed"
 
 type DataSaverContextValue = {
   enabled: boolean
@@ -39,6 +41,7 @@ export function DataSaverProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       setEnabledState(localStorage.getItem(STORAGE_KEY) === "on")
+      if (localStorage.getItem(DISMISS_KEY) === "on") setDismissed(true)
     } catch {
       /* private mode — default off */
     }
@@ -57,7 +60,14 @@ export function DataSaverProvider({ children }: { children: ReactNode }) {
     document.documentElement.toggleAttribute("data-data-saver", enabled)
   }, [enabled])
 
-  const dismissSuggestion = useCallback(() => setDismissed(true), [])
+  const dismissSuggestion = useCallback(() => {
+    setDismissed(true)
+    try {
+      localStorage.setItem(DISMISS_KEY, "on")
+    } catch {
+      /* ignore */
+    }
+  }, [])
 
   // The Network Information API is the only hint we get without being asked.
   useEffect(() => {
@@ -67,7 +77,8 @@ export function DataSaverProvider({ children }: { children: ReactNode }) {
       const conn = (navigator as any).connection
       if (!conn) return
       const slow = ["slow-2g", "2g", "3g"].includes(String(conn.effectiveType || ""))
-      if (slow || conn.saveData) setSuggested(true)
+      // Re-evaluate both ways so the note retracts when the network recovers.
+      setSuggested(slow || Boolean(conn.saveData))
     }
     update()
     window.addEventListener("online", update)
@@ -79,7 +90,9 @@ export function DataSaverProvider({ children }: { children: ReactNode }) {
   }, [enabled, dismissed])
 
   return (
-    <DataSaverContext.Provider value={{ enabled, setEnabled, suggested, dismissSuggestion, offline }}>
+    <DataSaverContext.Provider
+      value={{ enabled, setEnabled, suggested: suggested && !dismissed, dismissSuggestion, offline }}
+    >
       {children}
     </DataSaverContext.Provider>
   )
@@ -107,8 +120,8 @@ export function DataSaverBanner() {
   }
   if (!suggested || enabled) return null
   return (
-    <div className="fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4 lg:bottom-6">
-      <div className="flex w-full max-w-md items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-xl">
+    <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[65] flex justify-center px-4 lg:bottom-6">
+      <div className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-xl">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold">Slow connection?</p>
           <p className="text-xs text-muted-foreground">
@@ -118,8 +131,14 @@ export function DataSaverBanner() {
         <Button size="sm" className="shrink-0 rounded-full" onClick={() => setEnabled(true)}>
           Turn on
         </Button>
-        <Button size="sm" variant="ghost" className="shrink-0 rounded-full" onClick={dismissSuggestion}>
-          Not now
+        <Button
+          size="sm"
+          variant="ghost"
+          className="shrink-0 rounded-full"
+          onClick={dismissSuggestion}
+          aria-label="Dismiss slow connection suggestion"
+        >
+          <X className="h-4 w-4" />
         </Button>
       </div>
     </div>

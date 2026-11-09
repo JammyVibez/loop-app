@@ -1213,6 +1213,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
                   if (!isOwner) void broadcastGift(gift)
                 }}
                 className="h-full"
+                tone="dark"
               />
             </div>
           </aside>

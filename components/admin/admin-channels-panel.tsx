@@ -24,7 +24,7 @@ import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { uploadMediaFile } from "@/lib/client-media-upload"
+import { fetchUploadLimits, uploadMediaFile } from "@/lib/client-media-upload"
 import {
   episodeLabel,
   type ChannelEpisode,
@@ -628,17 +628,36 @@ function MediaField({
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [uploading, setUploading] = useState(false)
   const [progressLabel, setProgressLabel] = useState<string | null>(null)
+  const [percent, setPercent] = useState<number | null>(null)
+  const [videoMaxMb, setVideoMaxMb] = useState<number | null>(null)
+
+  // Show the real ceiling instead of rejecting a movie after it has uploaded.
+  useEffect(() => {
+    let live = true
+    void fetchUploadLimits(authHeaders()).then((limits) => {
+      if (live && limits) setVideoMaxMb(limits.limits.video_max_mb)
+    })
+    return () => {
+      live = false
+    }
+  }, [authHeaders])
 
   const upload = async (file: File) => {
     setUploading(true)
     setProgressLabel(file.name)
+    setPercent(0)
     try {
       const result = await uploadMediaFile(file, {
         type: kind,
         folder: "channel-library",
         authHeaders: authHeaders(),
         forceDirect: true,
-        maxSizeBytes: kind === "video" ? 2 * 1024 * 1024 * 1024 : undefined,
+        maxSizeBytes: kind === "video" && videoMaxMb ? videoMaxMb * 1024 * 1024 : undefined,
+        // Channel titles are curated by admins. Keeping the original bytes means
+        // a feature-length film is stored as-is and gets a poster, instead of
+        // waiting for a full 720p re-encode before the URL comes back.
+        originalQuality: kind === "video",
+        onProgress: setPercent,
       })
       onChange(result.url)
       toast({ title: "Upload complete" })
@@ -651,6 +670,7 @@ function MediaField({
     } finally {
       setUploading(false)
       setProgressLabel(null)
+      setPercent(null)
       if (inputRef.current) inputRef.current.value = ""
     }
   }
@@ -692,7 +712,24 @@ function MediaField({
         </Button>
       </div>
       {uploading ? (
-        <p className="truncate text-[11px] text-muted-foreground">Uploading {progressLabel}…</p>
+        <div className="space-y-1 pt-0.5">
+          <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+            <span className="truncate">Uploading {progressLabel}</span>
+            <span className="shrink-0 font-semibold tabular-nums text-foreground">
+              {percent == null ? "…" : `${percent}%`}
+            </span>
+          </div>
+          <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
+              style={{ width: `${Math.max(percent ?? 4, 4)}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            Keep this tab open until it finishes.
+            {kind === "video" && videoMaxMb ? ` Up to ${videoMaxMb}MB.` : ""}
+          </p>
+        </div>
       ) : null}
     </Field>
   )
