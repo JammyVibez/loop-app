@@ -1,12 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { VideoAvatar } from "@/components/cosmetics/video-avatar"
-import { Swords, Coins, Timer, Trophy, CheckCircle2, Zap, Send } from "lucide-react"
+import { Swords, Coins, Timer, Trophy, CheckCircle2, Send } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase"
@@ -139,34 +136,58 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
 
   const labelA = duel.side_a_label || "Side A"
   const labelB = duel.side_b_label || "Side B"
-
   const entryA = duel.entries?.find((e) => e.side === "A")
   const entryB = duel.entries?.find((e) => e.side === "B")
-
-  /** Image/video duel entry media — renders the attached proof clip/take. */
-  const EntryMedia = ({ url }: { url: string }) => {
-    const isVideo = /\.(mp4|webm|mov|m4v|ogv|m3u8)(\?|#|$)/i.test(url) || /video\//.test(url)
-    if (isVideo) {
-      return (
-        <video src={url} controls playsInline preload="metadata" className="mt-2 aspect-video w-full rounded-xl bg-black object-contain" />
-      )
-    }
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={url} alt="Duel entry media" className="mt-2 aspect-video w-full rounded-xl bg-muted object-cover" />
-  }
-
   const votesA = entryA?.votes_count || 0
   const votesB = entryB?.votes_count || 0
   const totalVotes = votesA + votesB
   const percentA = totalVotes > 0 ? Math.round((votesA / totalVotes) * 100) : 50
   const percentB = totalVotes > 0 ? 100 - percentA : 50
+  const isEnded = duel.status === "completed" || secondsLeft === 0
+  const winnerSide = duel.winner_id
+    ? duel.winner_id === entryA?.user_id || duel.winner_id === duel.creator_id
+      ? "A"
+      : duel.winner_id === entryB?.user_id || duel.winner_id === duel.opponent_id
+        ? "B"
+        : null
+    : null
+
+  /** Image/video duel entry media — fixed height keeps both sides aligned. */
+  const EntryMedia = ({ url }: { url: string }) => {
+    const isVideo = /\.(mp4|webm|mov|m4v|ogv|m3u8)(\?|#|$)/i.test(url) || /video\//.test(url)
+    if (isVideo) {
+      return (
+        <video
+          src={url}
+          controls
+          playsInline
+          preload="metadata"
+          className="mt-2 h-24 w-full rounded-lg bg-black object-cover"
+        />
+      )
+    }
+    // eslint-disable-next-line @next/next/no-img-element
+    return (
+      <img
+        src={url}
+        alt="Duel entry media"
+        loading="lazy"
+        className="mt-2 h-24 w-full rounded-lg bg-muted object-cover"
+      />
+    )
+  }
 
   const handleVote = async (side: "A" | "B") => {
     if (!user) {
       toast({ title: "Sign in required", description: "Please sign in to vote on this duel!" })
       return
     }
+    if (isEnded) {
+      toast({ title: "Voting closed", description: "This duel has already ended." })
+      return
+    }
 
+    const previousVote = hasVoted
     try {
       setHasVoted(side)
       setDuel((prev) => {
@@ -186,14 +207,24 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
         body: JSON.stringify({ side }),
       })
 
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        toast({ title: "Vote failed", description: data.error || "Could not record vote" })
+        setHasVoted(previousVote)
+        setDuel((prev) => {
+          if (!prev) return null
+          const updatedEntries = (prev.entries || []).map((e) =>
+            e.side === side ? { ...e, votes_count: Math.max(0, e.votes_count - 1) } : e
+          )
+          return { ...prev, entries: updatedEntries }
+        })
+        toast({ title: "Vote failed", description: data.error || "Could not record vote", variant: "destructive" })
       } else {
-        toast({ title: "Vote recorded!", description: `You voted for Side ${side}` })
+        toast({ title: "Vote recorded", description: `You voted for ${side === "A" ? labelA : labelB}.` })
       }
     } catch (err) {
       console.error("Failed to vote:", err)
+      setHasVoted(previousVote)
+      toast({ title: "Vote failed", description: "Check your connection and try again.", variant: "destructive" })
     }
   }
 
@@ -213,7 +244,7 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
 
       const data = await res.json()
       if (res.ok && data.entry) {
-        toast({ title: "Duel accepted!", description: "Your counter-take is now live!" })
+        toast({ title: "Duel accepted!", description: "Your counter-take is now live." })
         setDuel((prev) => {
           if (!prev) return null
           return {
@@ -222,193 +253,224 @@ export function LoopDuelCard({ duel: initialDuel, loopId }: { duel?: DuelData; l
               id: user.id,
               username: user.username || "me",
               display_name: user.display_name || user.username || "You",
-              avatar_url: user.avatar_url || null,
+              avatar_url: user.avatar_url || "",
             },
             entries: [...(prev.entries || []), data.entry],
           } as DuelData
         })
         setUserSideBContent("")
       } else {
-        toast({ title: "Failed to join", description: data.error || "Could not submit take" })
+        toast({ title: "Failed to join", description: data.error || "Could not submit take", variant: "destructive" })
       }
     } catch (err) {
       console.error("Failed to submit side B take:", err)
+      toast({ title: "Failed to join", description: "Check your connection and try again.", variant: "destructive" })
     } finally {
       setIsSubmittingB(false)
     }
   }
 
-  return (
-    <Card
-      data-tour="duels"
-      className="border border-cyan-500/30 bg-gradient-to-b from-card to-background shadow-2xl rounded-3xl overflow-hidden my-6"
-    >
-      <CardHeader className="p-5 border-b border-border bg-cyan-500/5">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-2">
-            <Badge className="bg-gradient-to-r from-amber-500 to-rose-500 text-slate-950 font-bold px-3 py-1 flex items-center gap-1.5 shadow-md">
-              <Swords className="h-4 w-4" /> LOOP DUEL
-            </Badge>
-            <Badge variant="outline" className="border-amber-400/50 text-amber-300 font-semibold flex items-center gap-1">
-              <Coins className="h-3.5 w-3.5" /> {duel.stake_coins * 2} Coin Prize Pool
-            </Badge>
-          </div>
+  const voteLabel = (side: "A" | "B", votes: number) => {
+    if (hasVoted === side) return `Voted ${side}`
+    if (isEnded) return "Voting closed"
+    return `Vote ${side} · ${votes}`
+  }
 
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Timer className="h-3.5 w-3.5 text-cyan-400" />
-            {secondsLeft !== null && secondsLeft > 0 ? (
-              <span className="font-mono font-bold text-cyan-600 dark:text-cyan-300">⏱ {fmtTime(secondsLeft)}</span>
-            ) : (
-              <><span className="text-rose-600 dark:text-rose-400 font-semibold">Ended</span> <FreshnessTimestamp date={duel.expires_at} /></>
-            )}
-          </div>
+  return (
+    <div
+      data-tour="duels"
+      className="my-3 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b border-border/60 px-3.5 py-2.5 sm:px-4">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-amber-700 dark:text-amber-300">
+            <Swords className="h-3 w-3" />
+            Loop Duel
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-md border border-border/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+            <Coins className="h-3 w-3 text-amber-500" />
+            {(duel.stake_coins * 2).toLocaleString()} prize
+          </span>
+          {totalVotes > 0 && (
+            <span className="text-[10px] tabular-nums text-muted-foreground">{totalVotes.toLocaleString()} votes</span>
+          )}
         </div>
 
-        <h3 className="text-xl font-extrabold text-foreground mt-3 leading-snug tracking-tight">
+        <div className="flex shrink-0 items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
+          <Timer className="h-3 w-3 text-muted-foreground" />
+          {secondsLeft !== null && secondsLeft > 0 ? (
+            <span className="font-mono font-semibold tabular-nums text-foreground">{fmtTime(secondsLeft)}</span>
+          ) : (
+            <>
+              <span className="font-semibold text-rose-600 dark:text-rose-400">Ended</span>
+              <FreshnessTimestamp date={duel.expires_at} />
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="px-3.5 pb-3 pt-2.5 sm:px-4">
+        <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug tracking-tight text-foreground sm:text-base">
           &ldquo;{duel.prompt}&rdquo;
         </h3>
-      </CardHeader>
 
-      <CardContent className="p-6 space-y-6">
-        {/* Voting Percentage Bar */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
-            <span className="text-rose-600 dark:text-rose-400 flex items-center gap-1">
-              {labelA} ({percentA}%) — {votesA} votes
+        <div className="mt-2.5">
+          <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-semibold">
+            <span className="truncate text-rose-600 dark:text-rose-400">
+              {labelA} · {totalVotes > 0 ? `${percentA}%` : "—"}
             </span>
-            <span className="text-cyan-600 dark:text-cyan-400 flex items-center gap-1">
-              {labelB} ({percentB}%) — {votesB} votes
+            <span className="shrink-0 text-muted-foreground">
+              {totalVotes > 0 ? `${totalVotes.toLocaleString()} votes` : "Be the first to vote"}
+            </span>
+            <span className="truncate text-right text-cyan-600 dark:text-cyan-400">
+              {totalVotes > 0 ? `${percentB}%` : "—"} · {labelB}
             </span>
           </div>
-
-          <div className="h-3 w-full bg-muted rounded-full overflow-hidden flex p-0.5 border border-border">
+          <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div
-              className="h-full bg-gradient-to-r from-rose-500 to-amber-500 rounded-l-full transition-all duration-500"
+              className={`h-full transition-all duration-500 ${totalVotes > 0 ? "bg-rose-500/90" : "bg-muted-foreground/20"}`}
               style={{ width: `${percentA}%` }}
             />
             <div
-              className="h-full bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-r-full transition-all duration-500"
+              className={`h-full transition-all duration-500 ${totalVotes > 0 ? "bg-cyan-500/90" : "bg-muted-foreground/10"}`}
               style={{ width: `${percentB}%` }}
             />
           </div>
         </div>
 
-        {/* Versus Side-by-Side Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative">
-          {/* VS Badge */}
-          <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-background border-2 border-amber-400 items-center justify-center font-black text-amber-400 shadow-xl text-xs">
-            VS
-          </div>
-
+        <div className="mt-3 grid grid-cols-2 gap-2">
           {/* SIDE A */}
-          <div className="border border-rose-500/30 bg-rose-500/5 p-5 rounded-2xl flex flex-col justify-between space-y-4">
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10 border border-rose-400">
-                  <AvatarImage src={duel.creator?.avatar_url} />
-                  <AvatarFallback>{duel.creator?.display_name?.charAt(0) || "A"}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <span className="font-bold text-foreground text-sm block">
-                    {duel.creator?.display_name || "Challenger"}
-                  </span>
-                  <span className="text-xs text-rose-600 dark:text-rose-300 font-semibold">@{labelA}</span>
-                </div>
+          <div className="flex min-w-0 flex-col rounded-xl border border-rose-500/20 bg-rose-500/[0.035] p-2.5">
+            <div className="flex items-center gap-2">
+              <Avatar className="h-7 w-7 border border-rose-400/40">
+                <AvatarImage src={duel.creator?.avatar_url} />
+                <AvatarFallback className="text-[10px]">{duel.creator?.display_name?.charAt(0) || "A"}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold text-foreground">{labelA}</p>
+                <p className="truncate text-[10px] text-muted-foreground">
+                  {duel.creator?.display_name || "Challenger"}
+                  {duel.creator?.username ? ` · @${duel.creator.username}` : ""}
+                </p>
               </div>
-              <p className="text-sm text-foreground/80 whitespace-pre-wrap">{entryA?.content || "No take posted yet."}</p>
-              {entryA?.media_url && <EntryMedia url={entryA.media_url} />}
+              <span className="shrink-0 text-[10px] font-bold tabular-nums text-rose-600 dark:text-rose-400">
+                {votesA}
+              </span>
             </div>
 
-            <Button
-              onClick={() => handleVote("A")}
-              disabled={hasVoted === "A"}
-              className={`w-full font-bold rounded-xl transition-all ${
-                hasVoted === "A"
-                  ? "bg-rose-500/30 text-rose-700 dark:text-rose-200 border border-rose-500/50"
-                  : "bg-rose-600 hover:bg-rose-500 text-white shadow-lg"
-              }`}
-            >
-              {hasVoted === "A" ? (
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4" /> Voted {labelA}
-                </span>
-              ) : (
-                `Vote ${labelA} (${votesA})`
-              )}
-            </Button>
+            <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs leading-relaxed text-foreground/85">
+              {entryA?.content || "No take posted yet."}
+            </p>
+            {entryA?.media_url && <EntryMedia url={entryA.media_url} />}
+
+            <div className="mt-auto pt-2">
+              <Button
+                onClick={() => handleVote("A")}
+                disabled={hasVoted === "A" || isEnded}
+                size="sm"
+                className={`h-8 w-full rounded-lg text-[11px] font-semibold ${
+                  hasVoted === "A"
+                    ? "border border-rose-500/40 bg-rose-500/15 text-rose-700 shadow-none hover:bg-rose-500/15 dark:text-rose-200"
+                    : "bg-rose-600 text-white shadow-sm hover:bg-rose-500"
+                }`}
+              >
+                {hasVoted === "A" ? (
+                  <span className="inline-flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> {voteLabel("A", votesA)}
+                  </span>
+                ) : (
+                  voteLabel("A", votesA)
+                )}
+              </Button>
+            </div>
           </div>
 
           {/* SIDE B */}
-          <div className="border border-cyan-500/30 bg-cyan-500/5 p-5 rounded-2xl flex flex-col justify-between space-y-4">
+          <div className="flex min-w-0 flex-col rounded-xl border border-cyan-500/20 bg-cyan-500/[0.035] p-2.5">
             {entryB ? (
               <>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10 border border-cyan-400">
-                      <AvatarImage src={duel.opponent?.avatar_url} />
-                      <AvatarFallback>{duel.opponent?.display_name?.charAt(0) || "B"}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <span className="font-bold text-foreground text-sm block">
-                        {duel.opponent?.display_name || "Opponent"}
-                      </span>
-                      <span className="text-xs text-cyan-600 dark:text-cyan-300 font-semibold">@{labelB}</span>
-                    </div>
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-7 w-7 border border-cyan-400/40">
+                    <AvatarImage src={duel.opponent?.avatar_url} />
+                    <AvatarFallback className="text-[10px]">{duel.opponent?.display_name?.charAt(0) || "B"}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-semibold text-foreground">{labelB}</p>
+                    <p className="truncate text-[10px] text-muted-foreground">
+                      {duel.opponent?.display_name || "Opponent"}
+                      {duel.opponent?.username ? ` · @${duel.opponent.username}` : ""}
+                    </p>
                   </div>
-                  <p className="text-sm text-foreground/80 whitespace-pre-wrap">{entryB.content}</p>
-                  {entryB.media_url && <EntryMedia url={entryB.media_url} />}
+                  <span className="shrink-0 text-[10px] font-bold tabular-nums text-cyan-600 dark:text-cyan-400">
+                    {votesB}
+                  </span>
                 </div>
 
-                <Button
-                  onClick={() => handleVote("B")}
-                  disabled={hasVoted === "B"}
-                  className={`w-full font-bold rounded-xl transition-all ${
-                    hasVoted === "B"
-                      ? "bg-cyan-500/30 text-cyan-700 dark:text-cyan-200 border border-cyan-500/50"
-                      : "bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg"
-                  }`}
-                >
-                  {hasVoted === "B" ? (
-                    <span className="flex items-center gap-1.5">
-                      <CheckCircle2 className="h-4 w-4" /> Voted {labelB}
-                    </span>
-                  ) : (
-                    `Vote ${labelB} (${votesB})`
-                  )}
-                </Button>
+                <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs leading-relaxed text-foreground/85">
+                  {entryB.content}
+                </p>
+                {entryB.media_url && <EntryMedia url={entryB.media_url} />}
+
+                <div className="mt-auto pt-2">
+                  <Button
+                    onClick={() => handleVote("B")}
+                    disabled={hasVoted === "B" || isEnded}
+                    size="sm"
+                    className={`h-8 w-full rounded-lg text-[11px] font-semibold ${
+                      hasVoted === "B"
+                        ? "border border-cyan-500/40 bg-cyan-500/15 text-cyan-700 shadow-none hover:bg-cyan-500/15 dark:text-cyan-200"
+                        : "bg-cyan-600 text-white shadow-sm hover:bg-cyan-500"
+                    }`}
+                  >
+                    {hasVoted === "B" ? (
+                      <span className="inline-flex items-center gap-1">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> {voteLabel("B", votesB)}
+                      </span>
+                    ) : (
+                      voteLabel("B", votesB)
+                    )}
+                  </Button>
+                </div>
               </>
             ) : (
               /* Open Duel Response Form */
-              <div className="space-y-3 flex flex-col justify-between h-full">
-                <div>
-                  <span className="text-xs font-bold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider block">
-                    ⚔️ Open Counter Challenge
-                  </span>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    This duel is waiting for Side B! Accept the challenge and post your counter argument.
-                  </p>
-                </div>
-
-                <div className="space-y-2">
+              <div className="flex min-w-0 flex-1 flex-col">
+                <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-cyan-700 dark:text-cyan-300">
+                  Open counter
+                </p>
+                <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                  This side is waiting for a take.
+                </p>
+                <div className="mt-auto space-y-1.5 pt-2">
                   <textarea
                     value={userSideBContent}
                     onChange={(e) => setUserSideBContent(e.target.value)}
-                    placeholder="Write your counter take..."
-                    className="w-full h-24 bg-background/80 border border-border rounded-xl p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-cyan-400"
+                    placeholder="Write your counter-take…"
+                    maxLength={500}
+                    className="h-16 w-full resize-none rounded-lg border border-border bg-background/80 p-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-cyan-400 focus:outline-none"
                   />
                   <Button
                     onClick={handleJoinDuel}
                     disabled={isSubmittingB || !userSideBContent.trim()}
-                    className="w-full bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 font-bold text-xs py-2 rounded-xl"
+                    size="sm"
+                    className="h-8 w-full rounded-lg bg-cyan-600 text-[11px] font-semibold text-white hover:bg-cyan-500"
                   >
-                    <Send className="h-3.5 w-3.5 mr-1.5" /> Accept & Submit Side B
+                    <Send className="mr-1.5 h-3.5 w-3.5" />
+                    {isSubmittingB ? "Submitting…" : "Accept & post take"}
                   </Button>
                 </div>
               </div>
             )}
           </div>
         </div>
-      </CardContent>
-    </Card>
+
+        {isEnded && winnerSide && (
+          <div className="mt-2.5 flex items-center gap-1.5 rounded-lg border border-amber-500/20 bg-amber-500/[0.06] px-2.5 py-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+            <Trophy className="h-3.5 w-3.5" />
+            {winnerSide === "A" ? labelA : labelB} won this duel
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
