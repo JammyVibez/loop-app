@@ -64,7 +64,7 @@ export type UploadMediaResult = {
 const CHUNK_BYTES = 48 * 1024 * 1024
 const MAX_RETRIES = 3
 // A stalled socket must fail over to the retry path instead of hanging forever.
-const CHUNK_TIMEOUT_MS = 5 * 60 * 1000
+const CHUNK_TIMEOUT_MS = 8 * 60 * 1000
 
 function mediaTypeFromFile(file: File, explicit?: UploadMediaOptions["type"]): UploadMediaOptions["type"] {
   if (explicit) return explicit
@@ -272,6 +272,7 @@ export async function uploadMediaFile(
         signal: options.signal,
         onChunkProgress: report,
       })
+      updateUploadActivity(activityId, 100, "Finishing your upload…")
       options.onProgress?.(100)
       return await complete(payload)
     }
@@ -280,7 +281,9 @@ export async function uploadMediaFile(
     let finalPayload: any = null
     for (let start = 0; start < total; start += CHUNK_BYTES) {
       const end = Math.min(start + CHUNK_BYTES, total) - 1
-      let chunkLoaded = 0
+      // Absolute accounting: a retried chunk restarts its own `loaded` at 0, so
+      // progress must not regress or double-count.
+      const baseReported = reported
       const payload = await sendWithRetries({
         file,
         type,
@@ -291,9 +294,8 @@ export async function uploadMediaFile(
         signal: options.signal,
         range: { start, end, total, uploadId },
         onChunkProgress: (loaded) => {
-          const delta = Math.max(0, loaded - chunkLoaded)
-          chunkLoaded = loaded
-          report(delta)
+          const absolute = Math.min(total, baseReported + loaded)
+          if (absolute > reported) report(absolute - reported)
         },
       })
       if (payload?.partial) continue
@@ -301,6 +303,7 @@ export async function uploadMediaFile(
     }
 
     if (!finalPayload) throw new Error("The upload did not complete. Please try again.")
+    updateUploadActivity(activityId, 100, "Finishing your upload…")
     options.onProgress?.(100)
     return await complete(finalPayload)
   } catch (error) {

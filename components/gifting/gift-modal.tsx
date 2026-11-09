@@ -70,7 +70,7 @@ export function GiftModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex max-h-[92svh] w-[calc(100vw-1rem)] max-w-[460px] flex-col gap-0 overflow-hidden rounded-2xl border-border bg-card p-0 text-card-foreground shadow-2xl sm:w-[min(96vw,460px)]">
+        <DialogContent className="flex max-h-[92svh] w-[calc(100vw-1rem)] max-w-[460px] flex-col gap-0 overflow-hidden rounded-2xl border-border bg-card p-0 text-card-foreground shadow-2xl sm:w-[min(96vw,460px)] sm:rounded-2xl">
           <DialogHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left">
             <DialogTitle className="flex items-center gap-2 text-base font-black tracking-tight text-card-foreground">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 ring-1 ring-primary/25">
