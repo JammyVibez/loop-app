@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
-import { Coins, ArrowDownLeft, ArrowUpRight, Gift, PlusCircle, CreditCard, ShieldCheck, RefreshCw, History, Zap, Check, Package, User, Heart, DollarSign, Building2, Wallet as WalletIcon, AlertCircle, RotateCcw, Target } from "lucide-react"
+import { Coins, ArrowDownLeft, ArrowUpRight, Gift, PlusCircle, CreditCard, ShieldCheck, RefreshCw, History, Zap, Check, Package, User, Heart, DollarSign, Building2, Wallet as WalletIcon, AlertCircle, RotateCcw, Target, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
@@ -112,6 +112,8 @@ function WalletContent() {
   const [giftAmount, setGiftAmount] = useState<number>(100)
   const [giftMessage, setGiftMessage] = useState("")
   const [gifting, setGifting] = useState(false)
+  const [giftError, setGiftError] = useState<string | null>(null)
+  const [giftReceipt, setGiftReceipt] = useState<{ amount: number; username: string; newBalance: number } | null>(null)
 
   // Withdrawal Modal State
   const [withdrawOpen, setWithdrawOpen] = useState(false)
@@ -452,22 +454,27 @@ function WalletContent() {
   }
 
   const handleSendGift = async () => {
-    if (!targetUsername.trim()) {
-      toast({ title: "Error", description: "Please enter a valid target username", variant: "destructive" })
+    const normalizedUsername = targetUsername.replace(/^@+/, "").trim()
+    const amount = Math.floor(Number(giftAmount))
+
+    if (!normalizedUsername) {
+      setGiftError("Enter the handle of the person you want to send coins to.")
       return
     }
-    if (giftAmount <= 0) {
-      toast({ title: "Error", description: "Please enter a positive coin amount", variant: "destructive" })
+    if (!Number.isFinite(amount) || amount < 1) {
+      setGiftError("Enter a coin amount of at least 1.")
       return
     }
-    if (giftAmount > balance) {
-      toast({ title: "Insufficient Coins", description: "You do not have enough coins in your vault.", variant: "destructive" })
+    if (amount > balance) {
+      setGiftError(`You need ${(amount - balance).toLocaleString()} more coins for this transfer.`)
       return
     }
 
     setGifting(true)
+    setGiftError(null)
+    setGiftReceipt(null)
     try {
-      const token = user?.access_token
+      const token = user?.access_token || user?.token
       const res = await fetch("/api/wallet/gift", {
         method: "POST",
         headers: {
@@ -475,38 +482,41 @@ function WalletContent() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          target_username: targetUsername,
-          coins_amount: giftAmount,
+          target_username: normalizedUsername,
+          coins_amount: amount,
           gift_name: "Loop Coin Transfer",
-          message: giftMessage,
+          message: giftMessage.trim(),
         }),
       })
 
-      const data = await res.json()
-      if (res.ok && data.success) {
-        setBalance(data.newBalance)
-        setGiftOpen(false)
-        setTargetUsername("")
-        setGiftMessage("")
-        fetchWalletData()
-        fetchGiftsAndInventory()
-        toast({
-          title: "Gift Sent! 🎁",
-          description: `Sent ${giftAmount.toLocaleString()} Loop Coins to @${targetUsername.replace("@", "")}!`,
-        })
-      } else {
-        toast({
-          title: "Gifting Failed",
-          description: data.error || "Could not send gift",
-          variant: "destructive",
-        })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.success) {
+        const message =
+          data.error ||
+          (res.status === 402
+            ? "Not enough coins for this transfer."
+            : res.status === 404
+              ? `No user found with @${normalizedUsername}.`
+              : "Could not send coins. Please try again.")
+        setGiftError(message)
+        return
       }
-    } catch (err) {
+
+      const nextBalance = Number(data.newBalance)
+      const resolvedBalance = Number.isFinite(nextBalance) ? nextBalance : Math.max(0, balance - amount)
+      setBalance(resolvedBalance)
+      setGiftReceipt({ amount, username: normalizedUsername, newBalance: resolvedBalance })
+      setTargetUsername("")
+      setGiftMessage("")
+      void fetchWalletData()
+      void fetchGiftsAndInventory()
       toast({
-        title: "Error",
-        description: "An unexpected error occurred",
-        variant: "destructive",
+        title: "Coins sent",
+        description: `${amount.toLocaleString()} Loop Coins sent to @${normalizedUsername}.`,
       })
+    } catch (err) {
+      console.error("Gift transfer failed:", err)
+      setGiftError("Network error — your coins were not sent. Check your connection and try again.")
     } finally {
       setGifting(false)
     }
@@ -614,7 +624,12 @@ function WalletContent() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => setGiftOpen(true)}
+                onClick={() => {
+                  setGiftError(null)
+                  setGiftReceipt(null)
+                  setGiftAmount(100)
+                  setGiftOpen(true)
+                }}
                 className="rounded-lg px-4 py-2.5 border-border/80 hover:bg-muted text-sm font-medium"
               >
                 <Gift className="w-4 h-4 mr-2 text-rose-500" />
@@ -1008,8 +1023,20 @@ function WalletContent() {
       </Dialog>
 
       {/* Send Gift Modal */}
-      <Dialog open={giftOpen} onOpenChange={setGiftOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl p-6">
+      <Dialog
+        open={giftOpen}
+        onOpenChange={(open) => {
+          setGiftOpen(open)
+          if (!open) {
+            setGiftError(null)
+            setGiftReceipt(null)
+            setGiftAmount(100)
+            setTargetUsername("")
+            setGiftMessage("")
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md rounded-2xl p-5 sm:p-6 max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold flex items-center gap-2">
               <Gift className="w-5 h-5 text-rose-500" />
@@ -1020,59 +1047,161 @@ function WalletContent() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            <div>
-              <Label htmlFor="target-username" className="text-xs font-semibold">Recipient Handle</Label>
-              <div className="relative mt-1.5">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">@</span>
-                <Input
-                  id="target-username"
-                  placeholder="username"
-                  value={targetUsername}
-                  onChange={(e) => setTargetUsername(e.target.value)}
-                  className="pl-8 rounded-xl"
-                />
+          {giftReceipt ? (
+            <div className="space-y-4 py-3">
+              <div className="text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  <Check className="h-6 w-6" />
+                </div>
+                <h3 className="mt-3 text-base font-semibold text-foreground">Coins sent</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {giftReceipt.amount.toLocaleString()} Loop Coins to @{giftReceipt.username}
+                </p>
               </div>
-            </div>
 
-            <div>
-              <Label htmlFor="gift-amount" className="text-xs font-semibold">Coin Amount</Label>
-              <Input
-                id="gift-amount"
-                type="number"
-                min={10}
-                max={balance}
-                value={giftAmount}
-                onChange={(e) => setGiftAmount(Number(e.target.value))}
-                className="mt-1.5 rounded-xl"
-              />
-              <p className="text-[11px] text-muted-foreground mt-1">Current Balance: {balance.toLocaleString()} coins</p>
-            </div>
+              <div className="flex items-center justify-between rounded-xl border border-border/70 bg-muted/30 px-3 py-2.5 text-xs">
+                <span className="text-muted-foreground">New balance</span>
+                <span className="font-semibold tabular-nums text-foreground">
+                  {giftReceipt.newBalance.toLocaleString()} coins
+                </span>
+              </div>
 
-            <div>
-              <Label htmlFor="gift-msg" className="text-xs font-semibold">Optional Message</Label>
-              <Input
-                id="gift-msg"
-                placeholder="Thanks for the awesome loop!"
-                value={giftMessage}
-                onChange={(e) => setGiftMessage(e.target.value)}
-                className="mt-1.5 rounded-xl"
-              />
+              <Button onClick={() => setGiftOpen(false)} className="w-full rounded-lg font-semibold">
+                Done
+              </Button>
             </div>
-          </div>
+          ) : (
+            <>
+              <div className="space-y-4 py-2">
+                <div>
+                  <Label htmlFor="target-username" className="text-xs font-semibold">Recipient handle</Label>
+                  <div className="relative mt-1.5">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">@</span>
+                    <Input
+                      id="target-username"
+                      placeholder="username"
+                      autoComplete="off"
+                      value={targetUsername}
+                      onChange={(e) => {
+                        setTargetUsername(e.target.value.replace(/^@+/, ""))
+                        setGiftError(null)
+                      }}
+                      className="pl-8 rounded-xl"
+                    />
+                  </div>
+                </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setGiftOpen(false)} className="rounded-xl">
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSendGift}
-              disabled={gifting}
-              className="rounded-lg font-semibold"
-            >
-              {gifting ? "Sending..." : `Send ${giftAmount.toLocaleString()} Coins`}
-            </Button>
-          </DialogFooter>
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="gift-amount" className="text-xs font-semibold">Coin amount</Label>
+                    <span className="text-[11px] text-muted-foreground">Available: {balance.toLocaleString()}</span>
+                  </div>
+                  <div className="relative mt-1.5">
+                    <Coins className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-500" />
+                    <Input
+                      id="gift-amount"
+                      type="number"
+                      min={1}
+                      max={Math.max(1, balance)}
+                      value={giftAmount || ""}
+                      onChange={(e) => {
+                        setGiftAmount(Math.max(0, Math.floor(Number(e.target.value) || 0)))
+                        setGiftError(null)
+                      }}
+                      className="pl-9 rounded-xl font-semibold tabular-nums"
+                    />
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {[100, 500, 1000].map((amount) => (
+                      <button
+                        key={amount}
+                        type="button"
+                        disabled={balance < amount}
+                        onClick={() => {
+                          setGiftAmount(amount)
+                          setGiftError(null)
+                        }}
+                        className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                          giftAmount === amount
+                            ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                            : "border-border/70 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {amount.toLocaleString()}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      disabled={balance < 1}
+                      onClick={() => {
+                        setGiftAmount(balance)
+                        setGiftError(null)
+                      }}
+                      className="rounded-full border border-border/70 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Max
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="gift-msg" className="text-xs font-semibold">Optional message</Label>
+                    <span className="text-[10px] text-muted-foreground">{giftMessage.length}/140</span>
+                  </div>
+                  <Input
+                    id="gift-msg"
+                    placeholder="Thanks for the awesome loop!"
+                    value={giftMessage}
+                    maxLength={140}
+                    onChange={(e) => setGiftMessage(e.target.value)}
+                    className="mt-1.5 rounded-xl"
+                  />
+                </div>
+
+                {giftError && (
+                  <div className="flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-500/[0.06] px-3 py-2 text-[11px] leading-relaxed text-rose-700 dark:text-rose-300">
+                    <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>{giftError}</span>
+                  </div>
+                )}
+
+                <p className="text-[10px] leading-relaxed text-muted-foreground">
+                  Transfers are instant and can&apos;t be reversed. Double-check the handle before sending.
+                </p>
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  variant="outline"
+                  onClick={() => setGiftOpen(false)}
+                  disabled={gifting}
+                  className="rounded-xl"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSendGift}
+                  disabled={
+                    gifting ||
+                    !targetUsername.trim() ||
+                    giftAmount < 1 ||
+                    giftAmount > balance
+                  }
+                  className="rounded-lg font-semibold"
+                >
+                  {gifting ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Sending…
+                    </>
+                  ) : (
+                    `Send ${giftAmount.toLocaleString()} Coins`
+                  )}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
