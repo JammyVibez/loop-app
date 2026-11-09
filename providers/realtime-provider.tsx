@@ -43,10 +43,10 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
           setIsConnected(true)
           console.log('Connected to Supabase realtime')
         })
-        .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+        .on('presence', { event: 'join' }, ({ key, newPresences }: { key: string; newPresences: unknown[] }) => {
           console.log('User joined:', key, newPresences)
         })
-        .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+        .on('presence', { event: 'leave' }, ({ key, leftPresences }: { key: string; leftPresences: unknown[] }) => {
           console.log('User left:', key, leftPresences)
         })
         .on('broadcast', { event: 'notification' }, (payload) => {

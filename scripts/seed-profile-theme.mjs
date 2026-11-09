@@ -224,9 +224,18 @@ try {
     }
 
     if (syncEquipped) {
+      // The equipped theme is normally `active_theme`, but profiles equipped
+      // before that column was written only carry the theme name in
+      // theme_preferences. Refresh those too, and never inject CSS into a
+      // profile that is not actually wearing a theme.
       const synced = await client.query(
-        "UPDATE profiles SET profile_design_css = $1, updated_at = now() WHERE active_theme::text = $2::text",
-        [css, themeId],
+        `UPDATE profiles
+            SET profile_design_css = $1, updated_at = now()
+          WHERE active_theme::text = $2::text
+             OR (theme_preferences->>'name' = $3
+                 AND profile_design_css IS NOT NULL
+                 AND profile_design_css <> '')`,
+        [css, themeId, theme.name],
       )
       console.log(`  ↳ refreshed ${synced.rowCount} equipped profile(s).`)
     }

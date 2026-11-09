@@ -7,6 +7,7 @@ import { stripCircleBioTokens } from "@/lib/circle-bio-tokens"
 import { profileStatus } from "@/lib/user-status"
 import { buildOgMetadata } from "@/lib/og/metadata"
 import { isRestrictedProfileVisibility } from "@/lib/profile-privacy"
+import { isVideoProfileBackground, profileThemeOgArtwork, readProfileThemePreferences } from "@/lib/profile-theme"
 
 export const dynamic = "force-dynamic"
 
@@ -17,6 +18,12 @@ const supabase = createClient(
 
 interface ProfilePageProps {
   params: Promise<{ username: string }>
+}
+
+/** Only a real six-digit hex is forwarded to the OG renderer. */
+function hexColor(value: unknown): string | undefined {
+  const raw = typeof value === "string" ? value.trim() : ""
+  return /^#[0-9a-f]{6}$/i.test(raw) ? raw : undefined
 }
 
 export async function generateMetadata({ params }: ProfilePageProps): Promise<Metadata> {
@@ -30,11 +37,16 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
   let followersCount = 0
   let displayName = ""
   let restrictedProfile = false
+  let themeName = ""
+  let themeBackground = ""
+  let themeAccent: string | undefined
+  let themeAccent2: string | undefined
+  let loopsCount = 0
 
   try {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("display_name, bio, avatar_url, is_verified, followers_count, privacy_settings, is_deleted, deletion_executed_at, is_banned")
+      .select("display_name, bio, avatar_url, banner_url, is_verified, followers_count, loops_count, privacy_settings, theme_preferences, is_deleted, deletion_executed_at, is_banned")
       .eq("username", username)
       .single()
 
@@ -54,17 +66,40 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
       restrictedProfile = restricted
       const name = profile.display_name || username
       displayName = restricted ? username : name
-      title = restricted ? "@" + username + " on Loop" : name + " (@" + username + ") — Profile"
+      // Private/follower-only profiles should not leak their avatar, bio,
+      // follower totals — or the theme they are wearing — through crawlers.
+      avatarUrl = restricted ? "" : profile.avatar_url || ""
+      isVerified = restricted ? false : Boolean(profile.is_verified)
+      followersCount = restricted ? 0 : Number(profile.followers_count || 0)
+      loopsCount = restricted ? 0 : Number(profile.loops_count || 0)
+
+      if (!restricted) {
+        const prefs =
+          profile.theme_preferences && typeof profile.theme_preferences === "object"
+            ? (profile.theme_preferences as Record<string, unknown>)
+            : {}
+        const theme = readProfileThemePreferences(profile.theme_preferences)
+        const art = theme.backgroundUrl || profile.banner_url || null
+        // Satori paints pictures, not video: a clip background falls back to
+        // the banner, then to the plain themed card. Bundled theme SVGs get
+        // their committed JPEG sibling, because satori skips SVG backgrounds.
+        if (art && !isVideoProfileBackground(art)) themeBackground = profileThemeOgArtwork(art) || art
+        if (typeof prefs.name === "string") themeName = prefs.name.trim().slice(0, 40)
+        const colors = prefs.colors && typeof prefs.colors === "object" ? (prefs.colors as Record<string, unknown>) : null
+        themeAccent = hexColor(colors?.primary) || hexColor(colors?.accent)
+        themeAccent2 = hexColor(colors?.secondary) || hexColor(colors?.accent)
+      }
+
+      title = restricted
+        ? "@" + username + " on Loop"
+        : themeName
+          ? `${name} (@${username}) — ${themeName}`
+          : `${name} (@${username}) — Profile`
       description = restricted
         ? "A private profile on Loop."
         : profile.bio
           ? stripCircleBioTokens(profile.bio).slice(0, 160)
           : description
-      // Private/follower-only profiles should not leak their avatar, bio or
-      // follower totals through Open Graph or crawler metadata.
-      avatarUrl = restricted ? "" : profile.avatar_url || ""
-      isVerified = restricted ? false : Boolean(profile.is_verified)
-      followersCount = restricted ? 0 : Number(profile.followers_count || 0)
     }
   } catch (err) {
     console.error("Error generating profile metadata:", err)
@@ -85,6 +120,13 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
       stat: followersCount || undefined,
       stat_label: followersCount === 1 ? "follower" : "followers",
       url: `loopapp.me/profile/${username}`,
+      // The profile's look travels with the card: artwork, theme name and the
+      // theme's own accent colours.
+      bg: themeBackground || undefined,
+      theme: themeName || undefined,
+      accent: themeAccent,
+      accent2: themeAccent2,
+      stats: loopsCount ? `${loopsCount}|loops` : undefined,
     },
   })
 

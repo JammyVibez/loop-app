@@ -171,7 +171,7 @@
   border-radius: 26px;
   border: 1px solid rgba(232, 201, 139, 0.2);
   /* Parchment glass: the dusk artwork still reads through the panel. */
-  background-color: color-mix(in srgb, var(--background) 80%, transparent);
+  background-color: color-mix(in srgb, var(--background) 70%, transparent);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   box-shadow: 0 34px 80px -60px rgba(0, 0, 0, 0.8);
@@ -201,7 +201,7 @@
 .loop-profile-custom-css [data-profile-background-scrim] {
   background-image:
     radial-gradient(84% 64% at 24% 30%, rgba(232, 201, 139, 0.16), transparent 64%),
-    linear-gradient(180deg, rgba(11, 8, 18, 0.14), rgba(11, 8, 18, 0.5) 56%, rgba(11, 8, 18, 0.9));
+    linear-gradient(180deg, rgba(11, 8, 18, 0.14), rgba(11, 8, 18, 0.5) 56%, rgba(11, 8, 18, 0.8));
 }
 
 /* ── Post cards ──────────────────────────────────────────────────────────

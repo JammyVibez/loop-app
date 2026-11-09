@@ -95,6 +95,17 @@ export function accentFor(key?: string | null): Accent {
 }
 
 /**
+ * A profile theme's own colours, when the page passes them. The value has
+ * already been validated as a hex colour by the query-string parser, and this
+ * stays defensive anyway because the accent is painted straight into CSS.
+ */
+export function accentFromHex(base?: string | null, second?: string | null, key = "profile"): Accent | null {
+  const isHex = (value: string) => /^#[0-9a-f]{6}$/i.test(value)
+  if (!base || !isHex(base)) return null
+  return { key, base, second: second && isHex(second) ? second : base }
+}
+
+/**
  * One restrained wash used by the shell: a single soft radial anchored to a
  * corner. Deliberately low alpha — the brief is "designed, not glowing".
  */

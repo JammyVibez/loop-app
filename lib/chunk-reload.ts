@@ -18,10 +18,13 @@ export function reloadOnceForChunkError(): boolean {
   try {
     const last = Number(window.sessionStorage.getItem(RELOAD_KEY) || 0)
     if (Date.now() - last < 30_000) return false
-    window.sessionStorage.setItem(RELOAD_KEY, String(Date.now()))
+    const now = Date.now()
+    window.sessionStorage.setItem(RELOAD_KEY, String(now))
+    const freshUrl = new URL(window.location.href)
+    freshUrl.searchParams.set("__loop_chunk_reload", String(now))
+    window.location.replace(freshUrl.toString())
   } catch {
     return false
   }
-  window.location.reload()
   return true
 }

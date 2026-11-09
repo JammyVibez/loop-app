@@ -21,6 +21,8 @@ interface CanvasProps {
   glow?: number
   /** Official Loop app icon inlined as a data URI (falls back to the drawn mark). */
   logo?: string
+  /** Full-bleed profile artwork, already inlined as a data URI. */
+  background?: string
   children?: ReactNode
 }
 
@@ -29,7 +31,7 @@ interface CanvasProps {
  * a hairline grid, the Loop lockup on top and the branded footer below.
  * Templates only ever author the middle band.
  */
-export function Canvas({ accent, kicker, note, glow = 0.3, logo, children }: CanvasProps) {
+export function Canvas({ accent, kicker, note, glow = 0.3, logo, background, children }: CanvasProps) {
   return (
     <div
       style={{
@@ -39,19 +41,39 @@ export function Canvas({ accent, kicker, note, glow = 0.3, logo, children }: Can
         width: 1200,
         height: 630,
         padding: `${layout.padTop}px ${layout.padX}px ${layout.padBottom}px`,
-        background: `linear-gradient(160deg, ${palette.inkSoft} 0%, ${palette.ink} 62%, #05060F 100%)`,
+        // Satori throws on `backgroundImage: undefined`, so the artwork and the
+        // gradient ink are mutually exclusive style objects.
+        ...(background
+          ? {
+              backgroundColor: palette.ink,
+              backgroundImage: `url(${background})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }
+          : { background: `linear-gradient(160deg, ${palette.inkSoft} 0%, ${palette.ink} 62%, #05060F 100%)` }),
         color: palette.text,
         fontFamily: fonts.sans,
         overflow: "hidden",
       }}
     >
+      {/* One smoke pass over the artwork so names and chips keep contrast. */}
+      {background ? (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "linear-gradient(180deg, rgba(3,7,18,0.24) 0%, rgba(3,7,18,0.48) 44%, rgba(3,7,18,0.9) 100%)",
+          }}
+        />
+      ) : null}
       <div style={{ position: "absolute", inset: 0, background: wash(accent.base, "tr", glow) }} />
       <div style={{ position: "absolute", inset: 0, background: wash(accent.second, "bl", glow * 0.55) }} />
       <div
         style={{
           position: "absolute",
           inset: 0,
-          backgroundImage: `linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(rgba(255,255,255,${background ? "0.02" : "0.03"}) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,${background ? "0.02" : "0.03"}) 1px, transparent 1px)`,
           backgroundSize: "46px 46px",
         }}
       />

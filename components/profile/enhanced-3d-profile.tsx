@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Calendar, Coins, Flame, Gift, Heart, Link as LinkIcon, Lock, MapPin, MessageCircle, MoreHorizontal, Music2, Plus, Palette, Share2, Wand2, Zap, Trophy, Upload, Users, Package, Building2, } from "lucide-react"
+import { ArrowLeft, Calendar, Coins, Flame, Gift, Heart, Link as LinkIcon, Lock, MapPin, MessageCircle, MoreHorizontal, Music2, Plus, Palette, Share2, Wand2, X, Zap, Trophy, Upload, Users, Package, Building2, UserPlus, } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -534,11 +534,24 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   // The profile's top bar only materialises once the page is scrolled. At rest
   // it would otherwise be a strip drawn straight across the cover photo.
   const [scrolled, setScrolled] = useState(false)
+  // A shared profile link carries `?invite=1`, which shows guests a join banner
+  // over the theme instead of a bare profile they cannot interact with.
+  const [inviteMode, setInviteMode] = useState(false)
+  const [inviteDismissed, setInviteDismissed] = useState(false)
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16)
     onScroll()
     window.addEventListener("scroll", onScroll, { passive: true })
     return () => window.removeEventListener("scroll", onScroll)
+  }, [])
+
+  // Read the invite flag from the address bar instead of `useSearchParams`:
+  // the profile is a dynamic page and this keeps the banner out of any
+  // Suspense boundary the router might require.
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const params = new URLSearchParams(window.location.search)
+    setInviteMode(params.get("invite") === "1")
   }, [])
 
   /**
@@ -594,6 +607,19 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   const displayName = profile.display_name || profile.username
   const profileTheme = readProfileThemePreferences(profile.theme_preferences)
   const atmosphere = readProfileAtmosphere(profile.theme_preferences)
+  const themePrefs = (profile.theme_preferences && typeof profile.theme_preferences === "object"
+    ? profile.theme_preferences
+    : {}) as Record<string, any>
+  const shareTheme = {
+    name: typeof themePrefs.name === "string" ? themePrefs.name : null,
+    backgroundUrl: profileTheme.backgroundUrl,
+    colors: themePrefs.colors && typeof themePrefs.colors === "object" ? themePrefs.colors : null,
+  }
+  const shareStats = {
+    loops: Number(profile.loops_count || 0),
+    followers: Number(profile.followers_count || 0),
+    likes: Number(profile.likes_received || 0),
+  }
   const profileLayout = normalizeProfileLayout(profile.profile_layout)
   const sectionOrder = (id: string) => profileLayout.sections.indexOf(id)
   const sidebarOrder = (id: string) => profileLayout.sidebar.indexOf(id)
@@ -618,7 +644,8 @@ export function Enhanced3DProfile({ username }: { username: string }) {
     <div
       className={cn(
         "loop-profile-custom-css loop-profile-page relative mx-auto w-full max-w-6xl",
-        profileTheme.backgroundUrl ? "bg-transparent" : "bg-background",
+        profileTheme.backgroundUrl ? "loop-profile-has-background bg-transparent" : "bg-background",
+        profile.profile_design_css || profile.custom_profile_css ? "loop-profile-has-custom-css" : "",
       )}
     >
       {profile.profile_design_css ? (
@@ -687,6 +714,49 @@ export function Enhanced3DProfile({ username }: { username: string }) {
           <p className="text-xs text-muted-foreground">{formatCount(profile.loops_count)} loops</p>
         </div>
       </div>
+
+      {inviteMode && !user && !inviteDismissed ? (
+        <div className="relative z-20 mx-3 mt-3 flex flex-col gap-3 rounded-2xl border border-border/60 bg-card/70 p-3.5 backdrop-blur-xl sm:mx-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <span
+              className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/15"
+              style={{
+                background: shareTheme.colors?.primary
+                  ? `linear-gradient(135deg, ${shareTheme.colors.primary}, ${shareTheme.colors.accent || shareTheme.colors.primary})`
+                  : "linear-gradient(135deg, #8b5cf6, #22d3ee)",
+              }}
+            >
+              <UserPlus className="h-4 w-4 text-white" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[12.5px] font-semibold text-foreground">
+                You&apos;re seeing {displayName}&apos;s
+                {shareTheme.name ? ` ${shareTheme.name}` : ""} profile.
+              </p>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                Join Loop to get a profile with its own theme, background and soundtrack —
+                {displayName} will be your first follow.
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Button asChild size="sm" className="rounded-full px-3.5 text-xs font-semibold">
+              <Link href={`/signup?ref=${encodeURIComponent(profile.username)}`}>Join Loop</Link>
+            </Button>
+            <Button asChild size="sm" variant="ghost" className="rounded-full px-2.5 text-xs">
+              <Link href={`/login?redirect=${encodeURIComponent(`/profile/${profile.username}`)}`}>Sign in</Link>
+            </Button>
+            <button
+              type="button"
+              onClick={() => setInviteDismissed(true)}
+              aria-label="Dismiss invite"
+              className="ml-0.5 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="loop-profile-layout-canvas relative z-10 lg:px-4 lg:pt-4">
       {/* Banner — animated cover with upload button */}
@@ -863,6 +933,9 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                   bio={stripCircleBioTokens(profile.bio)}
                   avatarUrl={profile.avatar_url}
                   iconOnly
+                  isOwner
+                  theme={shareTheme}
+                  stats={shareStats}
                   triggerClassName="h-9 w-9 rounded-full border-border p-0"
                 />
                 <DropdownMenu>
@@ -907,6 +980,16 @@ export function Enhanced3DProfile({ username }: { username: string }) {
               </>
             ) : (
               <>
+                <ProfileShareCard
+                  username={profile.username}
+                  displayName={displayName}
+                  bio={stripCircleBioTokens(profile.bio)}
+                  avatarUrl={profile.avatar_url}
+                  iconOnly
+                  theme={shareTheme}
+                  stats={shareStats}
+                  triggerClassName="h-9 w-9 rounded-full border-border p-0"
+                />
                 {/* One segmented control instead of two loose icon circles. */}
                 <div className="flex items-center overflow-hidden rounded-full border border-border">
                   <Button
@@ -1150,14 +1233,14 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                 </p>
                 <div className="flex flex-col gap-1.5">
                   {cosmetics.frame && (
-                    <div className="flex items-center gap-2 rounded-lg bg-background/80 px-2.5 py-1.5">
+                    <div className="flex items-center gap-2 rounded-lg bg-card/60 px-2.5 py-1.5">
                       <div className="h-5 w-5 rounded-full border-2" style={{ borderColor: cosmetics.frame.color || '#8b5cf6' }} />
                       <span className="text-xs font-medium">{cosmetics.frame.name || 'Frame'}</span>
                       <Badge variant="outline" className="ml-auto text-[10px] px-1.5 py-0">Frame</Badge>
                     </div>
                   )}
                   {(cosmetics.aura || cosmetics.effect) && (
-                    <div className="flex items-center gap-2 rounded-lg bg-background/80 px-2.5 py-1.5">
+                    <div className="flex items-center gap-2 rounded-lg bg-card/60 px-2.5 py-1.5">
                       <div className="relative h-5 w-5">
                         <div className="absolute inset-0 rounded-full" style={{ background: `radial-gradient(circle, ${(cosmetics.aura || cosmetics.effect)?.color || '#06b6d4'}60, transparent)`, animation: 'pulse 2s ease-in-out infinite' }} />
                         <Zap className="absolute inset-0.5 h-3.5 w-3.5" style={{ color: (cosmetics.aura || cosmetics.effect)?.color || '#06b6d4' }} />
@@ -1167,7 +1250,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                     </div>
                   )}
                   {cosmetics.badge && (
-                    <div className="flex items-center gap-2 rounded-lg bg-background/80 px-2.5 py-1.5">
+                    <div className="flex items-center gap-2 rounded-lg bg-card/60 px-2.5 py-1.5">
                       <div className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500/20">
                         <Flame className="h-3 w-3 text-amber-400" />
                       </div>
@@ -1176,7 +1259,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                     </div>
                   )}
                   {cosmetics.font && (
-                    <div className="flex items-center gap-2 rounded-lg bg-background/80 px-2.5 py-1.5">
+                    <div className="flex items-center gap-2 rounded-lg bg-card/60 px-2.5 py-1.5">
                       <div className="flex h-5 w-5 items-center justify-center rounded-full bg-sky-500/20">
                         <span className="text-[10px] font-bold text-sky-400">Aa</span>
                       </div>
@@ -1185,7 +1268,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                     </div>
                   )}
                   {cosmetics.cardEffect && (
-                    <div className="flex items-center gap-2 rounded-lg bg-background/80 px-2.5 py-1.5">
+                    <div className="flex items-center gap-2 rounded-lg bg-card/60 px-2.5 py-1.5">
                       <div className="flex h-5 w-5 items-center justify-center rounded-full bg-pink-500/20">
                         <Wand2 className="h-3 w-3 text-pink-400" />
                       </div>

@@ -13,10 +13,10 @@
   --an-accent: #ffcf5c;
   --an-accent-2: #38a9e0;
   --an-accent-3: #fff4d1;
-  --an-glass: linear-gradient(160deg, rgba(10, 34, 51, 0.8), rgba(4, 14, 24, 0.88));
+  --an-glass: linear-gradient(160deg, rgba(10, 34, 51, 0.62), rgba(4, 14, 24, 0.76));
   --an-hairline: rgba(56, 169, 224, 0.28);
   /* Post-card tokens — the "Post cards" presentation is a real LoopCard. */
-  --lp-card-bg: linear-gradient(158deg, rgba(9, 32, 48, 0.84), rgba(4, 13, 22, 0.9));
+  --lp-card-bg: linear-gradient(158deg, rgba(9, 32, 48, 0.7), rgba(4, 13, 22, 0.8));
   --lp-card-border: rgba(56, 169, 224, 0.28);
   --lp-card-border-strong: rgba(255, 207, 92, 0.62);
   --lp-card-hairline: rgba(56, 169, 224, 0.28);
@@ -116,10 +116,15 @@
   color: var(--an-muted) !important;
 }
 
+/* Lower panes (partnership, equipped cosmetics, awards) read as tinted glass
+   rather than solid slabs, so the theme artwork carries all the way down the
+   identity column instead of stopping at the bio. */
 .loop-profile-custom-css .loop-profile-sidebar-column .bg-card,
 .loop-profile-custom-css .loop-profile-sidebar-column .bg-muted {
-  background-color: #0a2233 !important;
+  background-color: color-mix(in srgb, #0a2233 55%, transparent) !important;
   border-color: var(--an-hairline) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+  backdrop-filter: blur(14px) saturate(1.08);
 }
 
 .loop-profile-custom-css .loop-profile-sidebar-column [class*="border-border"] {
@@ -147,9 +152,9 @@
   padding: 0 0.5rem 0.75rem;
   border-radius: 26px;
   border: 1px solid var(--an-hairline);
-  background-color: color-mix(in srgb, #04101c 78%, transparent);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background-color: color-mix(in srgb, #04101c 66%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   box-shadow:
     0 34px 80px -60px rgba(0, 0, 0, 0.85),
     0 0 0 1px rgba(255, 255, 255, 0.03) inset;
@@ -186,7 +191,7 @@
   background-image:
     radial-gradient(92% 70% at 30% 36%, rgba(56, 169, 224, 0.2), transparent 64%),
     radial-gradient(72% 54% at 86% 12%, rgba(255, 207, 92, 0.16), transparent 66%),
-    linear-gradient(180deg, rgba(3, 12, 20, 0.12), rgba(3, 12, 20, 0.5) 56%, rgba(3, 12, 20, 0.92));
+    linear-gradient(180deg, rgba(3, 12, 20, 0.1), rgba(3, 12, 20, 0.4) 56%, rgba(3, 12, 20, 0.8));
 }
 
 /* ── Post tiles and rows ──────────────────────────────────────────────── */

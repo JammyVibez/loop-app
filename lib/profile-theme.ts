@@ -64,6 +64,19 @@ export function isVideoProfileBackground(value: string | null | undefined): bool
   return /\.(?:mp4|webm|mov|m4v|ogv)(?:[?#]|$)/i.test(value)
 }
 
+/**
+ * The raster sibling of a bundled theme's SVG, for Open Graph cards.
+ *
+ * Satori paints raster backgrounds but skips SVG ones, so
+ * scripts/generate-profile-theme-og-images.mjs writes a JPEG next to every
+ * bundled SVG. Anything that is not a bundled theme path is returned as-is.
+ */
+export function profileThemeOgArtwork(url: string | null | undefined): string | null {
+  if (!url) return null
+  const match = url.match(/^(?:https?:\/\/[^/]+)?\/profile-themes\/([a-z0-9-]+)\.svg(?:[?#].*)?$/i)
+  return match ? `/profile-themes/og/${match[1].toLowerCase()}.jpg` : url
+}
+
 /** An https URL, or a site-relative path served from `public/`. */
 export function safeThemeAssetUrl(value: unknown): string | null {
   if (typeof value !== "string") return null

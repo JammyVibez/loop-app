@@ -50,6 +50,10 @@ export interface OgPayload {
   statLabel?: string
   extraStats?: { value: string; label: string }[]
   media?: string
+  /** Inlined profile artwork, painted full-bleed behind the card. */
+  background?: string
+  /** Equipped theme name, shown as the card's collectible label. */
+  theme?: string
   people?: OgPerson[]
   sides?: OgPerson[]
   progress?: { value: number; max: number; label: string }
@@ -159,42 +163,172 @@ function statText(value?: number, label?: string): string {
   return `${formatCount(value)} ${label}`
 }
 
-/** Profile — identity card: portrait, name, handle, bio, stat readouts. */
+/**
+ * Profile — a collectible: the person on the left, the look they are wearing
+ * on the right, over their real theme artwork. The theme panel doubles as the
+ * invite: it names the theme and tells a guest how to get one.
+ */
 export function ProfileTemplate({ p }: { p: OgPayload }) {
   const stats = statsFor(p)
+  const themed = Boolean(p.theme || p.background)
   return (
-    <Canvas accent={p.accent} logo={p.logo} kicker="Profile" note={p.url || "loopapp.me"}>
-      <div
-        style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, justifyContent: "center", gap: 30 }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 30 }}>
-          <Avatar src={p.avatar} name={p.name || p.username} size={132} ring={p.accent.base} />
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ fontSize: typeScale.heading, fontWeight: 800, letterSpacing: "-0.03em", whiteSpace: "nowrap" }}>
-                {truncate(p.name || p.username || "Loop", 24)}
+    <Canvas
+      accent={p.accent}
+      logo={p.logo}
+      kicker="Profile"
+      note={p.url || "loopapp.me"}
+      background={p.background}
+      glow={p.background ? 0.14 : 0.3}
+    >
+      <div style={{ display: "flex", flex: 1, minHeight: 0, gap: 34 }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            flex: 1,
+            minWidth: 0,
+            justifyContent: "center",
+            gap: 24,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
+            <Avatar src={p.avatar} name={p.name || p.username} size={126} ring={p.accent.base} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 9, minWidth: 0, flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 13, flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    fontSize: typeScale.heading,
+                    fontWeight: 800,
+                    letterSpacing: "-0.03em",
+                    lineHeight: 1.05,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {truncate(p.name || p.username || "Loop", 22)}
+                </div>
+                {p.verified ? <Seal size={32} colors={p.badgeColors} /> : null}
+                {p.premium ? <ProBadge /> : null}
               </div>
-              {p.verified ? <Seal size={34} colors={p.badgeColors} /> : null}
-              {p.premium ? <ProBadge /> : null}
+              {p.username ? (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    alignSelf: "flex-start",
+                    padding: "7px 15px",
+                    borderRadius: 999,
+                    border: `1px solid ${withAlpha(p.accent.base, 0.4)}`,
+                    backgroundColor: withAlpha(p.accent.base, 0.12),
+                    fontSize: 23,
+                    fontWeight: 700,
+                    color: p.accent.base,
+                  }}
+                >
+                  {`@${p.username}`}
+                </div>
+              ) : null}
+              {p.category ? (
+                <div style={{ fontSize: 19, color: palette.textMuted, letterSpacing: "0.04em" }}>
+                  {truncate(p.category, 44)}
+                </div>
+              ) : null}
             </div>
-            {p.username ? (
-              <div style={{ display: "flex", fontSize: 26, fontWeight: 600, color: p.accent.base }}>{`@${p.username}`}</div>
-            ) : null}
-            {p.category ? (
-              <div style={{ fontSize: 20, color: palette.textMuted, letterSpacing: "0.04em" }}>
-                {truncate(p.category, 46)}
-              </div>
-            ) : null}
           </div>
+
+          {p.description ? (
+            <Clamp lines={2} size={typeScale.body - 5} color={palette.textMuted} lh={1.45} style={{ maxWidth: 660 }}>
+              {p.description}
+            </Clamp>
+          ) : null}
+
+          {stats.length ? <StatRow items={stats} accent={p.accent} /> : null}
         </div>
 
-        {p.description ? (
-          <Clamp lines={2} size={typeScale.body - 4} color={palette.textMuted} lh={1.45} style={{ maxWidth: 980 }}>
-            {p.description}
-          </Clamp>
-        ) : null}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            width: 296,
+            flexShrink: 0,
+            justifyContent: "space-between",
+            gap: 18,
+            padding: 22,
+            borderRadius: 26,
+            border: `1px solid ${withAlpha(p.accent.base, 0.38)}`,
+            backgroundColor: themed ? "rgba(4,7,16,0.62)" : "rgba(8,12,26,0.72)",
+            boxShadow: `0 26px 60px -44px ${withAlpha(p.accent.base, 0.7)}`,
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <SectionLabel color={p.accent.base}>{p.theme ? "Wearing" : "Loop profile"}</SectionLabel>
+            <div
+              style={{
+                display: "flex",
+                fontSize: p.theme && p.theme.length > 22 ? 25 : 29,
+                fontWeight: 800,
+                letterSpacing: "-0.02em",
+                lineHeight: 1.15,
+              }}
+            >
+              {truncate(p.theme || "Social OS", 34)}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {[p.accent.base, p.accent.second, "#FFFFFF"].map((color, index) => (
+                <div
+                  key={`${color}-${index}`}
+                  style={{
+                    width: index === 2 ? 14 : 22,
+                    height: 14,
+                    borderRadius: 999,
+                    backgroundColor: color,
+                    opacity: index === 2 ? 0.24 : 1,
+                    border: `1px solid rgba(255,255,255,0.18)`,
+                  }}
+                />
+              ))}
+            </div>
+            <div
+              style={{
+                fontSize: 17,
+                lineHeight: 1.45,
+                color: palette.textMuted,
+                marginTop: 2,
+              }}
+            >
+              {themed
+                ? "Background art, soundtrack and posts — one profile, dressed top to bottom."
+                : "Every Loop profile can wear its own theme, background and soundtrack."}
+            </div>
+          </div>
 
-        {stats.length ? <StatRow items={stats} accent={p.accent} /> : null}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ height: 1, backgroundColor: palette.hairline }} />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.18em", color: palette.textFaint }}>
+                  JOIN TO SEE IT
+                </div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: palette.text }}>loopapp.me</div>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 42,
+                  height: 42,
+                  borderRadius: 999,
+                  background: `linear-gradient(135deg, ${p.accent.base}, ${p.accent.second})`,
+                  color: "#05060F",
+                  fontSize: 22,
+                  fontWeight: 800,
+                }}
+              >
+                ↗
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </Canvas>
   )

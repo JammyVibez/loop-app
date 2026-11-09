@@ -161,7 +161,7 @@
   border-radius: 26px;
   border: 1px solid rgba(150, 224, 255, 0.26);
   /* Let the Limitless artwork read through the panel instead of covering it. */
-  background-color: color-mix(in srgb, var(--background) 78%, transparent);
+  background-color: color-mix(in srgb, var(--background) 70%, transparent);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   box-shadow:
@@ -191,7 +191,7 @@
 .loop-profile-custom-css [data-profile-background-scrim] {
   background-image:
     radial-gradient(88% 68% at 68% 34%, rgba(74, 123, 255, 0.18), transparent 62%),
-    linear-gradient(180deg, rgba(5, 11, 28, 0.16), rgba(5, 11, 28, 0.52) 56%, rgba(5, 11, 28, 0.92));
+    linear-gradient(180deg, rgba(5, 11, 28, 0.16), rgba(5, 11, 28, 0.52) 56%, rgba(5, 11, 28, 0.82));
 }
 
 /* ── Post cards ──────────────────────────────────────────────────────────

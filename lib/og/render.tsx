@@ -11,7 +11,7 @@ import type { ReactElement } from "react"
 import { loadImageDataUri, loadLogoDataUri } from "./media"
 import { type OgType, parseOgParams } from "./params"
 import { parseBool } from "./text"
-import { accentFor } from "./theme"
+import { accentFor, accentFromHex } from "./theme"
 import {
   type OgPayload,
   ChallengeTemplate,
@@ -35,13 +35,16 @@ export interface RenderedOg {
 
 export async function renderOgImage(searchParams: URLSearchParams, origin: string): Promise<RenderedOg> {
   const draft = parseOgParams(searchParams)
-  const accent = accentFor(draft.type)
+  // A profile sharing its theme paints that theme's accent; everything else
+  // keeps the per-type colour.
+  const accent = accentFromHex(draft.accentHex, draft.accentSecondHex) || accentFor(draft.type)
   const rawType = String(searchParams.get("type") || "").toLowerCase()
 
-  const [logo, avatar, media, peopleAvatars, sideAvatars] = await Promise.all([
+  const [logo, avatar, media, background, peopleAvatars, sideAvatars] = await Promise.all([
     loadLogoDataUri(origin),
     loadImageDataUri(draft.avatar, origin),
     loadImageDataUri(draft.media, origin),
+    loadImageDataUri(draft.background, origin),
     Promise.all(draft.people.map((person) => loadImageDataUri(person.avatar, origin))),
     Promise.all(draft.sides.map((person) => loadImageDataUri(person.avatar, origin))),
   ])
@@ -55,6 +58,8 @@ export async function renderOgImage(searchParams: URLSearchParams, origin: strin
     username: draft.username,
     avatar,
     media,
+    background,
+    theme: draft.theme,
     date: draft.date,
     category: draft.category,
     url: draft.url,

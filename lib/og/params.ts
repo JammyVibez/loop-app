@@ -36,6 +36,13 @@ export interface OgDraft {
   progress?: { value: number; max: number; label: string }
   dateBlock?: { day: string; month: string }
   extraStats: { value: string; label: string }[]
+  /** Profile art (image/GIF) painted behind the whole card. */
+  background?: string
+  /** Equipped theme name, e.g. "Naruto — Hidden Leaf". */
+  theme?: string
+  /** Theme palette overrides, so a card matches the look it is sharing. */
+  accentHex?: string
+  accentSecondHex?: string
 }
 
 /** Canonical template keys. */
@@ -161,6 +168,17 @@ function parseProgress(sp: URLSearchParams): OgDraft["progress"] {
   return { value: Math.max(0, value), max, label: label || "Progress" }
 }
 
+/** `#RGB` / `#RRGGBB` only — anything else is ignored rather than painted. */
+function parseHex(raw: string | null | undefined): string | undefined {
+  const value = String(raw || "").trim()
+  if (!value) return undefined
+  const withHash = value.startsWith("#") ? value : `#${value}`
+  if (!/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(withHash)) return undefined
+  return withHash.length === 4
+    ? `#${withHash[1]}${withHash[1]}${withHash[2]}${withHash[2]}${withHash[3]}${withHash[3]}`
+    : withHash
+}
+
 function parseDateBlock(sp: URLSearchParams): OgDraft["dateBlock"] {
   const day = truncate(sp.get("date_day") || "", 3)
   const month = truncate(sp.get("date_month") || "", 3)
@@ -205,5 +223,9 @@ export function parseOgParams(sp: URLSearchParams): OgDraft {
     progress: parseProgress(sp),
     dateBlock: parseDateBlock(sp),
     extraStats: parseExtraStats(sp),
+    background: sp.get("bg")?.trim() || sp.get("background")?.trim() || undefined,
+    theme: sp.get("theme") ? truncate(sp.get("theme"), 40) : undefined,
+    accentHex: parseHex(sp.get("accent")),
+    accentSecondHex: parseHex(sp.get("accent2")),
   }
 }

@@ -25,9 +25,9 @@ const THEMES = [
       accent3: "#ffe8c9",
       bg: "#0a1020",
       surface: "#131f38",
-      glass: "linear-gradient(160deg, rgba(19, 31, 56, 0.8), rgba(8, 14, 28, 0.88))",
+      glass: "linear-gradient(160deg, rgba(19, 31, 56, 0.62), rgba(8, 14, 28, 0.76))",
       hairline: "rgba(255, 154, 77, 0.26)",
-      cardBg: "linear-gradient(158deg, rgba(20, 30, 50, 0.84), rgba(8, 13, 24, 0.9))",
+      cardBg: "linear-gradient(158deg, rgba(20, 30, 50, 0.7), rgba(8, 13, 24, 0.8))",
       cardBorder: "rgba(255, 154, 77, 0.28)",
       cardBorderStrong: "rgba(255, 196, 138, 0.62)",
       cardInk: "#fff3e2",
@@ -54,7 +54,7 @@ const THEMES = [
 }`,
       scrim: `radial-gradient(90% 70% at 24% 38%, rgba(255, 138, 61, 0.18), transparent 64%),
     radial-gradient(70% 52% at 82% 16%, rgba(99, 210, 154, 0.16), transparent 66%),
-    linear-gradient(180deg, rgba(5, 10, 20, 0.14), rgba(5, 10, 20, 0.52) 56%, rgba(5, 10, 20, 0.93))`,
+    linear-gradient(180deg, rgba(5, 10, 20, 0.1), rgba(5, 10, 20, 0.42) 56%, rgba(5, 10, 20, 0.8))`,
       filter: "saturate(1.14) contrast(1.05)",
       extras: `/* A slow leaf spiral in the identity pane, drawn with a single conic
    gradient so no image request is needed. */
@@ -98,9 +98,9 @@ const THEMES = [
       accent3: "#fff1e6",
       bg: "#0a0507",
       surface: "#1b0b0d",
-      glass: "linear-gradient(160deg, rgba(31, 10, 13, 0.82), rgba(10, 4, 6, 0.9))",
+      glass: "linear-gradient(160deg, rgba(31, 10, 13, 0.64), rgba(10, 4, 6, 0.78))",
       hairline: "rgba(255, 90, 51, 0.28)",
-      cardBg: "linear-gradient(158deg, rgba(32, 11, 14, 0.86), rgba(9, 4, 6, 0.92))",
+      cardBg: "linear-gradient(158deg, rgba(32, 11, 14, 0.72), rgba(9, 4, 6, 0.82))",
       cardBorder: "rgba(255, 90, 51, 0.3)",
       cardBorderStrong: "rgba(255, 209, 102, 0.6)",
       cardInk: "#ffe9df",
@@ -133,7 +133,7 @@ const THEMES = [
 }`,
       scrim: `radial-gradient(88% 68% at 20% 34%, rgba(255, 75, 43, 0.2), transparent 62%),
     radial-gradient(64% 46% at 84% 20%, rgba(255, 209, 102, 0.14), transparent 68%),
-    linear-gradient(180deg, rgba(9, 3, 5, 0.16), rgba(9, 3, 5, 0.56) 58%, rgba(9, 3, 5, 0.94))`,
+    linear-gradient(180deg, rgba(9, 3, 5, 0.12), rgba(9, 3, 5, 0.44) 58%, rgba(9, 3, 5, 0.82))`,
       filter: "saturate(1.2) contrast(1.06)",
       extras: `/* The checkered haori band: a thin woven strip under the tab row. */
 .loop-profile-custom-css .loop-profile-layout-cover::before {
@@ -174,9 +174,9 @@ const THEMES = [
       accent3: "#fff4d1",
       bg: "#04101c",
       surface: "#0a2233",
-      glass: "linear-gradient(160deg, rgba(10, 34, 51, 0.8), rgba(4, 14, 24, 0.88))",
+      glass: "linear-gradient(160deg, rgba(10, 34, 51, 0.62), rgba(4, 14, 24, 0.76))",
       hairline: "rgba(56, 169, 224, 0.28)",
-      cardBg: "linear-gradient(158deg, rgba(9, 32, 48, 0.84), rgba(4, 13, 22, 0.9))",
+      cardBg: "linear-gradient(158deg, rgba(9, 32, 48, 0.7), rgba(4, 13, 22, 0.8))",
       cardBorder: "rgba(56, 169, 224, 0.28)",
       cardBorderStrong: "rgba(255, 207, 92, 0.62)",
       cardInk: "#f6fbff",
@@ -203,7 +203,7 @@ const THEMES = [
 }`,
       scrim: `radial-gradient(92% 70% at 30% 36%, rgba(56, 169, 224, 0.2), transparent 64%),
     radial-gradient(72% 54% at 86% 12%, rgba(255, 207, 92, 0.16), transparent 66%),
-    linear-gradient(180deg, rgba(3, 12, 20, 0.12), rgba(3, 12, 20, 0.5) 56%, rgba(3, 12, 20, 0.92))`,
+    linear-gradient(180deg, rgba(3, 12, 20, 0.1), rgba(3, 12, 20, 0.4) 56%, rgba(3, 12, 20, 0.8))`,
       filter: "saturate(1.16) contrast(1.04)",
       extras: `/* A rope-and-plank rule separates the identity pane from the posts. */
 .loop-profile-custom-css .loop-profile-sidebar-column [data-profile-block="identity"] {
@@ -239,9 +239,9 @@ const THEMES = [
       accent3: "#fff1f9",
       bg: "#0a0718",
       surface: "#17102e",
-      glass: "linear-gradient(160deg, rgba(30, 18, 58, 0.82), rgba(10, 7, 24, 0.9))",
+      glass: "linear-gradient(160deg, rgba(30, 18, 58, 0.64), rgba(10, 7, 24, 0.78))",
       hairline: "rgba(255, 143, 199, 0.28)",
-      cardBg: "linear-gradient(158deg, rgba(32, 19, 60, 0.84), rgba(10, 7, 24, 0.9))",
+      cardBg: "linear-gradient(158deg, rgba(32, 19, 60, 0.7), rgba(10, 7, 24, 0.8))",
       cardBorder: "rgba(255, 143, 199, 0.3)",
       cardBorderStrong: "rgba(159, 216, 255, 0.62)",
       cardInk: "#fff4fb",
@@ -270,7 +270,7 @@ const THEMES = [
 }`,
       scrim: `radial-gradient(90% 70% at 26% 32%, rgba(255, 143, 199, 0.2), transparent 64%),
     radial-gradient(72% 56% at 84% 14%, rgba(159, 216, 255, 0.18), transparent 66%),
-    linear-gradient(180deg, rgba(7, 5, 20, 0.12), rgba(7, 5, 20, 0.5) 56%, rgba(7, 5, 20, 0.92))`,
+    linear-gradient(180deg, rgba(7, 5, 20, 0.1), rgba(7, 5, 20, 0.4) 56%, rgba(7, 5, 20, 0.8))`,
       filter: "saturate(1.12) contrast(1.03)",
       extras: `/* Crescent moon and stars behind the identity pane. */
 .loop-profile-custom-css .loop-profile-sidebar-column::after {
@@ -393,10 +393,15 @@ ${m.extras}
   color: var(--an-muted) !important;
 }
 
+/* Lower panes (partnership, equipped cosmetics, awards) read as tinted glass
+   rather than solid slabs, so the theme artwork carries all the way down the
+   identity column instead of stopping at the bio. */
 .loop-profile-custom-css .loop-profile-sidebar-column .bg-card,
 .loop-profile-custom-css .loop-profile-sidebar-column .bg-muted {
-  background-color: ${p.surface} !important;
+  background-color: color-mix(in srgb, ${p.surface} 55%, transparent) !important;
   border-color: var(--an-hairline) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+  backdrop-filter: blur(14px) saturate(1.08);
 }
 
 .loop-profile-custom-css .loop-profile-sidebar-column [class*="border-border"] {
@@ -424,9 +429,9 @@ ${m.extras}
   padding: 0 0.5rem 0.75rem;
   border-radius: 26px;
   border: 1px solid var(--an-hairline);
-  background-color: color-mix(in srgb, ${p.bg} 78%, transparent);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background-color: color-mix(in srgb, ${p.bg} 66%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   box-shadow:
     0 34px 80px -60px rgba(0, 0, 0, 0.85),
     0 0 0 1px rgba(255, 255, 255, 0.03) inset;

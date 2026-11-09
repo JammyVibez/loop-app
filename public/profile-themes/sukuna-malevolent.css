@@ -157,7 +157,7 @@
   border-radius: 4px 26px 4px 26px;
   border: 1px solid rgba(255, 74, 44, 0.28);
   /* The shrine artwork stays visible behind the content, not buried under it. */
-  background-color: color-mix(in srgb, var(--background) 78%, transparent);
+  background-color: color-mix(in srgb, var(--background) 70%, transparent);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   box-shadow:
@@ -174,7 +174,7 @@
 .loop-profile-custom-css [data-profile-background-scrim] {
   background-image:
     radial-gradient(80% 62% at 72% 24%, rgba(200, 31, 34, 0.22), transparent 62%),
-    linear-gradient(180deg, rgba(8, 3, 4, 0.2), rgba(10, 2, 3, 0.56) 55%, rgba(6, 1, 2, 0.94));
+    linear-gradient(180deg, rgba(8, 3, 4, 0.2), rgba(10, 2, 3, 0.56) 55%, rgba(6, 1, 2, 0.84));
 }
 
 /* ── Post cards ──────────────────────────────────────────────────────────
