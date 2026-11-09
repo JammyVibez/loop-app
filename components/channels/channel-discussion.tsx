@@ -82,24 +82,28 @@ export function ChannelDiscussion({ titleId, title, kind }: { titleId: string; t
       return
     }
     setSharing(true)
-    const pageUrl = `${window.location.origin}/channels/${kind === "movie" ? "movie" : "series"}/${encodeURIComponent(titleId)}`
     try {
+      // No link in the body: the feed renders a preview canvas for the title
+      // from the id, with canonical art and details resolved by the server.
       const response = await fetch("/api/loops", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({
-          content_text: `${shareNote.trim() ? `${shareNote.trim()}\n\n` : `I’m watching ${title} on Loop.\n\n`}${title} · ${pageUrl}`,
+          content_text: shareNote.trim() || `Watching ${title} on Loop.`,
           content_type: "text",
           category: "entertainment",
           visibility: "public",
-          content_metadata: { channel_title_id: titleId, channel_title: title, channel_url: pageUrl },
+          content_metadata: { channel_title_id: titleId, channel_kind: kind },
         }),
       })
       const payload = await response.json().catch(() => null)
       if (!response.ok) throw new Error(payload?.error || "Could not share to your feed.")
       setShareNote("")
       setSharing(false)
-      toast({ title: "Shared to your feed", description: "Your post is now in the Loop feed." })
+      toast({
+        title: "Shared to your feed",
+        description: "It appears as a video card with a short preview and the movie details.",
+      })
     } catch (cause) {
       toast({ title: "Share failed", description: cause instanceof Error ? cause.message : "Please try again.", variant: "destructive" })
       setSharing(false)

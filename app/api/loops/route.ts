@@ -17,6 +17,8 @@ import {
 } from "@/lib/branch-limits"
 
 
+const CHANNEL_TITLE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 function parseHashtags(value: unknown) {
   if (Array.isArray(value)) return value.map(String)
   if (typeof value === "string") {
@@ -186,6 +188,54 @@ export async function POST(request: NextRequest) {
     let mediaUrl: string | null = preUploadedMediaUrl
     let mediaType = loopType || "text"
     let treeDepth = 0
+
+    // ── Shared channel titles ──
+    // A movie/show share sends only the title id. Resolve it against the
+    // published catalogue here so a feed card can never be spoofed with
+    // invented art, and unpublishing a title removes its share card.
+    if (mediaMetadata && typeof mediaMetadata === "object") {
+      const meta: Record<string, unknown> = { ...mediaMetadata }
+      delete meta.channel_share
+      const requestedId = typeof meta.channel_title_id === "string" ? meta.channel_title_id : null
+
+      if (requestedId && CHANNEL_TITLE_ID_RE.test(requestedId)) {
+        const { data: channelTitle } = await supabase
+          .from("channel_titles")
+          .select("id, kind, title, synopsis, poster_url, backdrop_url, video_url, year, runtime_minutes, genres")
+          .eq("id", requestedId)
+          .eq("published", true)
+          .maybeSingle()
+
+        if (channelTitle) {
+          const genres = Array.isArray(channelTitle.genres)
+            ? channelTitle.genres.filter((entry): entry is string => typeof entry === "string")
+            : typeof channelTitle.genres === "string"
+              ? channelTitle.genres.split(",").map((entry) => entry.trim()).filter(Boolean)
+              : []
+          const kind = channelTitle.kind === "series" ? "series" : "movie"
+
+          meta.channel_share = {
+            id: channelTitle.id,
+            kind,
+            title: channelTitle.title,
+            synopsis: channelTitle.synopsis ?? null,
+            poster: channelTitle.poster_url ?? null,
+            backdrop: channelTitle.backdrop_url ?? null,
+            videoUrl: channelTitle.video_url ?? null,
+            year: channelTitle.year ?? null,
+            runtimeMinutes: channelTitle.runtime_minutes ?? null,
+            genres: genres.slice(0, 6),
+            url: `/channels/${kind}/${channelTitle.id}`,
+          }
+        } else {
+          delete meta.channel_title_id
+        }
+      } else {
+        delete meta.channel_title_id
+      }
+
+      mediaMetadata = meta
+    }
 
     // ── Community context ──
     // Only real members can attach a Loop to a community, and community

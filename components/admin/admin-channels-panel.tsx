@@ -10,6 +10,7 @@ import {
   ImagePlus,
   Link2,
   Loader2,
+  Pencil,
   Plus,
   Star,
   Trash2,
@@ -22,6 +23,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { fetchUploadLimits, uploadMediaFile } from "@/lib/client-media-upload"
@@ -51,6 +59,8 @@ type Draft = {
   published: boolean
 }
 
+type UpdateDraft = <K extends keyof Draft>(key: K, value: Draft[K]) => void
+
 const EMPTY_DRAFT: Draft = {
   kind: "movie",
   title: "",
@@ -67,6 +77,24 @@ const EMPTY_DRAFT: Draft = {
   published: true,
 }
 
+function draftFromTitle(title: AdminTitle): Draft {
+  return {
+    kind: title.kind,
+    title: title.title,
+    synopsis: title.synopsis ?? "",
+    posterUrl: title.poster ?? "",
+    backdropUrl: title.backdrop ?? "",
+    videoUrl: title.videoUrl ?? "",
+    year: title.year ? String(title.year) : "",
+    country: title.country ?? "",
+    language: title.language ?? "",
+    genres: title.genres.join(", "),
+    runtimeMinutes: title.runtimeMinutes ? String(title.runtimeMinutes) : "",
+    featured: title.featured,
+    published: title.published,
+  }
+}
+
 export function AdminChannelsPanel() {
   const { getAuthHeader } = useAuth()
   const { toast } = useToast()
@@ -77,6 +105,9 @@ export function AdminChannelsPanel() {
   const [showForm, setShowForm] = useState(false)
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
   const [saving, setSaving] = useState(false)
+  const [editing, setEditing] = useState<AdminTitle | null>(null)
+  const [editDraft, setEditDraft] = useState<Draft>(EMPTY_DRAFT)
+  const [savingEdit, setSavingEdit] = useState(false)
 
   const authHeaders = useCallback(
     () => ({
@@ -144,6 +175,62 @@ export function AdminChannelsPanel() {
       })
     } finally {
       setSaving(false)
+    }
+  }
+
+  const updateEdit = <K extends keyof Draft>(key: K, value: Draft[K]) =>
+    setEditDraft((current) => ({ ...current, [key]: value }))
+
+  const startEdit = (title: AdminTitle) => {
+    setEditing(title)
+    setEditDraft(draftFromTitle(title))
+  }
+
+  const saveEdit = async () => {
+    if (!editing) return
+    if (!editDraft.title.trim()) {
+      toast({ title: "Add a title first", variant: "destructive" })
+      return
+    }
+    if (editDraft.kind === "movie" && !editDraft.videoUrl.trim()) {
+      toast({ title: "Upload the movie file or paste its URL", variant: "destructive" })
+      return
+    }
+
+    setSavingEdit(true)
+    try {
+      const response = await fetch(`/api/admin/channels/titles/${editing.id}`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          title: editDraft.title,
+          synopsis: editDraft.synopsis,
+          posterUrl: editDraft.posterUrl,
+          backdropUrl: editDraft.backdropUrl,
+          videoUrl: editDraft.videoUrl,
+          year: editDraft.year ? Number(editDraft.year) : null,
+          country: editDraft.country,
+          language: editDraft.language,
+          genres: editDraft.genres,
+          runtimeMinutes: editDraft.runtimeMinutes ? Number(editDraft.runtimeMinutes) : null,
+          featured: editDraft.featured,
+          published: editDraft.published,
+        }),
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(payload?.error || "Could not update the title")
+
+      toast({ title: `${editDraft.kind === "movie" ? "Movie" : "Show"} updated` })
+      setEditing(null)
+      await loadTitles()
+    } catch (err) {
+      toast({
+        title: "Update failed",
+        description: err instanceof Error ? err.message : undefined,
+        variant: "destructive",
+      })
+    } finally {
+      setSavingEdit(false)
     }
   }
 
@@ -221,85 +308,7 @@ export function AdminChannelsPanel() {
             ))}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Title" className="sm:col-span-2">
-              <Input value={draft.title} onChange={(event) => update("title", event.target.value)} placeholder="e.g. The Farewell" />
-            </Field>
-
-            <Field label="Synopsis" className="sm:col-span-2">
-              <Textarea
-                value={draft.synopsis}
-                onChange={(event) => update("synopsis", event.target.value)}
-                placeholder="A short description shown on the title page."
-                rows={3}
-              />
-            </Field>
-
-            <MediaField
-              label="Poster"
-              kind="image"
-              value={draft.posterUrl}
-              onChange={(url) => update("posterUrl", url)}
-              accept="image/*"
-              authHeaders={authHeaders}
-            />
-            <MediaField
-              label="Backdrop (optional)"
-              kind="image"
-              value={draft.backdropUrl}
-              onChange={(url) => update("backdropUrl", url)}
-              accept="image/*"
-              authHeaders={authHeaders}
-            />
-
-            {draft.kind === "movie" ? (
-              <MediaField
-                label="Movie file"
-                className="sm:col-span-2"
-                kind="video"
-                value={draft.videoUrl}
-                onChange={(url) => update("videoUrl", url)}
-                accept="video/*"
-                authHeaders={authHeaders}
-              />
-            ) : (
-              <p className="rounded-xl bg-muted/60 px-3 py-2.5 text-[12px] leading-relaxed text-muted-foreground sm:col-span-2">
-                Save the show first, then add seasons and episodes from its card below.
-              </p>
-            )}
-
-            <div className="grid grid-cols-3 gap-3 sm:col-span-2">
-              <Field label="Year">
-                <Input
-                  inputMode="numeric"
-                  value={draft.year}
-                  onChange={(event) => update("year", event.target.value.replace(/\D/g, "").slice(0, 4))}
-                  placeholder="2024"
-                />
-              </Field>
-              <Field label="Country">
-                <Input value={draft.country} onChange={(event) => update("country", event.target.value)} placeholder="South Korea" />
-              </Field>
-              <Field label="Language">
-                <Input value={draft.language} onChange={(event) => update("language", event.target.value)} placeholder="Korean" />
-              </Field>
-            </div>
-
-            <Field label="Genres (comma separated)">
-              <Input value={draft.genres} onChange={(event) => update("genres", event.target.value)} placeholder="Drama, Romance" />
-            </Field>
-
-            {draft.kind === "movie" ? (
-              <Field label="Runtime (minutes)">
-                <Input
-                  inputMode="numeric"
-                  value={draft.runtimeMinutes}
-                  onChange={(event) => update("runtimeMinutes", event.target.value.replace(/\D/g, "").slice(0, 4))}
-                  placeholder="118"
-                />
-              </Field>
-            ) : null}
-          </div>
+          <TitleFields draft={draft} update={update} authHeaders={authHeaders} />
 
           <div className="flex flex-wrap items-center gap-5">
             <label className="flex items-center gap-2 text-sm">
@@ -336,6 +345,7 @@ export function AdminChannelsPanel() {
               title={title}
               authHeaders={authHeaders}
               onPatch={patch}
+              onEdit={() => startEdit(title)}
               onDelete={() => void remove(title)}
               onEpisodesChanged={loadTitles}
             />
@@ -350,6 +360,168 @@ export function AdminChannelsPanel() {
           </p>
         </div>
       )}
+
+      <Dialog
+        open={Boolean(editing)}
+        onOpenChange={(open) => {
+          if (!open) setEditing(null)
+        }}
+      >
+        <DialogContent
+          className="max-h-[92dvh] overflow-y-auto sm:max-w-2xl"
+          style={{ width: "calc(100vw - 1rem)" }}
+        >
+          <DialogHeader>
+            <DialogTitle>
+              Edit {editing?.kind === "series" ? "show" : "movie"}
+            </DialogTitle>
+            <DialogDescription>
+              Update the artwork, video, synopsis or release details. Changes appear on the title page
+              immediately; new shares pick up the updated art and details.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <TitleFields draft={editDraft} update={updateEdit} authHeaders={authHeaders} />
+
+            <div className="flex flex-wrap items-center gap-5 border-t border-border pt-4">
+              <label className="flex items-center gap-2 text-sm">
+                <Switch
+                  checked={editDraft.published}
+                  onCheckedChange={(value) => updateEdit("published", value)}
+                />
+                Published
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Switch
+                  checked={editDraft.featured}
+                  onCheckedChange={(value) => updateEdit("featured", value)}
+                />
+                Featured
+              </label>
+              <div className="ml-auto flex items-center gap-2">
+                <Button variant="outline" onClick={() => setEditing(null)} disabled={savingEdit}>
+                  Cancel
+                </Button>
+                <Button onClick={() => void saveEdit()} disabled={savingEdit}>
+                  {savingEdit ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+                  Save changes
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+function TitleFields({
+  draft,
+  update,
+  authHeaders,
+}: {
+  draft: Draft
+  update: UpdateDraft
+  authHeaders: () => Record<string, string>
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Field label="Title" className="sm:col-span-2">
+        <Input
+          value={draft.title}
+          onChange={(event) => update("title", event.target.value)}
+          placeholder="e.g. The Farewell"
+        />
+      </Field>
+
+      <Field label="Synopsis" className="sm:col-span-2">
+        <Textarea
+          value={draft.synopsis}
+          onChange={(event) => update("synopsis", event.target.value)}
+          placeholder="A short description shown on the title page and share cards."
+          rows={3}
+        />
+      </Field>
+
+      <MediaField
+        label="Poster"
+        kind="image"
+        value={draft.posterUrl}
+        onChange={(url) => update("posterUrl", url)}
+        accept="image/*"
+        authHeaders={authHeaders}
+      />
+      <MediaField
+        label="Backdrop (optional)"
+        kind="image"
+        value={draft.backdropUrl}
+        onChange={(url) => update("backdropUrl", url)}
+        accept="image/*"
+        authHeaders={authHeaders}
+      />
+
+      {draft.kind === "movie" ? (
+        <MediaField
+          label="Movie file"
+          className="sm:col-span-2"
+          kind="video"
+          value={draft.videoUrl}
+          onChange={(url) => update("videoUrl", url)}
+          accept="video/*"
+          authHeaders={authHeaders}
+        />
+      ) : (
+        <p className="rounded-xl bg-muted/60 px-3 py-2.5 text-[12px] leading-relaxed text-muted-foreground sm:col-span-2">
+          Seasons and episodes are managed from the show&apos;s card below.
+        </p>
+      )}
+
+      <div className="grid grid-cols-3 gap-3 sm:col-span-2">
+        <Field label="Year">
+          <Input
+            inputMode="numeric"
+            value={draft.year}
+            onChange={(event) => update("year", event.target.value.replace(/\D/g, "").slice(0, 4))}
+            placeholder="2024"
+          />
+        </Field>
+        <Field label="Country">
+          <Input
+            value={draft.country}
+            onChange={(event) => update("country", event.target.value)}
+            placeholder="South Korea"
+          />
+        </Field>
+        <Field label="Language">
+          <Input
+            value={draft.language}
+            onChange={(event) => update("language", event.target.value)}
+            placeholder="Korean"
+          />
+        </Field>
+      </div>
+
+      <Field label="Genres (comma separated)">
+        <Input
+          value={draft.genres}
+          onChange={(event) => update("genres", event.target.value)}
+          placeholder="Drama, Romance"
+        />
+      </Field>
+
+      {draft.kind === "movie" ? (
+        <Field label="Runtime (minutes)">
+          <Input
+            inputMode="numeric"
+            value={draft.runtimeMinutes}
+            onChange={(event) =>
+              update("runtimeMinutes", event.target.value.replace(/\D/g, "").slice(0, 4))
+            }
+            placeholder="118"
+          />
+        </Field>
+      ) : null}
     </div>
   )
 }
@@ -358,12 +530,14 @@ function TitleCard({
   title,
   authHeaders,
   onPatch,
+  onEdit,
   onDelete,
   onEpisodesChanged,
 }: {
   title: AdminTitle
   authHeaders: () => Record<string, string>
   onPatch: (id: string, body: Record<string, unknown>, message: string) => Promise<void>
+  onEdit: () => void
   onDelete: () => void
   onEpisodesChanged: () => Promise<void>
 }) {
@@ -406,6 +580,10 @@ function TitleCard({
         </div>
 
         <div className="flex items-center gap-1.5">
+          <Button size="sm" variant="outline" title="Edit details" onClick={onEdit}>
+            <Pencil className="mr-1 h-3.5 w-3.5" />
+            Edit
+          </Button>
           <Button
             size="sm"
             variant="ghost"

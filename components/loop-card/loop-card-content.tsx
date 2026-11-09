@@ -14,6 +14,7 @@ import { isCodeLoop } from "@/lib/pro-features"
 import { useAuth } from "@/hooks/use-auth"
 import { useLoginGate } from "@/hooks/use-login-gate"
 import { useToast } from "@/components/ui/use-toast"
+import { ChannelShareCard, channelShareFromMetadata } from "@/components/channels/channel-share-card"
 
 interface LoopCardContentProps {
   loop: any
@@ -46,6 +47,11 @@ export function LoopCardContent({
   const { user: currentUser } = useAuth()
   const { requireAuth, LoginGateDialog } = useLoginGate()
   const { toast } = useToast()
+  // Movie/show shares carry canonical title details from the server and render
+  // as a cinematic preview canvas instead of an ordinary link card.
+  const channelShare = channelShareFromMetadata(
+    loop.content_metadata ?? rawLoop?.content_metadata,
+  )
 
   // Tags added through the composer's hashtag field live in the post's
   // `hashtags` array — not in the body text — so RichContent can't render
@@ -121,6 +127,8 @@ export function LoopCardContent({
             </>
           )}
         </div>
+
+        {channelShare ? <ChannelShareCard share={channelShare} /> : null}
 
         {/* Hashtags added via the composer's tag field (not written inline in
             the body) render here as tappable chips — otherwise they'd be

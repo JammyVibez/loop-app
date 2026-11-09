@@ -414,7 +414,7 @@ export function GiftPanel({
         })}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+      <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-3 pb-3">
         {loading ? (
           <div className="flex h-40 items-center justify-center gap-2 text-xs text-muted-foreground">
             <Spinner className="h-4 w-4" />
