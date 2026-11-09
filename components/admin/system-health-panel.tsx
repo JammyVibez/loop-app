@@ -7,7 +7,7 @@ import {
   Cloud,
   Database,
   Gauge,
-  
+  HardDrive,
   RefreshCw,
   Rocket,
   Server,
@@ -41,6 +41,20 @@ interface HealthData {
     | null
   render:
     | { ok: boolean; message?: string; state?: string; started_at?: string; finished_at?: string; commit_message?: string; url?: string }
+    | null
+  media:
+    | {
+        ok: boolean
+        message?: string
+        root?: string
+        files?: number
+        ready?: number
+        processing?: number
+        failed?: number
+        warning: boolean
+        blocked: boolean
+        metrics: HealthMetric[]
+      }
     | null
 }
 
@@ -206,6 +220,7 @@ export function SystemHealthPanel() {
     const list: Array<{ source: string; metric: HealthMetric }> = []
     for (const m of data?.supabase?.metrics || []) list.push({ source: "Supabase", metric: m })
     for (const m of data?.cloudinary?.metrics || []) list.push({ source: "Cloudinary", metric: m })
+    for (const m of data?.media?.metrics || []) list.push({ source: "Upload storage", metric: m })
     return list
   }, [data])
 
@@ -230,6 +245,7 @@ export function SystemHealthPanel() {
 
   const supabase = data?.supabase
   const cloudinary = data?.cloudinary
+  const media = data?.media
   const vercel = data?.vercel
   const render = data?.render
 
@@ -341,6 +357,43 @@ export function SystemHealthPanel() {
           </Card>
         ) : (
           <UnavailableCard title="Cloudinary" icon={<Cloud className="h-4 w-4 text-sky-500" />} />
+        )}
+
+        {media ? (
+          <Card className={media.blocked ? "border-red-500/40" : media.warning ? "border-amber-500/40" : undefined}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <HardDrive className="h-4 w-4 text-violet-500" />
+                  Upload storage
+                </CardTitle>
+                {media.blocked ? (
+                  <Badge variant="destructive" className="rounded-full">Uploads paused</Badge>
+                ) : media.warning ? (
+                  <Badge variant="secondary" className="rounded-full">Filling up</Badge>
+                ) : (
+                  <Badge variant="default" className="rounded-full">Healthy</Badge>
+                )}
+              </div>
+              <CardDescription>
+                {media.ok
+                  ? `${media.ready || 0} files stored · ${media.processing || 0} processing · ${media.failed || 0} failed. Uploads are refused automatically when the volume reaches the block threshold set in Upload rules.`
+                  : media.message || "Uploads volume could not be read."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {media.metrics.length ? (
+                <MetricList metrics={media.metrics} />
+              ) : (
+                <div className="flex items-start gap-2 rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                  <Activity className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{media.message || "No upload storage metrics reported."}</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <UnavailableCard title="Upload storage" icon={<HardDrive className="h-4 w-4 text-violet-500" />} />
         )}
       </div>
 

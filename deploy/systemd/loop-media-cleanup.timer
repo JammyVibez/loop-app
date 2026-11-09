@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly Loop uploads cleanup (Sundays 04:30 UTC)
+
+[Timer]
+OnCalendar=Sun *-*-* 04:30:00 UTC
+RandomizedDelaySec=1800
+Persistent=true
+Unit=loop-media-cleanup.service
+
+[Install]
+WantedBy=timers.target

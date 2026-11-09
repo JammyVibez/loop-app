@@ -1,0 +1,12 @@
+[Unit]
+Description=Loop — drain the media transcode queue
+Documentation=file:///var/loop/deploy/UPLOADS.md
+After=network-online.target loop-app.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/loop
+EnvironmentFile=-/var/loop/.env.local
+# Requires MEDIA_WORKER_SECRET to match the app's environment.
+ExecStart=/bin/sh -c 'curl -fsS -m 900 -X POST -H "x-media-worker-secret: $MEDIA_WORKER_SECRET" "http://127.0.0.1:3000/api/media/process?limit=5"'
+TimeoutStartSec=15min

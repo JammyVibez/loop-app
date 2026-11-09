@@ -1,0 +1,11 @@
+[Unit]
+Description=Nightly Loop uploads backup (03:15 UTC)
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 UTC
+RandomizedDelaySec=900
+Persistent=true
+Unit=loop-media-backup.service
+
+[Install]
+WantedBy=timers.target

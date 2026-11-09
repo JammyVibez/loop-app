@@ -252,7 +252,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const supabase = createServerClient()
     const { data: existingLoop, error: fetchError } = await supabase
       .from("loops")
-      .select("author_id")
+      .select("author_id, media_url, content_media_url, media_urls")
       .eq("id", id)
       .single()
 
@@ -261,6 +261,20 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     const { error } = await supabase.from("loops").delete().eq("id", id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // The post is gone, so its uploads should not keep occupying the volume.
+    // Files still referenced elsewhere are kept.
+    try {
+      const { collectMediaUrls, deleteMediaByUrls } = await import("@/lib/media/cleanup")
+      const urls = collectMediaUrls({
+        media_url: (existingLoop as any).media_url,
+        content_media_url: (existingLoop as any).content_media_url,
+        media_urls: (existingLoop as any).media_urls,
+      })
+      if (urls.size) await deleteMediaByUrls(urls)
+    } catch (cleanupError) {
+      console.warn("[loops] media cleanup failed:", cleanupError)
+    }
 
     return NextResponse.json({ success: true })
   } catch (error: any) {

@@ -1142,11 +1142,9 @@ export function MessagesWorkspace() {
     if (!user) return
     setUploading(true)
     try {
-      // Video/audio (and anything over ~3.5MB) go straight to Cloudinary via
-      // a signed direct upload instead of through /api/upload — bundling a
-      // larger file into the Next.js API request could exceed Vercel's
-      // request body limit and return a non-JSON error page, which the old
-      // raw `.json()` call here would throw on instead of a clear message.
+      // Voice notes and video are chunk-uploaded to /api/media/upload so a
+      // long recording never has to fit in one request body; audio is
+      // normalised in the background.
       const uploadType = messageType === "audio" || messageType === "video" ? (messageType as "audio" | "video") : messageType === "image" ? "image" : "file"
       const uploaded = await uploadMediaFile(file, {
         type: uploadType,

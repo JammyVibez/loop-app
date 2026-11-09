@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { useTheme3D } from "../../providers/theme-3d-provider"
 import { optimizeImageUrl } from "@/lib/optimize-image"
 import { ProtectedMedia, SpoilerMedia } from "@/components/media-protection"
+import { useDataSaver } from "@/hooks/use-data-saver"
 
 interface LoopCardMediaProps {
   mediaType: string
@@ -28,6 +29,7 @@ export function LoopCardMedia({
   isSpoiler = false,
 }: LoopCardMediaProps) {
   const { currentTheme } = useTheme3D()
+  const { enabled: dataSaver } = useDataSaver()
   const [currentIndex, setCurrentIndex] = useState(0)
   const lastTapRef = useRef(0)
 
@@ -58,7 +60,7 @@ export function LoopCardMedia({
             <SpoilerMedia active={isSpoiler}>
               <ProtectedMedia
                 type="image"
-                src={optimizeImageUrl(url, 900) || "/placeholder.svg"}
+                src={optimizeImageUrl(url, 900, { dataSaver }) || "/placeholder.svg"}
                 alt="Loop media"
                 onClick={onOpenViewer}
                 className="w-full h-auto max-h-96 cursor-zoom-in object-cover transition-transform duration-300 hover:scale-105"
@@ -149,7 +151,7 @@ export function LoopCardMedia({
         {mediaType === "image" ? (
           <ProtectedMedia
             type="image"
-            src={optimizeImageUrl(mediaUrls[currentIndex], 900) || "/placeholder.svg"}
+            src={optimizeImageUrl(mediaUrls[currentIndex], 900, { dataSaver }) || "/placeholder.svg"}
             alt={`Loop media ${currentIndex + 1}`}
             className="w-full h-auto max-h-96 object-cover"
           />

@@ -30,6 +30,7 @@ import { useVerificationBadges } from "@/hooks/use-verification-badges"
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { Spinner } from "@/components/ui/skeletons"
+import { ActionFeedback, type ActionPhase } from "@/components/ui/action-feedback"
 import type { ActiveCosmetics } from "@/lib/cosmetics"
 
 /** Media a single comment can carry. Mirrors the API's validation. */
@@ -256,6 +257,10 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [submittingReplyId, setSubmittingReplyId] = useState<string | null>(null)
+  const [commentPhase, setCommentPhase] = useState<ActionPhase>("idle")
+  const [commentError, setCommentError] = useState<string | null>(null)
+  const [replyPhase, setReplyPhase] = useState<ActionPhase>("idle")
+  const [replyError, setReplyError] = useState<string | null>(null)
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const token = user?.access_token || user?.token
@@ -416,6 +421,8 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
     if ((!newComment.trim() && newAttachments.length === 0) || !token || submitting) return
     const submittedContent = newComment
     const submittedAttachments = newAttachments
+    setCommentError(null)
+    setCommentPhase("working")
     setSubmitting(true)
     try {
       const response = await fetch(`/api/loops/${loopId}/comments`, {
@@ -425,9 +432,14 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
-        toast({ title: "Couldn't post comment", description: data.error || 'Try again in a moment.', variant: "destructive" })
+        const message = data.error || "Try again in a moment."
+        setCommentPhase("error")
+        setCommentError(message)
+        toast({ title: "Couldn't post comment", description: message, variant: "destructive" })
         return
       }
+      setCommentPhase("success")
+      window.setTimeout(() => setCommentPhase("idle"), 1100)
       // Dedupe by id — the realtime reload will re-fetch the authoritative list.
       setCommentsData((prev) =>
         data.comment?.id && prev.some((c) => c.id === data.comment.id)
@@ -447,6 +459,8 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
   const handleSubmitReply = async (parentId: string) => {
     const pending = replyAttachments[parentId] || []
     if ((!replyContent.trim() && pending.length === 0) || !token || submittingReplyId) return
+    setReplyError(null)
+    setReplyPhase("working")
     setSubmittingReplyId(parentId)
     try {
       const response = await fetch(`/api/loops/${loopId}/comments`, {
@@ -459,9 +473,15 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
         }),
       })
       if (!response.ok) {
-        toast({ title: "Couldn't post reply", description: 'Try again in a moment.', variant: "destructive" })
+        const data = await response.json().catch(() => ({}))
+        const message = data.error || "Try again in a moment."
+        setReplyPhase("error")
+        setReplyError(message)
+        toast({ title: "Couldn't post reply", description: message, variant: "destructive" })
         return
       }
+      setReplyPhase("success")
+      window.setTimeout(() => setReplyPhase("idle"), 1100)
       setReplyContent("")
       setReplyAttachments((prev) => ({ ...prev, [parentId]: [] }))
       setReplyingTo(null)
@@ -703,6 +723,13 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
                   </Button>
                   <Button size="sm" variant="ghost" className="h-7 rounded-full px-3 text-xs" onClick={() => setReplyingTo(null)}>Cancel</Button>
                 </div>
+                <ActionFeedback
+                  phase={replyPhase}
+                  label="Posting your reply"
+                  successLabel="Reply posted"
+                  error={replyError || undefined}
+                  onRetry={() => void handleSubmitReply(comment.id)}
+                />
               </div>
             )}
           </div>
@@ -816,6 +843,13 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
                   {submitting ? "Posting…" : "Comment"}
                 </Button>
               </div>
+              <ActionFeedback
+                phase={commentPhase}
+                label="Posting your comment"
+                successLabel="Comment posted"
+                error={commentError || undefined}
+                onRetry={() => void handleSubmitComment()}
+              />
             </div>
           </div>
         </div>
@@ -897,6 +931,13 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
                     {submittingReplyId === threadRoot.id ? "Replying…" : "Reply"}
                   </Button>
                 </div>
+                <ActionFeedback
+                  phase={replyPhase}
+                  label="Posting your reply"
+                  successLabel="Reply posted"
+                  error={replyError || undefined}
+                  onRetry={() => void handleSubmitReply(threadRoot.id)}
+                />
               </div>
             ) : (
               <div className="flex items-center justify-between gap-2">

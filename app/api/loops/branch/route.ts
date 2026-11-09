@@ -1,8 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase";
 import { normalizeLoop } from "@/lib/normalize-loop";
-import { uploadFileToCloudinary } from "@/lib/cloudinary-upload";
-import { isCloudinaryConfigured } from "@/lib/env-check";
+import { uploadFileToStorage } from "@/lib/cloudinary-upload";
 import { getUserFromRequest } from "@/lib/server-auth";
 import {
   countBranchesByUser,
@@ -195,20 +194,13 @@ export async function POST(request: NextRequest) {
     let mediaType = type || "text"
 
     if (file && file.size > 0) {
-      if (!isCloudinaryConfigured()) {
-        return NextResponse.json(
-          { error: "Media uploads are not configured. Add Cloudinary env vars on Vercel." },
-          { status: 503 },
-        )
-      }
-
       try {
         if (file.type.startsWith("image/")) mediaType = "image"
         else if (file.type.startsWith("video/")) mediaType = "video"
         else if (file.type.startsWith("audio/")) mediaType = "audio"
         else mediaType = "file"
 
-        const uploadResult = await uploadFileToCloudinary(file, "loop-branches")
+        const uploadResult = await uploadFileToStorage(file, "loop-branches", user.id)
         mediaUrl = uploadResult.secure_url
       } catch (uploadError) {
         console.error("File upload error:", uploadError)

@@ -171,7 +171,7 @@ const CATEGORIES = ["community", "discovery", "watch", "survey", "game", "sponso
 
 /**
  * Media field: paste any image/video URL, or upload from the device.
- * Uploads go through the app's Cloudinary-backed media proxy.
+ * Uploads go through the shared VPS media service.
  */
 function MediaUrlField({
   label,

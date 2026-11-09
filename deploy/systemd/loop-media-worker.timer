@@ -1,0 +1,10 @@
+[Unit]
+Description=Recover stuck Loop media transcodes (every 5 minutes)
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+Unit=loop-media-worker.service
+
+[Install]
+WantedBy=timers.target

@@ -55,19 +55,28 @@ export function frameAncestorsFor(pathname: string, isApi: boolean): string | nu
 export function contentSecurityPolicyFor(pathname: string, isApi: boolean): string | null {
   if (isApi) return null
 
+  // Uploads are served by Nginx at /media (same origin) or, when
+  // MEDIA_PUBLIC_BASE points at a dedicated hostname, from that host. Both are
+  // allowed explicitly so images/video play whether the URL is relative or
+  // absolute. Cloudinary stays in img-src/media-src because pre-migration posts
+  // still point there; nothing uploads to it any more.
+  const mediaBase = process.env.MEDIA_PUBLIC_BASE || ""
+  const mediaHost = /^https?:\/\//i.test(mediaBase) ? ` ${mediaBase.replace(/\/+$/, "")}` : ""
+  const ownMediaHosts = `https://loopapp.me https://www.loopapp.me${mediaHost}`
+
   const directives = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com https://vercel.live https://js.stripe.com https://checkout.stripe.com https://fonts.googleapis.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com",
-    "img-src 'self' data: blob: https://*.supabase.co https://res.cloudinary.com https://*.cloudinary.com https://images.unsplash.com https://*.vercel.app https://*.run.app",
+    `img-src 'self' data: blob: ${ownMediaHosts} https://*.supabase.co https://res.cloudinary.com https://*.cloudinary.com https://images.unsplash.com https://*.vercel.app https://*.run.app`,
     "font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com",
-    "media-src 'self' blob: https://*.supabase.co https://res.cloudinary.com https://*.cloudinary.com",
+    `media-src 'self' blob: ${ownMediaHosts} https://*.supabase.co https://res.cloudinary.com https://*.cloudinary.com`,
     // LiveKit and 100ms signalling are WebSockets — without the wss:// hosts,
     // calls die with "could not establish signal connection: Failed to fetch".
     // Cloudinary and Tenor are here because uploads/GIF search are called from
     // the browser, and were only allowed by the copy of this policy that never
     // reached production.
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://res.cloudinary.com https://api.cloudinary.com https://tenor.googleapis.com https://*.livekit.cloud wss://*.livekit.cloud https://*.livekit.io wss://*.livekit.io https://*.100ms.live wss://*.100ms.live https://api.stripe.com https://*.stripe.com https://va.vercel-scripts.com https://vitals.vercel-insights.com https://vercel.live",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://res.cloudinary.com https://tenor.googleapis.com https://*.livekit.cloud wss://*.livekit.cloud https://*.livekit.io wss://*.livekit.io https://*.100ms.live wss://*.100ms.live https://api.stripe.com https://*.stripe.com https://va.vercel-scripts.com https://vitals.vercel-insights.com https://vercel.live",
     `frame-src ${APP_FRAME_SOURCES.join(" ")}`,
     "worker-src 'self' blob:",
     "base-uri 'self'",

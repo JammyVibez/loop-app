@@ -101,7 +101,16 @@ export async function deleteAccountAsAdmin({
     return { ok: false, error: `Could not delete that account: ${updateError.message}` }
   }
 
-  // 3. Audit trail. A failure here must not resurrect the deleted account, so
+  // 3. Free the uploads this account still occupies. Best-effort: a missing
+  //    file must not make the deletion look failed.
+  try {
+    const { deleteAllUserMedia } = await import("@/lib/media/cleanup")
+    await deleteAllUserMedia(targetId)
+  } catch (cleanupError) {
+    console.warn("[admin-delete-account] media cleanup failed:", cleanupError)
+  }
+
+  // 4. Audit trail. A failure here must not resurrect the deleted account, so
   //    it is logged rather than surfaced as "delete failed".
   const { error: logError } = await supabase.from("admin_account_deletions").insert({
     admin_id: actorId,

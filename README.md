@@ -7,7 +7,7 @@ A full-stack social platform built with Next.js 15, Supabase, Better Auth, and T
 - **Frontend:** Next.js 15, React 19, Tailwind CSS, shadcn/ui, Framer Motion
 - **Backend:** Next.js API routes, Supabase PostgreSQL (162 tables)
 - **Auth:** Better Auth (migrated from Supabase Auth)
-- **Storage:** Cloudinary (images/video), Supabase Storage (fallback)
+- **Storage:** VPS disk served by Nginx at `/media/*` (see [`deploy/UPLOADS.md`](deploy/UPLOADS.md)); legacy Cloudinary URLs still render
 - **Payments:** Stripe (subscriptions, USD purchases)
 - **Realtime:** Supabase Realtime + Socket.io
 - **Live Streaming:** LiveKit / 100ms
@@ -29,9 +29,10 @@ Required keys — add them in `.env.local` or your hosting dashboard:
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
-| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
-| `CLOUDINARY_API_KEY` | Cloudinary API key |
-| `CLOUDINARY_API_SECRET` | Cloudinary API secret |
+| `MEDIA_STORAGE_ROOT` | Uploads directory outside the checkout (default `/var/loop-uploads`) |
+| `MEDIA_WORKER_SECRET` | Auth for the media queue-recovery endpoint |
+| `MEDIA_BACKUP_REMOTE` | rclone destination for the nightly off-server copy |
+| `CLOUDINARY_CLOUD_NAME` | Legacy only — old files still load, nothing uploads here |
 | `STRIPE_SECRET_KEY` | Stripe secret key |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook secret |
 | `CRON_SECRET` | Secret for cron endpoints |

@@ -151,8 +151,24 @@ export function CreateProjectDialog({
     }
     setUploadingFile(true)
     try {
-      const result = await uploadMediaFile(picked, { type: "file", folder: "developer-projects", authHeaders: getAuthHeader() })
-      setFiles((prev) => [...prev, { name: picked.name, url: result.url, size: picked.size, format: result.format }])
+      // Project attachments are source/document files, not media: they are
+      // stored privately and served back as plain-text downloads, never from
+      // the public /media origin.
+      const bundleRes = await fetch("/api/media/bundle", {
+        method: "POST",
+        headers: {
+          "Content-Type": picked.type || "application/octet-stream",
+          "X-Bundle-Name": encodeURIComponent(picked.name),
+          ...getAuthHeader(),
+        },
+        body: picked,
+      })
+      const bundle = await bundleRes.json().catch(() => ({}))
+      if (!bundleRes.ok || !bundle.url) throw new Error(bundle.error || "Upload failed")
+      setFiles((prev) => [
+        ...prev,
+        { name: picked.name, url: bundle.url as string, size: picked.size, format: picked.name.split(".").pop() },
+      ])
     } catch (error: any) {
       toast({ title: "Upload failed", description: error.message || "Could not upload file.", variant: "destructive" })
     } finally {

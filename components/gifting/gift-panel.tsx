@@ -18,6 +18,7 @@ import {
   type GiftTabId,
 } from "@/lib/gifts/catalog"
 import { cn } from "@/lib/utils"
+import { ActionFeedback, type ActionPhase } from "@/components/ui/action-feedback"
 
 export interface PanelGift {
   id: string
@@ -131,6 +132,13 @@ export function GiftPanel({
   const [message, setMessage] = useState("")
   const [anonymous, setAnonymous] = useState(false)
   const [sending, setSending] = useState(false)
+  const [sendPhase, setSendPhase] = useState<ActionPhase>("idle")
+  const [sendError, setSendError] = useState<string | null>(null)
+  const [lastAttempt, setLastAttempt] = useState<{
+    gift: PanelGift
+    message: string
+    anonymous: boolean
+  } | null>(null)
   const [balance, setBalance] = useState(Number(user?.loop_coins || 0))
 
   useEffect(() => {
@@ -205,6 +213,9 @@ export function GiftPanel({
 
       // Optimistic: balance and animation start now; the server reconciles.
       setBalance((prev) => prev - gift.cost)
+      setSendError(null)
+      setSendPhase("working")
+      setLastAttempt({ gift, message: giftMessage, anonymous: isAnon })
       setSending(true)
       onGiftQueued?.({
         key,
@@ -248,6 +259,8 @@ export function GiftPanel({
         }
 
         if (typeof data.new_balance === "number") setBalance(Number(data.new_balance))
+        setSendPhase("success")
+        window.setTimeout(() => setSendPhase("idle"), 1200)
         setMessage("")
         setAnonymous(false)
 
@@ -272,6 +285,8 @@ export function GiftPanel({
         void refreshUser()
       } catch (error: any) {
         setBalance((prev) => prev + gift.cost)
+        setSendPhase("error")
+        setSendError(error?.message || "Something went wrong. Your coins are still yours.")
         toast({
           title: "Gift not sent",
           description: error?.message || "Something went wrong. Your coins are still yours.",
@@ -539,6 +554,26 @@ export function GiftPanel({
               </span>
             </span>
           </div>
+
+          {sendPhase !== "idle" ? (
+            <div className="mb-2">
+              <ActionFeedback
+                phase={sendPhase}
+                label={`Sending ${selected.name}`}
+                successLabel={`${selected.name} sent`}
+                error={sendError || undefined}
+                onRetry={
+                  lastAttempt
+                    ? () =>
+                        void sendGift(lastAttempt.gift, {
+                          message: lastAttempt.message,
+                          anonymous: lastAttempt.anonymous,
+                        })
+                    : undefined
+                }
+              />
+            </div>
+          ) : null}
 
           <Button
             onClick={() => void sendGift(selected)}

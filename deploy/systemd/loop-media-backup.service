@@ -1,0 +1,17 @@
+[Unit]
+Description=Loop — sync uploads to off-server storage
+Documentation=file:///var/loop/deploy/UPLOADS.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/loop
+# Optional: a missing env file must not stop the nightly backup.
+EnvironmentFile=-/var/loop/.env.local
+Environment=MEDIA_STORAGE_ROOT=/var/loop-uploads
+ExecStart=/bin/sh /var/loop/scripts/media-backup.sh
+TimeoutStartSec=6h
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

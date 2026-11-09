@@ -17,6 +17,7 @@ import { CustomMedia, customMediaFor } from "@/components/shop/custom-media"
 import { ShopItemMiniPreview, type ShopPreviewItem } from "@/components/shop/shop-item-preview"
 import { itemIllustration } from "@/components/shop/shop-art"
 import { MAX_PROFILE_CUSTOM_CSS_BYTES } from "@/lib/profile-custom-css-limits"
+import { uploadMediaFile } from "@/lib/client-media-upload"
 
 interface ShopItem {
   id: string
@@ -113,10 +114,11 @@ const AUDIO_URL = /\.(?:mp3|wav|ogg|m4a|aac|flac|opus)(?:[?#]|$)/i
 /**
  * One piece of item art: upload it, paste a URL, or clear it.
  *
- * Uploads go straight to Cloudinary through `/api/upload/sign`, so a 40MB
- * looping video never has to pass through a route handler — and any file the
- * admin picks (photo, GIF, MP4/WebM, audio, or a Lottie `.json` export) renders
- * in the preview below exactly as the storefront will draw it.
+ * Uploads go to the VPS media store through `uploadMediaFile` (chunked and
+ * streamed, so a 40MB looping video is fine) — and any file the admin picks
+ * (photo, GIF, MP4/WebM, audio, or a Lottie `.json` export) renders in the
+ * preview below exactly as the storefront will draw it. Image art keeps
+ * original quality so badges and frames are pixel-exact.
  */
 export function MediaField({
   label,
@@ -147,30 +149,15 @@ export function MediaField({
             ? "file"
             : "image"
 
-      const signRes = await fetch("/api/upload/sign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({ type, folder: "shop-items" }),
+      const uploaded = await uploadMediaFile(file, {
+        type,
+        folder: "shop-items",
+        purpose: "shop-asset",
+        originalQuality: type === "image",
+        authHeaders: getAuthHeader(),
       })
-      const sign = await signRes.json()
-      if (!signRes.ok) throw new Error(sign.error || "Uploads are not configured")
 
-      const body = new FormData()
-      body.append("file", file)
-      body.append("api_key", sign.apiKey)
-      body.append("timestamp", String(sign.timestamp))
-      body.append("signature", sign.signature)
-      body.append("folder", sign.folder)
-
-      const resource = sign.resourceType || "auto"
-      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${sign.cloudName}/${resource}/upload`, {
-        method: "POST",
-        body,
-      })
-      const uploaded = await uploadRes.json()
-      if (!uploadRes.ok || !uploaded.secure_url) throw new Error(uploaded.error?.message || "Upload failed")
-
-      onChange(uploaded.secure_url)
+      onChange(uploaded.url)
       toast({ description: `${label} uploaded` })
     } catch (cause) {
       toast({

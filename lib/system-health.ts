@@ -1,5 +1,8 @@
 import "server-only"
 import { v2 as cloudinary } from "cloudinary"
+import { getDiskUsage } from "@/lib/media/storage"
+import { getMediaPolicy } from "@/lib/media/policy"
+import { createServerClient } from "@/lib/supabase"
 
 /**
  * Read-only System Health monitoring.
@@ -69,6 +72,18 @@ export interface SystemHealth {
     finished_at?: string
     commit_message?: string
     url?: string
+  } | null
+  media: {
+    ok: boolean
+    message?: string
+    root?: string
+    files?: number
+    ready?: number
+    processing?: number
+    failed?: number
+    warning: boolean
+    blocked: boolean
+    metrics: HealthMetric[]
   } | null
 }
 
@@ -467,12 +482,90 @@ export async function fetchRenderDeployment() {
   }
 }
 
+/**
+ * Upload volume health.
+ *
+ * The number that matters for uploads is filesystem usage of the volume that
+ * backs /var/loop-uploads: the app warns at the policy warn threshold and
+ * refuses new files at the block threshold, so this is the metric admins watch
+ * before the disk fills. Processing failures are surfaced separately because a
+ * stuck transcode silently leaves a post without playable video.
+ */
+export async function fetchMediaStorage(): Promise<SystemHealth["media"]> {
+  try {
+    const [disk, policy] = await Promise.all([getDiskUsage(), getMediaPolicy(createServerClient())])
+    const metrics: HealthMetric[] = []
+
+    if (disk.available) {
+      metrics.push({
+        key: "uploads_volume",
+        label: "Uploads volume",
+        used: disk.usedBytes,
+        limit: disk.totalBytes,
+        unit: "bytes",
+        percent: disk.usedPercent,
+        note: `${(disk.freeBytes / 1024 ** 3).toFixed(1)} GB free · ${disk.root}`,
+      })
+    }
+
+    let failed = 0
+    let processing = 0
+    let ready = 0
+    try {
+      const supabase = createServerClient()
+      const [failedRes, processingRes, readyRes] = await Promise.all([
+        supabase.from("media_uploads").select("id", { count: "exact", head: true }).eq("processing_status", "failed"),
+        supabase.from("media_uploads").select("id", { count: "exact", head: true }).eq("processing_status", "processing"),
+        supabase.from("media_uploads").select("id", { count: "exact", head: true }).eq("processing_status", "ready").eq("storage_provider", "vps"),
+      ])
+      failed = failedRes.count || 0
+      processing = processingRes.count || 0
+      ready = readyRes.count || 0
+    } catch {
+      /* pre-migration schema — disk metric still renders */
+    }
+
+    if (processing > 0 || failed > 0) {
+      metrics.push({
+        key: "media_jobs",
+        label: "Transcode queue",
+        used: processing + failed,
+        limit: null,
+        unit: "count",
+        percent: null,
+        note: `${processing} processing · ${failed} failed`,
+      })
+    }
+
+    return {
+      ok: disk.available,
+      message: disk.available ? undefined : disk.error || "Uploads volume could not be read.",
+      root: disk.root,
+      ready,
+      processing,
+      failed,
+      warning: disk.available && disk.usedPercent >= policy.disk_warn_percent,
+      blocked: disk.available && disk.usedPercent >= policy.disk_block_percent,
+      metrics,
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Upload storage health failed.",
+      warning: false,
+      blocked: false,
+      metrics: [],
+    }
+  }
+}
+
 export async function fetchSystemHealth(): Promise<SystemHealth> {
-  const [supabase, cloudinaryData, vercel, render] = await Promise.all([
+  const [supabase, cloudinaryData, vercel, render, media] = await Promise.all([
     fetchSupabaseUsage(),
     fetchCloudinaryUsage(),
     fetchVercelDeployment(),
     fetchRenderDeployment(),
+    fetchMediaStorage(),
   ])
 
   return {
@@ -481,5 +574,6 @@ export async function fetchSystemHealth(): Promise<SystemHealth> {
     cloudinary: cloudinaryData,
     vercel,
     render,
+    media,
   }
 }

@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { cn } from "@/lib/utils"
 import { Spinner } from "@/components/ui/skeletons"
+import { ActionFeedback, type ActionPhase } from "@/components/ui/action-feedback"
 import { PostMediaEditor } from "@/components/ui/post-media-editor"
 import {
   DEFAULT_VIDEO_EDIT,
@@ -34,6 +35,8 @@ export function CreateMomentForm({ onMomentCreated }: CreateMomentFormProps) {
   const [editorOpen, setEditorOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [publishPhase, setPublishPhase] = useState<ActionPhase>("idle")
+  const [publishError, setPublishError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const pickFile = useCallback((file: File) => {
@@ -80,6 +83,8 @@ export function CreateMomentForm({ onMomentCreated }: CreateMomentFormProps) {
       toast({ title: "Add a photo, video, or caption", variant: "destructive" })
       return
     }
+    setPublishError(null)
+    setPublishPhase("working")
     setCreating(true)
     try {
       let uploadedUrl = ""
@@ -113,7 +118,10 @@ export function CreateMomentForm({ onMomentCreated }: CreateMomentFormProps) {
         throw new Error(data.error || "Failed to create moment")
       }
 
+      setPublishPhase("success")
+      await new Promise((resolve) => setTimeout(resolve, 650))
       toast({ title: "Moment posted!", description: `Visible for ${hours}h — then it vanishes forever.` })
+      setPublishPhase("idle")
       setCaption("")
       setMediaFile(null)
       setVideoEdit(DEFAULT_VIDEO_EDIT)
@@ -121,6 +129,8 @@ export function CreateMomentForm({ onMomentCreated }: CreateMomentFormProps) {
       setMediaPreview(null)
       onMomentCreated?.()
     } catch (error: any) {
+      setPublishPhase("error")
+      setPublishError(error.message || "Something went wrong")
       toast({ title: "Couldn't create moment", description: error.message, variant: "destructive" })
     } finally {
       setCreating(false)
@@ -214,6 +224,14 @@ export function CreateMomentForm({ onMomentCreated }: CreateMomentFormProps) {
           </button>
         </div>
       </div>
+
+      <ActionFeedback
+        phase={publishPhase}
+        label={uploading ? "Uploading your moment" : "Posting your moment"}
+        error={publishError || undefined}
+        onRetry={() => void createMoment()}
+        successLabel="Moment posted"
+      />
 
       {/* Actions */}
       <div className="flex items-center gap-2">

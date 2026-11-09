@@ -1,0 +1,13 @@
+[Unit]
+Description=Loop — weekly orphan sweep of the uploads volume
+Documentation=file:///var/loop/deploy/UPLOADS.md
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/loop
+EnvironmentFile=-/var/loop/.env.local
+Environment=MEDIA_STORAGE_ROOT=/var/loop-uploads
+ExecStart=/usr/bin/node /var/loop/scripts/media-cleanup.mjs
+TimeoutStartSec=2h
+Nice=15

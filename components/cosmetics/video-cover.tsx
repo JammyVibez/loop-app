@@ -31,6 +31,8 @@ function proxyImg(url: string | null | undefined): string | undefined {
     url.startsWith("/") ||
     url.includes("/api/")
   ) return url
+  // Nginx serves /media directly with immutable caching; never proxy it.
+  if (url.includes("/media/")) return url
   // For absolute URLs, check if the pathname is an internal API route
   try {
     const parsed = new URL(url)

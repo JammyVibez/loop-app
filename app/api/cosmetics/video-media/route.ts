@@ -2,11 +2,13 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { createVideoMedia, deleteVideoMedia, isUserPremium } from "@/lib/cosmetics-system";
 import { getUserFromRequest } from "@/lib/server-auth";
-
+import { getMediaPolicy } from "@/lib/media/policy";
+import { UploadError, resolveUploadActor, saveUpload } from "@/lib/media/upload-service";
 
 /**
  * POST /api/cosmetics/video-media — Upload a video avatar or cover photo
- * Pro-only feature. Uploads to Supabase Storage.
+ * Pro-only feature. Stored by the shared VPS media service, like every other
+ * upload, so the same limits/processing/validation apply.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -36,74 +38,45 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "mediaType must be 'avatar' or 'cover'" }, { status: 400 });
     }
 
-    // Validate file type
-    const allowedTypes = ["video/mp4", "video/webm", "video/quicktime", "image/gif", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json(
-        { error: "Unsupported file type. Use MP4, WebM, QuickTime, GIF, or WebP." },
-        { status: 400 }
-      );
-    }
-
-    // Max file size: 15MB for video, 5MB for GIF
-    const maxSize = file.type.startsWith("video/") ? 15 * 1024 * 1024 : 5 * 1024 * 1024;
-    if (file.size > maxSize) {
-      return NextResponse.json(
-        { error: `File too large. Maximum ${file.type.startsWith("video/") ? "15MB" : "5MB"}.` },
-        { status: 400 }
-      );
-    }
-
-    // Upload to Supabase Storage
     const supabase = createServerClient();
-    const ext = file.name.split(".").pop() || "mp4";
-    const path = `${user.id}/${mediaType}-${Date.now()}.${ext}`;
+    const actor = await resolveUploadActor(user.id, supabase);
+    const policy = await getMediaPolicy(supabase)
 
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const uploaded = await saveUpload({
+      actor,
+      policy,
+      body: file.stream() as unknown as ReadableStream<Uint8Array>,
+      contentLength: file.size,
+      declaredFamily: file.type.startsWith("video/") ? "video" : "image",
+      folder: "cosmetics",
+      purpose: `${mediaType}-video`,
+      originalFilename: file.name,
+      mimeHint: file.type,
+      supabase,
+    })
 
-    const { error: uploadError } = await supabase.storage
-      .from("cosmetics")
-      .upload(path, buffer, {
-        contentType: file.type,
-        upsert: false,
-      });
-
-    if (uploadError) {
-      // If bucket doesn't exist, try to create it
-      if (uploadError.message?.includes("Bucket not found")) {
-        await supabase.storage.createBucket("cosmetics", { public: true });
-        const { error: retryError } = await supabase.storage
-          .from("cosmetics")
-          .upload(path, buffer, {
-            contentType: file.type,
-            upsert: false,
-          });
-        if (retryError) throw retryError;
-      } else {
-        throw uploadError;
-      }
-    }
-
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from("cosmetics")
-      .getPublicUrl(path);
-
-    const fileUrl = urlData.publicUrl;
+    const fileUrl = uploaded.url
 
     // Create video media record
     const mediaRecord = await createVideoMedia(user.id, mediaType, fileUrl, {
-      file_size_bytes: file.size,
-      mime_type: file.type,
+      file_size_bytes: uploaded.size,
+      mime_type: uploaded.mime,
     });
 
     return NextResponse.json({
       success: true,
       media: mediaRecord,
       url: fileUrl,
+      // Video is transcoded in the background; the client waits for `ready`
+      // before pointing the preview at the (not yet existing) MP4.
+      status: uploaded.status,
+      id: uploaded.id,
+      poster_url: uploaded.poster_url,
     });
   } catch (error: any) {
+    if (error instanceof UploadError) {
+      return NextResponse.json({ success: false, error: error.message, code: error.code }, { status: error.status })
+    }
     console.error("Video media upload error:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Upload failed" },

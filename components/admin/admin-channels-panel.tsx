@@ -603,9 +603,9 @@ function Field({
 }
 
 /**
- * URL field with an upload button. Files go straight to Cloudinary through the
- * existing signed-upload helper, so large videos never pass through the app
- * server's request-body limit.
+ * URL field with an upload button. Files stream to the VPS media store in
+ * chunks, so large videos are not held in memory and get a background
+ * transcode instead of blocking the request.
  */
 function MediaField({
   label,

@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { VideoAvatar } from "./video-avatar"
 import { VideoCover } from "./video-cover"
+import { waitForMediaReady } from "@/lib/client-media-upload"
 import { Spinner } from "@/components/ui/skeletons"
 
 /**
@@ -77,8 +78,15 @@ export function VideoMediaSettings() {
           title: `${mediaType === "avatar" ? "Profile picture" : "Cover photo"} updated`,
           variant: "success",
         })
-        if (mediaType === "avatar") setPreviewAvatar(data.url)
-        else setPreviewCover(data.url)
+        let url: string = data.url
+        // The MP4 only exists once the background transcode finishes; wait so
+        // the preview does not stick on a broken player.
+        if (data.status === "processing" && data.id) {
+          const ready = await waitForMediaReady([data.id], { timeoutMs: 5 * 60 * 1000 })
+          if (ready[data.id]?.url) url = ready[data.id].url
+        }
+        if (mediaType === "avatar") setPreviewAvatar(url)
+        else setPreviewCover(url)
         await refreshUser()
       } else {
         toast({ title: "Couldn't upload", description: data.error || "Try again in a moment.", variant: "error" })

@@ -98,15 +98,25 @@ export async function sendWebPushToUser(
 
   ensureWebPush()
 
+  // Push payloads leave our origin: any /media/... path must become an absolute
+  // URL so the service worker's fetch of the image cannot resolve against an
+  // unexpected base.
+  const appOrigin = (process.env.NEXT_PUBLIC_APP_URL || "https://loopapp.me").replace(/\/+$/, "")
+  const toAbsolute = (value?: string) =>
+    value && value.startsWith("/") ? `${appOrigin}${value}` : value
+
   const body = JSON.stringify({
     title: payload.title,
     body: payload.body,
-    icon: payload.icon || "/icons/icon-144x144.png",
-    badge: payload.badge || "/icons/icon-144x144.png",
+    icon: toAbsolute(payload.icon) || "/icons/icon-144x144.png",
+    badge: toAbsolute(payload.badge) || "/icons/icon-144x144.png",
     tag: payload.tag || "loop-notification",
     data: {
       url: payload.url || "/",
       ...(payload.data || {}),
+      // Media inside the payload is pre-resolved too, so clients never need to
+      // special-case our storage paths.
+      image: toAbsolute((payload.data as any)?.image),
     },
     requireInteraction: false,
   })

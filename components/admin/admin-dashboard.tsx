@@ -19,6 +19,7 @@ import {
   Frame,
   Gauge,
   GitBranch,
+  HardDrive,
   Globe2,
   Images,
   LifeBuoy,
@@ -52,6 +53,9 @@ import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { AdminCatalogPanel } from "@/components/admin/admin-catalog-panel"
+import { MediaLibraryPanel } from "@/components/admin/media-library-panel"
+import { MediaPolicyPanel } from "@/components/admin/media-policy-panel"
+import { MediaStoragePanel } from "@/components/admin/media-storage-panel"
 import { AdminBroadcastPanel } from "@/components/admin/admin-broadcast-panel"
 import { AdminSupportPanel } from "@/components/admin/admin-support-panel"
 import { AdminGifsPanel } from "@/components/admin/admin-gifs-panel"
@@ -162,6 +166,14 @@ const NAV_GROUPS: {
     ],
   },
   {
+    label: "Media",
+    items: [
+      { value: "media", label: "Media Library", icon: HardDrive },
+      { value: "upload-rules", label: "Upload rules", icon: Shield },
+      { value: "storage", label: "Storage", icon: Users },
+    ],
+  },
+  {
     label: "System",
     items: [{ value: "maintenance", label: "Maintenance", icon: Wrench }],
   },
@@ -198,6 +210,9 @@ const SECTION_DESCRIPTIONS: Record<string, string> = {
   "circle-themes": "Community-specific theme presets.",
   "pfp-frames": "Profile frame catalog and availability.",
   gifs: "Curated GIF library management.",
+  media: "Every stored file — search, replace, retry processing, or delete with reference checks.",
+  "upload-rules": "Per-file limits, quotas, daily caps, and disk-safety thresholds for uploads.",
+  storage: "Uploads volume usage by account, with per-account cleanup.",
   emojis: "Custom emoji and sticker packs.",
   awards: "Award definitions and granting.",
   checkmarks: "Custom verification badge creator and assignments.",
@@ -620,6 +635,15 @@ export function AdminDashboard() {
           </TabsContent>
           <TabsContent value="pfp-frames" className="mt-0">
             <AdminFramesTab />
+          </TabsContent>
+          <TabsContent value="media" className="mt-0">
+            <MediaLibraryPanel />
+          </TabsContent>
+          <TabsContent value="upload-rules" className="mt-0">
+            <MediaPolicyPanel />
+          </TabsContent>
+          <TabsContent value="storage" className="mt-0">
+            <MediaStoragePanel />
           </TabsContent>
         </Tabs>
       </div>

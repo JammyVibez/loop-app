@@ -60,6 +60,14 @@ export async function GET(req: NextRequest) {
           })
           .eq("id", deletion.user_id)
 
+        // Remove the account's uploads from the VPS now that it is gone.
+        try {
+          const { deleteAllUserMedia } = await import("@/lib/media/cleanup")
+          await deleteAllUserMedia(deletion.user_id)
+        } catch (cleanupError) {
+          console.warn("[cleanup-deletions] media cleanup failed:", cleanupError)
+        }
+
         // Mark as executed
         await supabase
           .from("account_deletions")

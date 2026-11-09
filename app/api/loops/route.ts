@@ -2,8 +2,9 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { createServerClient } from "@/lib/supabase"
 import { normalizeLoop, normalizeLoops } from "@/lib/normalize-loop"
-import { uploadFileToCloudinary } from "@/lib/cloudinary-upload"
-import { isCloudinaryConfigured } from "@/lib/env-check"
+import { uploadFileToStorage } from "@/lib/cloudinary-upload"
+import { checkPostMediaCount, resolveUploadActor } from "@/lib/media/upload-service"
+import { getMediaPolicy, MB } from "@/lib/media/policy"
 import { filterPrivateContent, getFollowingIds } from "@/lib/privacy"
 import { applyRealCommentCounts, applyRealBranchCounts } from "@/lib/loop-stats"
 import { getUserFromRequest } from "@/lib/server-auth";
@@ -166,6 +167,13 @@ export async function POST(request: NextRequest) {
       } else if (preUploadedMediaUrls.length) {
         preUploadedMediaUrl = preUploadedMediaUrls[0]
       }
+
+      if (preUploadedMediaUrls.length > 1) {
+        const policy = await getMediaPolicy(createServerClient())
+        const actor = await resolveUploadActor(user.id, createServerClient())
+        const check = checkPostMediaCount(preUploadedMediaUrls, actor, policy)
+        if (!check.ok) return NextResponse.json({ error: check.message }, { status: 400 })
+      }
     }
 
     hashtags = hashtags.map((tag) => String(tag).replace(/^#/, "").toLowerCase().trim()).filter(Boolean)
@@ -250,10 +258,17 @@ export async function POST(request: NextRequest) {
     }
 
     if (uploadedFiles.length > 0) {
-      if (!isCloudinaryConfigured()) {
+      const mediaPolicy = await getMediaPolicy(supabase)
+      const uploadActor = await resolveUploadActor(user.id, supabase)
+      const countCheck = checkPostMediaCount(uploadedFiles, uploadActor, mediaPolicy)
+      if (!countCheck.ok) {
+        return NextResponse.json({ error: countCheck.message }, { status: 400 })
+      }
+      const oversized = uploadedFiles.find((f) => f.size > mediaPolicy.hard_max_mb * MB)
+      if (oversized) {
         return NextResponse.json(
-          { error: "Media uploads are not configured. Add Cloudinary env vars on Vercel." },
-          { status: 503 },
+          { error: `Files are capped at ${mediaPolicy.hard_max_mb}MB.` },
+          { status: 413 },
         )
       }
 
@@ -264,7 +279,7 @@ export async function POST(request: NextRequest) {
       else mediaType = "file"
 
       for (const f of uploadedFiles) {
-        const uploadResult = await uploadFileToCloudinary(f, "loops")
+        const uploadResult = await uploadFileToStorage(f, "loops", user.id)
         if (uploadResult?.secure_url) {
           mediaUrls.push(uploadResult.secure_url)
         }

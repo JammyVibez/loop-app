@@ -414,9 +414,8 @@ export function EnhancedSettings() {
     if (!user) return
     setUploading(true)
     try {
-      // Phone camera photos routinely exceed Vercel's ~4.5MB request body
-      // limit for the Next.js API proxy; uploadMediaFile automatically
-      // routes anything over that straight to Cloudinary instead.
+      // Phone camera photos can be large; uploadMediaFile streams them to the
+      // VPS media service, which strips EXIF/GPS and shrinks them server-side.
       const uploaded = await uploadMediaFile(file, {
         type: "image",
         folder: "avatars",

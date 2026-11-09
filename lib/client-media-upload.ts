@@ -1,23 +1,41 @@
+"use client"
+
 import { parseJsonResponse } from "@/lib/parse-json-response"
+import {
+  finishUploadActivity,
+  startUploadActivity,
+  updateUploadActivity,
+  uploadActivityLabel,
+} from "@/lib/upload-activity"
 
-const MAX_UPLOAD_BYTES: Record<string, number> = {
-  image: 10 * 1024 * 1024,
-  audio: 25 * 1024 * 1024,
-  video: 50 * 1024 * 1024,
-  file: 25 * 1024 * 1024,
-}
-
-/** Vercel serverless request body limit is ~4.5MB; stay under that for proxy uploads. */
-const PROXY_SAFE_BYTES = 3.5 * 1024 * 1024
+/**
+ * Browser-side uploader for the VPS media store.
+ *
+ * Everything goes to `/api/media/upload` as a plain body (never multipart), so
+ * the server can stream a 500MB video straight to disk. Files above the chunk
+ * size are sent in sequential ranges with a stable `X-Upload-Id`: a dropped
+ * chunk retries on its own instead of restarting the file, which matters on
+ * mobile connections. Progress is reported per chunk through XHR.
+ *
+ * Cloudinary is not contacted from the browser any more — `/api/upload/sign`
+ * is retired, and no client code needs Cloudinary credentials.
+ */
 
 export type UploadMediaOptions = {
   type: "image" | "video" | "audio" | "file"
   folder?: string
-  authHeaders: Record<string, string>
-  /** Optional override for the per-type size cap (used for large ZIP uploads). */
+  /** Kept for API compatibility; the session cookie authenticates the request. */
+  authHeaders?: Record<string, string>
+  /** Optional client-side size cap (server still enforces its own). */
   maxSizeBytes?: number
-  /** Skip the serverless proxy and upload straight to Cloudinary (signed). */
+  /** Retained for compatibility with the old direct-to-Cloudinary path. */
   forceDirect?: boolean
+  /** Where the file will be used, e.g. "avatar", "post", "badge". */
+  purpose?: string
+  /** Admin only: store exact pixels/animation without resizing or transcoding. */
+  originalQuality?: boolean
+  onProgress?: (percent: number) => void
+  signal?: AbortSignal
 }
 
 export type UploadMediaResult = {
@@ -27,77 +45,20 @@ export type UploadMediaResult = {
   height?: number
   duration?: number
   format?: string
+  /** Server media id — use with waitForMediaReady for videos. */
+  id?: string
+  status?: "ready" | "processing" | "failed"
+  thumb_url?: string | null
+  poster_url?: string | null
+  variants?: Record<string, string>
+  storage_path?: string
+  media_type?: string
+  size?: number
+  error?: string
 }
 
-type CloudinarySignedUpload = {
-  cloudName: string
-  apiKey: string
-  timestamp: number
-  signature: string
-  folder: string
-  resourceType: string
-}
-
-async function uploadSignedToCloudinary(file: File, sign: CloudinarySignedUpload): Promise<UploadMediaResult> {
-  const endpoint = `https://api.cloudinary.com/v1_1/${sign.cloudName}/${sign.resourceType}/upload`
-  const appendSignature = (form: FormData) => {
-    form.append("api_key", sign.apiKey)
-    form.append("timestamp", String(sign.timestamp))
-    form.append("signature", sign.signature)
-    form.append("folder", sign.folder)
-  }
-
-  if (file.size <= 100 * 1024 * 1024) {
-    const form = new FormData()
-    form.append("file", file)
-    appendSignature(form)
-    const response = await fetch(endpoint, { method: "POST", body: form })
-    const payload = await response.json().catch(() => ({}))
-    if (!response.ok || !payload.secure_url) {
-      throw new Error(payload.error?.message || `Cloudinary upload failed (${response.status})`)
-    }
-    return {
-      url: payload.secure_url,
-      public_id: payload.public_id,
-      width: payload.width,
-      height: payload.height,
-      duration: payload.duration,
-      format: payload.format,
-    }
-  }
-
-  const chunkSize = 20_000_000
-  const uploadId = crypto.randomUUID()
-  let result: any = null
-  for (let start = 0; start < file.size; start += chunkSize) {
-    const end = Math.min(start + chunkSize, file.size)
-    const form = new FormData()
-    form.append("file", file.slice(start, end, file.type), file.name)
-    appendSignature(form)
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Range": `bytes ${start}-${end - 1}/${file.size}`,
-        "X-Unique-Upload-Id": uploadId,
-      },
-      body: form,
-    })
-    result = await response.json().catch(() => ({}))
-    if (!response.ok) {
-      throw new Error(result.error?.message || `Cloudinary chunk upload failed (${response.status})`)
-    }
-  }
-
-  if (!result?.secure_url) throw new Error("Cloudinary did not finish processing the uploaded video")
-  return {
-    url: result.secure_url,
-    public_id: result.public_id,
-    width: result.width,
-    height: result.height,
-    duration: result.duration,
-    format: result.format,
-  }
-}
+const CHUNK_BYTES = 8 * 1024 * 1024
+const MAX_RETRIES = 3
 
 function mediaTypeFromFile(file: File, explicit?: UploadMediaOptions["type"]): UploadMediaOptions["type"] {
   if (explicit) return explicit
@@ -105,20 +66,158 @@ function mediaTypeFromFile(file: File, explicit?: UploadMediaOptions["type"]): U
   if (file.type.startsWith("audio/")) return "audio"
   if (file.type.startsWith("image/")) return "image"
 
-  // Some browsers (Android file pickers, desktop drag-and-drop from certain
-  // apps) report an empty MIME type — fall back to the file extension so those
-  // uploads don't silently fail as unknown "file" types.
+  // Android pickers and desktop drag-and-drop sometimes report an empty MIME
+  // type; fall back to the extension so those uploads still reach the server,
+  // which validates by magic bytes anyway.
   const name = (file.name || "").toLowerCase()
-  if (/\.(mp4|webm|ogg|ogv|mov|m4v|avi|mkv|3gp)$/i.test(name)) return "video"
-  if (/\.(mp3|wav|ogg|oga|m4a|aac|flac|opus)$/i.test(name)) return "audio"
-  if (/\.(jpe?g|png|gif|webp|svg|heic|heif|avif|bmp)$/i.test(name)) return "image"
+  if (/\.(mp4|webm|ogg|ogv|mov|m4v|avi|mkv|3gp)$/.test(name)) return "video"
+  if (/\.(mp3|wav|ogg|oga|m4a|aac|flac|opus)$/.test(name)) return "audio"
+  if (/\.(jpe?g|png|gif|webp|svg|heic|heif|avif|bmp)$/.test(name)) return "image"
   return "file"
 }
 
+function newUploadId(): string {
+  try {
+    return crypto.randomUUID().replace(/[^a-zA-Z0-9_-]/g, "")
+  } catch {
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+  }
+}
+
+type SendOptions = {
+  file: File
+  type: UploadMediaOptions["type"]
+  folder: string
+  purpose?: string
+  originalQuality?: boolean
+  authHeaders?: Record<string, string>
+  onChunkProgress?: (loaded: number) => void
+  signal?: AbortSignal
+  range?: { start: number; end: number; total: number; uploadId: string }
+}
+
+async function postChunk(options: SendOptions): Promise<{ status: number; body: any }> {
+  const { file, type, folder, purpose, originalQuality, authHeaders, range, signal } = options
+  const body = range ? file.slice(range.start, range.end + 1) : file
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open("POST", "/api/media/upload")
+    xhr.responseType = "text"
+    xhr.withCredentials = true
+
+    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream")
+    xhr.setRequestHeader("X-Media-Type", type)
+    xhr.setRequestHeader("X-Media-Folder", folder)
+    xhr.setRequestHeader("X-Media-Mime", file.type || "")
+    xhr.setRequestHeader("X-Media-Name", encodeURIComponent(file.name || "upload"))
+    if (purpose) xhr.setRequestHeader("X-Media-Purpose", purpose)
+    if (originalQuality) xhr.setRequestHeader("X-Media-Quality", "original")
+    for (const [key, value] of Object.entries(authHeaders || {})) {
+      if (key.toLowerCase() === "content-type") continue
+      xhr.setRequestHeader(key, value)
+    }
+    if (range) {
+      xhr.setRequestHeader("Content-Range", `bytes ${range.start}-${range.end}/${range.total}`)
+      xhr.setRequestHeader("X-Upload-Id", range.uploadId)
+    }
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) options.onChunkProgress?.(event.loaded)
+    }
+
+    xhr.onload = () => {
+      let parsed: any = {}
+      try {
+        parsed = xhr.responseText ? JSON.parse(xhr.responseText) : {}
+      } catch {
+        parsed = {}
+      }
+      resolve({ status: xhr.status, body: parsed })
+    }
+    xhr.onerror = () => reject(new Error("Network error while uploading. Check your connection and try again."))
+    xhr.ontimeout = () => reject(new Error("The upload timed out. Please try again."))
+    xhr.onabort = () => reject(new DOMException("Upload cancelled", "AbortError"))
+    signal?.addEventListener("abort", () => xhr.abort(), { once: true })
+
+    xhr.send(body)
+  })
+}
+
+async function sendWithRetries(options: SendOptions): Promise<any> {
+  let lastError: unknown = null
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const { status, body } = await postChunk(options)
+      if (status >= 200 && status < 300) return body
+      // A 4xx means the server made a decision — retrying will not change it.
+      if (status >= 400 && status < 500 && status !== 408 && status !== 429) {
+        const message = body?.error || `Upload failed (${status})`
+        throw new Error(message)
+      }
+      lastError = new Error(body?.error || `Upload failed (${status})`)
+    } catch (error) {
+      lastError = error
+      if ((error as any)?.name === "AbortError") throw error
+      const message = error instanceof Error ? error.message : ""
+      if (/too large|not allowed|exceeds|capped|storage allowance|upgrade|only/i.test(message)) throw error
+    }
+    await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)))
+  }
+  throw lastError instanceof Error ? lastError : new Error("Upload failed")
+}
+
+function toResult(payload: any, fallbackType: string): UploadMediaResult {
+  const data = payload?.data || payload
+  const url = data?.url || data?.public_url
+  if (!url) throw new Error(data?.error || "The server did not return a media URL")
+  return {
+    url,
+    id: data.id,
+    public_id: data.public_id || data.storage_path,
+    width: data.width ?? undefined,
+    height: data.height ?? undefined,
+    duration: data.duration ?? undefined,
+    format: data.format,
+    status: data.status || "ready",
+    thumb_url: data.thumb_url ?? null,
+    poster_url: data.poster_url ?? null,
+    variants: data.variants || {},
+    storage_path: data.storage_path,
+    media_type: data.media_type,
+    size: data.size,
+  }
+}
+
 /**
- * Upload media for authenticated users.
- * Large files and all video/audio go directly to Cloudinary (signed) so they
- * are not rejected by the host with a non-JSON "Request Entity Too Large".
+ * Video and audio are stored immediately and transcoded in the background. The
+ * final `.mp4`/`.m4a` and poster do not exist until that finishes, so composers
+ * wait here before they publish a URL that would 404. Images return instantly.
+ */
+async function settleProcessing(result: UploadMediaResult): Promise<UploadMediaResult> {
+  if (result.status !== "processing" || !result.id) return result
+  try {
+    const ready = await waitForMediaReady([result.id], { timeoutMs: 10 * 60 * 1000 })
+    const finished = ready[result.id]
+    if (finished?.url) {
+      return {
+        ...result,
+        ...finished,
+        status: finished.status === "failed" ? "failed" : "ready",
+        format: result.format,
+        media_type: result.media_type,
+        size: result.size,
+      }
+    }
+  } catch {
+    /* fall through: the caller can still show the processing state */
+  }
+  return result
+}
+
+/**
+ * Upload one file. Images return once stored; video and audio wait for the
+ * background transcode so the returned URL always resolves.
  */
 export async function uploadMediaFile(
   file: File,
@@ -126,85 +225,177 @@ export async function uploadMediaFile(
 ): Promise<UploadMediaResult> {
   const type = mediaTypeFromFile(file, options.type)
   const folder = options.folder || "general"
-  const maxSize = options.maxSizeBytes ?? (MAX_UPLOAD_BYTES[type] || MAX_UPLOAD_BYTES.file)
+  const purpose = options.purpose
 
-  if (file.size > maxSize) {
-    throw new Error(`File is too large. Maximum size is ${Math.round(maxSize / 1024 / 1024)}MB.`)
+  if (!file.size) throw new Error("That file is empty.")
+  if (options.maxSizeBytes && file.size > options.maxSizeBytes) {
+    throw new Error(`File is too large. Maximum size is ${Math.round(options.maxSizeBytes / 1024 / 1024)}MB.`)
   }
 
-  const mustDirect = options.forceDirect || type === "video" || type === "audio" || file.size > PROXY_SAFE_BYTES
-
-  if (!mustDirect) {
-    const formData = new FormData()
-    formData.append("file", file)
-    formData.append("type", type)
-    formData.append("folder", folder)
-
-    const uploadRes = await fetch("/api/upload", {
-      method: "POST",
-      headers: options.authHeaders,
-      body: formData,
-    })
-    const { data } = await parseJsonResponse<any>(uploadRes)
-    const url = data.url || data.data?.url
-    if (!uploadRes.ok || !url) {
-      throw new Error(data.error || "Upload failed")
-    }
-    return {
-      url,
-      public_id: data.public_id,
-      width: data.width,
-      height: data.height,
-      duration: data.duration,
-      format: data.format,
-    }
+  const total = file.size
+  const activityId = startUploadActivity(uploadActivityLabel(type, folder))
+  let reported = 0
+  const report = (loaded: number) => {
+    if (!total) return
+    reported = Math.min(total, reported + loaded)
+    const percent = Math.min(99, Math.round((reported / total) * 100))
+    updateUploadActivity(activityId, percent)
+    options.onProgress?.(percent)
   }
 
+  /** Publish the stored result, flagging the transcode wait in the indicator. */
+  const complete = async (payload: any) => {
+    const result = toResult(payload, type)
+    if (result.status === "processing") {
+      updateUploadActivity(activityId, 100, "Processing your media…")
+    }
+    return settleProcessing(result)
+  }
+
+  let failed = false
   try {
-    const signRes = await fetch("/api/upload/sign", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...options.authHeaders,
-      },
-      body: JSON.stringify({ type, folder }),
-    })
-    const { data: sign } = await parseJsonResponse<any>(signRes)
-    if (!signRes.ok || !sign?.signature || !sign?.cloudName) {
-      throw new Error(sign.error || "Could not authorize the media upload")
+    if (total <= CHUNK_BYTES) {
+      const payload = await sendWithRetries({
+        file,
+        type,
+        folder,
+        purpose,
+        originalQuality: options.originalQuality,
+        authHeaders: options.authHeaders,
+        signal: options.signal,
+        onChunkProgress: report,
+      })
+      options.onProgress?.(100)
+      return await complete(payload)
     }
-    return await uploadSignedToCloudinary(file, sign as CloudinarySignedUpload)
+
+    const uploadId = newUploadId()
+    let finalPayload: any = null
+    for (let start = 0; start < total; start += CHUNK_BYTES) {
+      const end = Math.min(start + CHUNK_BYTES, total) - 1
+      let chunkLoaded = 0
+      const payload = await sendWithRetries({
+        file,
+        type,
+        folder,
+        purpose,
+        originalQuality: options.originalQuality,
+        authHeaders: options.authHeaders,
+        signal: options.signal,
+        range: { start, end, total, uploadId },
+        onChunkProgress: (loaded) => {
+          const delta = Math.max(0, loaded - chunkLoaded)
+          chunkLoaded = loaded
+          report(delta)
+        },
+      })
+      if (payload?.partial) continue
+      finalPayload = payload
+    }
+
+    if (!finalPayload) throw new Error("The upload did not complete. Please try again.")
+    options.onProgress?.(100)
+    return await complete(finalPayload)
   } catch (error) {
-    // Large assets cannot use the serverless proxy fallback, and attempting it
-    // turns a useful Cloudinary error into a generic 413/HTML response.
-    if (file.size > PROXY_SAFE_BYTES) {
-      throw error instanceof Error ? error : new Error("Direct upload failed")
+    failed = true
+    throw error
+  } finally {
+    finishUploadActivity(activityId, !failed, failed ? "Upload failed" : undefined)
+  }
+}
+
+/** Upload several files (admin bulk upload) with per-file progress. */
+export async function uploadMediaBatch(
+  files: File[],
+  options: UploadMediaOptions & { onFileProgress?: (index: number, percent: number) => void },
+): Promise<{ ok: UploadMediaResult[]; failed: { file: string; error: string }[] }> {
+  const ok: UploadMediaResult[] = []
+  const failed: { file: string; error: string }[] = []
+  for (let index = 0; index < files.length; index++) {
+    try {
+      const result = await uploadMediaFile(files[index], {
+        ...options,
+        onProgress: (percent) => options.onFileProgress?.(index, percent),
+      })
+      ok.push(result)
+    } catch (error) {
+      failed.push({ file: files[index].name, error: error instanceof Error ? error.message : "Upload failed" })
     }
-    console.warn("Direct Cloudinary upload failed, attempting proxy fallback...", error)
+  }
+  return { ok, failed }
+}
+
+/**
+ * Poll the processing queue until the given media ids are ready. Used by the
+ * composer before it publishes a post that contains video.
+ */
+export async function waitForMediaReady(
+  ids: string[],
+  options: { timeoutMs?: number; intervalMs?: number; onProgress?: (ready: number, total: number) => void } = {},
+): Promise<Record<string, UploadMediaResult>> {
+  const pending = new Set(ids.filter(Boolean))
+  const results: Record<string, UploadMediaResult> = {}
+  const timeout = options.timeoutMs ?? 5 * 60 * 1000
+  const interval = options.intervalMs ?? 2500
+  const started = Date.now()
+
+  while (pending.size && Date.now() - started < timeout) {
+    const list = Array.from(pending)
+    try {
+      const res = await fetch(`/api/media/status?ids=${encodeURIComponent(list.join(","))}`, { cache: "no-store" })
+      const { data: payload } = await parseJsonResponse<any>(res)
+      const items: any[] = Array.isArray(payload) ? payload : payload?.items || []
+      for (const item of items) {
+        if (!item?.id) continue
+        if (item.status === "ready" || item.status === "failed") {
+          results[item.id] = {
+            url: item.url,
+            id: item.id,
+            status: item.status,
+            thumb_url: item.thumb_url,
+            poster_url: item.poster_url,
+            width: item.width ?? undefined,
+            height: item.height ?? undefined,
+            duration: item.duration ?? undefined,
+          }
+          pending.delete(item.id)
+        }
+      }
+    } catch {
+      /* keep polling */
+    }
+    options.onProgress?.(ids.length - pending.size, ids.length)
+    if (pending.size) await new Promise((resolve) => setTimeout(resolve, interval))
   }
 
-  // Fallback to /api/upload proxy
-  const formData = new FormData()
-  formData.append("file", file)
-  formData.append("type", type)
-  formData.append("folder", folder)
+  return results
+}
 
-  const uploadRes = await fetch("/api/upload", {
-    method: "POST",
-    headers: options.authHeaders,
-    body: formData,
-  })
-  const { data } = await parseJsonResponse<any>(uploadRes)
-  const url = data.url || data.data?.url
-  if (!uploadRes.ok || !url) {
-    throw new Error(data.error || "Upload failed. Please check video file format and size.")
+export type UploadLimits = {
+  tier: "admin" | "pro" | "free"
+  is_admin: boolean
+  original_quality_allowed: boolean
+  limits: {
+    hard_max_mb: number
+    image_max_mb: number
+    video_max_mb: number
+    voice_max_mb: number
+    post_files: number
+    quota_mb: number
+    daily_upload_mb: number
+    uploads_per_hour: number
   }
-  return {
-    url,
-    public_id: data.public_id,
-    width: data.width,
-    height: data.height,
-    duration: data.duration,
-    format: data.format,
+  disk: { used_percent: number; free_bytes: number; warn: boolean; blocked: boolean }
+}
+
+/** Current server limits for this account (used to size the UI copy). */
+export async function fetchUploadLimits(authHeaders?: Record<string, string>): Promise<UploadLimits | null> {
+  try {
+    const res = await fetch("/api/media/upload", { headers: authHeaders, cache: "no-store" })
+    const payload = await parseJsonResponse<any>(res)
+    if (!res.ok) return null
+    return (payload.data || payload) as UploadLimits
+  } catch {
+    return null
   }
 }

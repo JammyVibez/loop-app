@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { Spinner } from "@/components/ui/skeletons"
+import { ActionFeedback, type ActionPhase } from "@/components/ui/action-feedback"
 
 const MAX_BRANCH_CHARS = 1000;
 
@@ -52,6 +53,8 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
   const [title, setTitle] = useState("")
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [actionPhase, setActionPhase] = useState<ActionPhase>("idle")
+  const [actionError, setActionError] = useState<string | null>(null)
   /** Set after a successful post — the dialog flips to a confirmation step. */
   const [createdBranchId, setCreatedBranchId] = useState<string | null>(null)
   /** Branch mode: "new" = write your own take, "rebranch" = repost the same content */
@@ -69,6 +72,8 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
     setCreatedBranchId(null)
     setBranchMode(null)
     setRebranchQuote("")
+    setActionPhase("idle")
+    setActionError(null)
   }
 
   const handleOpenChange = (next: boolean) => {
@@ -181,6 +186,8 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
       return
     }
 
+    setActionError(null)
+    setActionPhase("working")
     setIsSubmitting(true)
 
     try {
@@ -207,6 +214,11 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
 
       toast({ title: "Branch created 🌿", description: "Your branch is now part of the loop tree." })
 
+      // Let the check land before the composer swaps to the confirmation step.
+      setActionPhase("success")
+      await new Promise((resolve) => setTimeout(resolve, 600))
+      setActionPhase("idle")
+
       const branchId = result.branch?.id
       if (branchId) {
         // Success step: keep the dialog open so the user can view their new
@@ -217,11 +229,10 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
         onOpenChange(false)
       }
     } catch (error: any) {
-      toast({
-        title: "Couldn't create branch",
-        description: error?.message || "Failed to create branch. Please try again.",
-        variant: "destructive",
-      })
+      const message = error?.message || "Failed to create branch. Please try again."
+      setActionPhase("error")
+      setActionError(message)
+      toast({ title: "Couldn't create branch", description: message, variant: "destructive" })
     } finally {
       setIsSubmitting(false)
     }
@@ -244,6 +255,8 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
       toast({ title: "Sign in required", description: "Please sign in to rebranch." })
       return
     }
+    setActionError(null)
+    setActionPhase("working")
     setIsSubmitting(true)
     try {
       const quoteText = rebranchQuote.trim()
@@ -301,6 +314,9 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
       })
       const result = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(result.error || "Failed to rebranch")
+      setActionPhase("success")
+      await new Promise((resolve) => setTimeout(resolve, 600))
+      setActionPhase("idle")
       toast(
         quoteText
           ? { title: "Quote posted", description: `Your quote of @${author?.username || "this loop"} is on your profile.` }
@@ -314,7 +330,10 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
         onOpenChange(false)
       }
     } catch (error: any) {
-      toast({ title: "Couldn't rebranch", description: error?.message || "Try again.", variant: "destructive" })
+      const message = error?.message || "Try again."
+      setActionPhase("error")
+      setActionError(message)
+      toast({ title: "Couldn't rebranch", description: message, variant: "destructive" })
     } finally {
       setIsSubmitting(false)
     }
@@ -334,7 +353,15 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl border-border bg-card text-foreground max-h-[88dvh] overflow-y-auto p-0 sm:p-0">
+      <DialogContent className="relative max-w-2xl border-border bg-card text-foreground max-h-[88dvh] overflow-y-auto p-0 sm:p-0">
+        <ActionFeedback
+          phase={actionPhase}
+          label={branchMode === "rebranch" ? "Rebranching this loop" : "Creating your branch"}
+          error={actionError || undefined}
+          onRetry={() => void (branchMode === "rebranch" ? handleRebranch() : handleSubmit())}
+          successLabel={branchMode === "rebranch" ? "Rebranched" : "Branch created"}
+          layout="overlay"
+        />
         <DialogHeader className="sticky top-0 z-10 border-b border-border/70 bg-card px-5 pb-3 pt-5 backdrop-blur sm:px-6">
           <div className="flex items-start justify-between gap-3">
             <DialogTitle className="flex items-center gap-2 text-foreground">

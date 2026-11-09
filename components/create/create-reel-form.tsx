@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { parseJsonResponse } from "@/lib/parse-json-response"
 import { Spinner } from "@/components/ui/skeletons"
+import { ActionFeedback, type ActionPhase } from "@/components/ui/action-feedback"
 
 const MAX_VIDEO_BYTES = 50 * 1024 * 1024
 
@@ -32,6 +33,8 @@ export function CreateTreeForm({ onTreeCreated }: CreateTreeFormProps) {
   const [hashtags, setHashtags] = useState("")
   const [uploading, setUploading] = useState(false)
   const [uploadProgressLabel, setUploadProgressLabel] = useState<string | null>(null)
+  const [publishPhase, setPublishPhase] = useState<ActionPhase>("idle")
+  const [publishError, setPublishError] = useState<string | null>(null)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0]
@@ -72,14 +75,15 @@ export function CreateTreeForm({ onTreeCreated }: CreateTreeFormProps) {
       return
     }
 
+    setPublishError(null)
+    setPublishPhase("working")
     setUploading(true)
     try {
       setUploadProgressLabel("Uploading video…")
-      // Videos always go straight to Cloudinary via a signed direct upload
-      // instead of through /api/upload — a 50MB reel bundled into a Next.js
-      // API request body blows well past Vercel's ~4.5MB serverless request
-      // limit, and Vercel's resulting error page isn't JSON, so the old
-      // `uploadRes.json()` call here would throw a confusing parse error
+      // Video is streamed to /api/media/upload in 8MB chunks instead of being
+      // bundled into a Next.js request body — a 50MB reel would otherwise sit
+      // in memory, and the transcode runs in the background while the composer
+      // shows a processing state.
       // instead of a real "file too large" message.
       const uploaded = await uploadMediaFile(file, {
         type: "video",
@@ -109,7 +113,10 @@ export function CreateTreeForm({ onTreeCreated }: CreateTreeFormProps) {
       const { data: treeData } = await parseJsonResponse<any>(treeRes)
       if (!treeRes.ok) throw new Error(treeData?.error || "Failed to publish reel")
 
+      setPublishPhase("success")
+      await new Promise((resolve) => setTimeout(resolve, 650))
       toast({ title: "Tree published! 🎬", description: "Your reel is live in the feed." })
+      setPublishPhase("idle")
       setFile(null)
       setPreviewUrl(null)
       setTitle("")
@@ -117,6 +124,8 @@ export function CreateTreeForm({ onTreeCreated }: CreateTreeFormProps) {
       setHashtags("")
       onTreeCreated?.(treeData.data?.reel?.id || null)
     } catch (error: any) {
+      setPublishPhase("error")
+      setPublishError(error.message || "Something went wrong")
       toast({ title: "Couldn't publish reel", description: error.message || "Something went wrong", variant: "destructive" })
     } finally {
       setUploading(false)
@@ -196,6 +205,14 @@ export function CreateTreeForm({ onTreeCreated }: CreateTreeFormProps) {
             placeholder="dance comedy tutorial"
           />
         </div>
+
+        <ActionFeedback
+          phase={publishPhase}
+          label={uploadProgressLabel || "Publishing your reel"}
+          error={publishError || undefined}
+          onRetry={() => void handlePublish()}
+          successLabel="Reel published"
+        />
 
         <Button
           onClick={handlePublish}

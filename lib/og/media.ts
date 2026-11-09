@@ -21,10 +21,25 @@ function allowed(raw: string, origin: string): URL | null {
   try {
     const parsed = new URL(raw.startsWith("http") ? raw : `/${raw.replace(/^\/+/, "")}`, origin)
     const sameOrigin = parsed.host === new URL(origin).host
+    // Our own uploads are served from /media on the app origin, or from
+    // MEDIA_PUBLIC_BASE when it names a dedicated hostname — both must be
+    // fetchable here or share cards would lose every new avatar and photo.
+    const mediaBase = process.env.MEDIA_PUBLIC_BASE || ""
+    let mediaHost: string | null = null
+    if (/^https?:\/\//i.test(mediaBase)) {
+      try {
+        mediaHost = new URL(mediaBase).host
+      } catch {
+        mediaHost = null
+      }
+    }
     const knownCdn =
       parsed.host === "res.cloudinary.com" ||
       parsed.host === "images.unsplash.com" ||
       parsed.host === "api.dicebear.com" ||
+      parsed.host === "loopapp.me" ||
+      parsed.host === "www.loopapp.me" ||
+      parsed.host === mediaHost ||
       parsed.host.endsWith(".supabase.co")
     return sameOrigin || knownCdn ? parsed : null
   } catch {

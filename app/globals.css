@@ -586,6 +586,38 @@
   }
 }
 
+/* Action feedback (components/ui/action-feedback.tsx): a single soft light
+   sweep across the working card. Decorative only, so it stands down for data
+   saver and both reduced-motion switches. */
+@keyframes loop-action-sweep {
+  from {
+    transform: translateX(-120%) skewX(-12deg);
+  }
+  to {
+    transform: translateX(420%) skewX(-12deg);
+  }
+}
+
+.loop-action-sweep {
+  animation: loop-action-sweep 1.9s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+[data-data-saver] .loop-action-sweep {
+  animation-duration: 3.2s;
+}
+
+html.loop-reduced-motion .loop-action-sweep {
+  animation: none;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loop-action-sweep {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 /* —— Landing page: depth, aurora, motion (respects .reduce-motion) —— */
 @keyframes landing-aurora {
   0% {

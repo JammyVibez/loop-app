@@ -19,6 +19,7 @@ import { uploadMediaFile } from "@/lib/client-media-upload"
 import { parseJsonResponse } from "@/lib/parse-json-response"
 import { cn } from "@/lib/utils"
 import { PostMediaEditor } from "@/components/ui/post-media-editor"
+import { ActionFeedback, type ActionPhase } from "@/components/ui/action-feedback"
 import {
   buildEditedVideoUrl,
   isEditableImageFile,
@@ -151,6 +152,9 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
   const [clutchDuelDialogOpen, setClutchDuelDialogOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<string | null>(null)
+  // Shared publish feedback: compact at first, richer if the round-trip is slow.
+  const [actionPhase, setActionPhase] = useState<ActionPhase>("idle")
+  const [actionError, setActionError] = useState<string | null>(null)
   const [showPreview, setShowPreview] = useState(false)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [discardOpen, setDiscardOpen] = useState(false)
@@ -267,10 +271,12 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
     return edit ? buildEditedVideoUrl(uploadedUrl, edit) : uploadedUrl
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const publish = async () => {
+    if (creating || actionPhase === "working") return
     if (!requireAuth("post")) return
     if (!user || !authToken) return
+    setActionError(null)
+    setActionPhase("working")
     setCreating(true)
     try {
       let res: Response
@@ -318,10 +324,9 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
           })
         }
       } else if (mediaFiles.length > 0) {
-        // Upload every file in parallel straight to Cloudinary (video/large
-        // files go direct via a signed upload, bypassing the Next.js API
-        // route entirely) instead of bundling all raw files into one
-        // multipart POST to /api/loops. That old path uploaded files one at
+        // Upload every file to the VPS media service (chunked for large files,
+        // bypassing a single multipart POST to /api/loops) instead of bundling
+        // all raw files into one request. That old path uploaded files one at
         // a time on the server via base64, which was slow for multiple
         // files/video and could exceed Vercel's ~4.5MB request body limit —
         // when that happened, Vercel returned a plain-text/HTML error that
@@ -428,6 +433,11 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
         }
       }
 
+      // Hold the success beat before the composer disappears, so the action
+      // feels acknowledged rather than snapping shut.
+      setActionPhase("success")
+      await new Promise((resolve) => setTimeout(resolve, 650))
+
       setContent("")
       setHashtags("")
       setMediaFiles([])
@@ -437,18 +447,27 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
       setShowPreview(false)
       setVideoEdits({})
       setIsSpoiler(false)
-      setIsOpen(false)
       clearDraft()
       toast({ title: "Loop created", description: "Your loop is live on the feed." })
       window.dispatchEvent(new Event("loop-created"))
       if (onLoopCreated) onLoopCreated()
       else router.refresh()
+      setIsOpen(false)
+      setActionPhase("idle")
     } catch (err: any) {
-      toast({ title: "Failed to create loop", description: err.message || "Something went wrong", variant: "destructive" })
+      const message = err?.message || "Something went wrong while publishing."
+      setActionPhase("error")
+      setActionError(message)
+      toast({ title: "Failed to create loop", description: message, variant: "destructive" })
     } finally {
       setCreating(false)
       setUploadStatus(null)
     }
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    void publish()
   }
 
   const handleSelectedFiles = (selected: File[]) => {
@@ -1052,6 +1071,16 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
         </div>
       </CardContent>
 
+      <ActionFeedback
+        phase={actionPhase}
+        label={mediaFiles.length ? "Publishing your loop" : "Creating your loop"}
+        detail={uploadStatus || undefined}
+        error={actionError || undefined}
+        onRetry={() => void publish()}
+        successLabel="Loop published"
+        layout="overlay"
+      />
+
       <ConfirmDialog
         open={discardOpen}
         onOpenChange={setDiscardOpen}
@@ -1061,6 +1090,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
         onConfirm={() => {
           setIsOpen(false)
           setDiscardOpen(false)
+          setActionPhase("idle")
         }}
       />
 

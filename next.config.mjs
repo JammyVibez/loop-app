@@ -40,7 +40,9 @@ const nextConfig = {
   // incompatible with standalone output). There is no Docker/VPS target that
   // consumes the standalone server bundle.
   // Keep Node-only packages out of the client/Edge bundles.
-  serverExternalPackages: ["stripe", "web-push", "https-proxy-agent", "agent-base"],
+  // `sharp` powers server-side image processing for uploads; keeping it
+  // external means Next never tries to bundle its native binary.
+  serverExternalPackages: ["stripe", "web-push", "https-proxy-agent", "agent-base", "sharp"],
   // On by default. Set NEXT_BROWSER_SOURCE_MAPS=0 to skip browser source maps
   // when building on a small (≈2GB / 1 vCPU) machine, where generating them for
   // this app is what pushes the build over the memory limit.
@@ -55,6 +57,8 @@ const nextConfig = {
     unoptimized: true,
     remotePatterns: [
       { protocol: "https", hostname: "res.cloudinary.com" },
+      { protocol: "https", hostname: "loopapp.me" },
+      { protocol: "https", hostname: "**.loopapp.me" },
       { protocol: "https", hostname: "**.supabase.co" },
       { protocol: "http", hostname: "localhost" },
       { protocol: "https", hostname: "localhost" },

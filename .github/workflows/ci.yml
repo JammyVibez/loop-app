@@ -125,6 +125,10 @@ jobs:
             cd "${APP_DIR:-/var/loop}"
             git pull --ff-only origin main
             npm ci --legacy-peer-deps
+            # Additive, idempotent schema — includes the VPS media columns. A
+            # missing DATABASE_URL must not block a deploy, so failures print
+            # and continue; uploads fall back to legacy columns until applied.
+            npm run db:apply:pending || echo "WARN: pending schema not applied"
             npm run build
             if pm2 describe loop-app >/dev/null 2>&1; then
               pm2 restart loop-app --update-env

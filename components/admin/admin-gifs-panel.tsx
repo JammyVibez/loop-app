@@ -11,6 +11,7 @@ import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { formatDistanceToNow } from "date-fns"
 import { Film, Plus, RefreshCw, Trash2, Eye, EyeOff, Search, Link2, Upload, X } from "lucide-react"
 import { Spinner } from "@/components/ui/skeletons"
+import { uploadMediaFile } from "@/lib/client-media-upload"
 
 interface CuratedGif {
   id: string
@@ -58,31 +59,16 @@ export function AdminGifsPanel() {
 
   const uploadFileToCloudinary = async (file: File): Promise<string | null> => {
     try {
-      // Get signed upload params
-      const signRes = await fetch("/api/upload/sign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({ type: "image", folder: "admin-gifs" }),
+      // GIFs are stored with original quality so their animation and palette
+      // survive the move to VPS storage exactly as uploaded.
+      const uploaded = await uploadMediaFile(file, {
+        type: "image",
+        folder: "admin-gifs",
+        purpose: "gif",
+        originalQuality: true,
+        authHeaders: getAuthHeader(),
       })
-      if (!signRes.ok) throw new Error("Failed to get upload signature")
-      const signData = await signRes.json()
-
-      // Upload directly to Cloudinary
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("api_key", signData.apiKey)
-      formData.append("timestamp", String(signData.timestamp))
-      formData.append("signature", signData.signature)
-      formData.append("folder", signData.folder)
-      formData.append("resource_type", signData.resourceType)
-
-      const uploadRes = await fetch(
-        `https://api.cloudinary.com/v1_1/${signData.cloudName}/${signData.resourceType}/upload`,
-        { method: "POST", body: formData },
-      )
-      if (!uploadRes.ok) throw new Error("Cloudinary upload failed")
-      const uploadData = await uploadRes.json()
-      return uploadData.secure_url
+      return uploaded.url
     } catch (err: any) {
       console.error("File upload error:", err)
       toast({ title: "Upload failed", description: err.message || "Could not upload file", variant: "destructive" })
@@ -154,7 +140,7 @@ export function AdminGifsPanel() {
           url: form.url,
           preview_url: form.preview_url || undefined,
           tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
-          source: form.url.includes("cloudinary") ? "uploaded" : "custom",
+          source: form.url.includes("/media/") || form.url.includes("cloudinary") ? "uploaded" : "custom",
         }),
       })
       const data = await res.json()

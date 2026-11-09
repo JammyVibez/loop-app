@@ -98,8 +98,22 @@ const TOKEN_LIST = /^(?:[a-z]{1,3}_[^,/]+)(?:,(?:[a-z]{1,3}_[^,/]+))*$/i
  * Existing `so_`, `eo_` and `ac_` tokens are replaced rather than stacked, so
  * re-editing a clip is idempotent.
  */
+const OWN_VIDEO = /^(\/media\/|https?:\/\/[^/]+\/media\/)[^#?]+\.(mp4|webm|mov|m4v)(?:[?#].*)?$/i
+
 export function buildEditedVideoUrl(url: string, edit: VideoEdit): string {
   if (!url || videoEditIsNoop(edit)) return url
+
+  // Our own uploads cannot be trimmed by rewriting a URL (there is no
+  // transformation service in front of Nginx), so the window is expressed as a
+  // media fragment: every browser honours `#t=start,end` for a static MP4 and
+  // the player seeks automatically. The stored file stays intact.
+  if (OWN_VIDEO.test(url)) {
+    const base = url.split("#")[0]
+    const start = edit.start > 0 ? round(edit.start) : 0
+    if (!start && edit.end == null) return base
+    return `${base}#t=${start}${edit.end != null ? `,${round(edit.end)}` : ""}`
+  }
+
   const match = url.match(CLOUDINARY_VIDEO)
   if (!match) return url
 

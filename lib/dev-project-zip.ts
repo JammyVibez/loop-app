@@ -1,14 +1,17 @@
 import { Unzip, UnzipInflate } from "fflate"
-import { uploadMediaFile } from "@/lib/client-media-upload"
 
 /**
  * GitHub-style project sharing from a ZIP archive.
  *
  * The developer picks a `.zip` of their repo; we extract it in the browser
  * (streaming, so `node_modules/` and other junk is skipped BEFORE it is ever
- * decompressed), filter out build artifacts / lockfiles / binaries, then
- * upload each kept source file to Cloudinary and persist the arranged file
- * tree on the developer_projects row.
+ * decompressed), filter out build artifacts / lockfiles / binaries, then store
+ * each kept source file on the VPS.
+ *
+ * Source files are code, not media, so they are not written to the public media
+ * directory: `/api/media/bundle` keeps them private and serves them back as
+ * plain-text attachments. Archives are stored the same way, which means no
+ * upload in this feature can reach Cloudinary or be executed by a browser.
  */
 
 export interface RepoFileEntry {
@@ -376,86 +379,23 @@ function makeFile(bytes: Uint8Array<ArrayBuffer>, name: string, type: string): F
   return new File([bytes], name, { type })
 }
 
+/** Store one source file privately and return its signed download URL. */
 async function uploadEntry(
   entry: RepoFileEntry,
   authHeaders: Record<string, string>,
 ): Promise<string> {
-  const file = makeFile(entry.bytes, entry.name, "text/plain;charset=utf-8")
-  const result = await uploadMediaFile(file, {
-    type: "file",
-    folder: "developer-projects",
-    authHeaders,
-    maxSizeBytes: REPO_FILE_LIMITS.maxFileBytes,
-    forceDirect: true,
+  const res = await fetch("/api/media/bundle", {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8",
+      "X-Bundle-Name": encodeURIComponent(entry.path),
+      ...authHeaders,
+    },
+    body: makeFile(entry.bytes, entry.name, "text/plain;charset=utf-8"),
   })
-  return result.url
-}
-
-interface DirectUploadSign {
-  signature: string
-  apiKey: string
-  timestamp: string
-  cloudName: string
-  folder: string
-  resourceType: string
-}
-
-/**
- * Signs one Cloudinary upload session that can be reused for the whole batch
- * of extracted source files. A single signature is valid for any number of
- * uploads with identical params (same folder + timestamp), so we avoid the
- * per-file serverless proxy round-trip that made small zips feel slow.
- */
-async function signDirectUpload(
-  authHeaders: Record<string, string>,
-): Promise<DirectUploadSign | null> {
-  try {
-    const signRes = await fetch("/api/upload/sign", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders },
-      body: JSON.stringify({ type: "file", folder: "developer-projects" }),
-    })
-    const { data: sign } = await signRes.json().catch(() => ({}))
-    if (!signRes.ok || !sign?.signature || !sign?.cloudName) return null
-    return {
-      signature: String(sign.signature),
-      apiKey: String(sign.apiKey),
-      timestamp: String(sign.timestamp),
-      cloudName: String(sign.cloudName),
-      folder: String(sign.folder),
-      resourceType: String(sign.resourceType || "auto"),
-    }
-  } catch {
-    return null
-  }
-}
-
-async function uploadEntryDirect(
-  entry: RepoFileEntry,
-  sign: DirectUploadSign,
-): Promise<string> {
-  const form = new FormData()
-  form.append("file", makeFile(entry.bytes, entry.name, "text/plain;charset=utf-8"))
-  form.append("api_key", sign.apiKey)
-  form.append("timestamp", sign.timestamp)
-  form.append("signature", sign.signature)
-  form.append("folder", sign.folder)
-
-  const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${sign.cloudName}/${sign.resourceType}/upload`,
-    { method: "POST", body: form },
-  )
-  const raw = await res.text()
-  let json: any = {}
-  try {
-    json = raw ? JSON.parse(raw) : {}
-  } catch {
-    // ignore parse error
-  }
-  if (!res.ok || !json?.secure_url) {
-    throw new Error(json?.error?.message || `Upload failed (HTTP ${res.status})`)
-  }
-  return json.secure_url as string
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok || !json?.url) throw new Error(json?.error || `Upload failed (HTTP ${res.status})`)
+  return json.url as string
 }
 
 async function runWithConcurrency<T>(
@@ -471,12 +411,10 @@ async function runWithConcurrency<T>(
     }
   })
   await Promise.all(runners)
-}
-
-/**
- * Uploads every kept source file to Cloudinary, then the original ZIP (used
- * for the "Download ZIP" button). The ZIP goes through the signed direct
- * upload path; archives over 100MB use Cloudinary's chunked large-upload API.
+}/**
+ * Stores every kept source file privately, then the original ZIP (used for the
+ * "Download ZIP" button). Neither is public: code and archives are served back
+ * as plain-text attachments through `/api/media/bundle/{token}`.
  */
 export async function uploadRepoFiles(
   entries: RepoFileEntry[],
@@ -488,28 +426,14 @@ export async function uploadRepoFiles(
   const files: UploadedRepoFile[] = []
   const failed: string[] = []
 
-  // Sign ONCE up front, then push every extracted source file straight to
-  // Cloudinary in parallel. Source files are small text blobs, so a single
-  // signed session is enough — no per-file proxy hop through the API route.
-  const sign = await signDirectUpload(authHeaders)
-
-  await runWithConcurrency(entries, 10, async (entry) => {
+  await runWithConcurrency(entries, 6, async (entry) => {
     try {
-      let url: string | null = null
-      if (sign) {
-        try {
-          url = await uploadEntryDirect(entry, sign)
-        } catch {
-          url = null
-        }
-      }
-      if (!url) {
-        url = await uploadEntry(entry, authHeaders)
-      }
+      const url = await uploadEntry(entry, authHeaders)
       files.push({ path: entry.path, name: entry.name, url, size: entry.size, language: entry.language })
     } catch {
       failed.push(entry.path)
     }
+
     const done = files.length + failed.length
     const pct = entries.length ? Math.round((done / entries.length) * 100) : 100
     onProgress?.(done, entries.length, `Uploading files… ${pct}% (${done}/${entries.length})`)
@@ -535,73 +459,42 @@ async function uploadZipArchive(
   authHeaders: Record<string, string>,
   onProgress?: (percent: number) => void,
 ): Promise<string> {
-  // <= 100MB: standard signed direct upload (uploadMediaFile proxies
-  // anything >3.5MB straight to Cloudinary).
-  if (zipFile.size <= 100 * 1024 * 1024) {
-    const result = await uploadMediaFile(zipFile, {
-      type: "file",
-      folder: "developer-projects",
-      authHeaders,
-      maxSizeBytes: zipSizeLimit(true),
-    })
-    onProgress?.(100)
-    return result.url
+  if (!zipFile.size) throw new Error("The archive is empty")
+  if (zipFile.size > zipSizeLimit(true)) {
+    throw new Error(`Archives are capped at ${Math.round(zipSizeLimit(true) / 1024 / 1024)}MB.`)
   }
 
-  // >100MB: chunked large upload (Cloudinary X-Unique-Upload-Id + ranges).
-  const signRes = await fetch("/api/upload/sign", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders },
-    body: JSON.stringify({ type: "file", folder: "developer-projects" }),
-  })
-  const { data: sign } = await signRes.json().catch(() => ({}))
-  if (!signRes.ok || !sign?.signature || !sign?.cloudName) {
-    throw new Error(sign?.error || "Could not sign large upload")
-  }
-
-  const chunkSize = 20 * 1024 * 1024
-  const total = zipFile.size
-  const uniqueId = crypto.randomUUID()
-  const baseUrl = `https://api.cloudinary.com/v1_1/${sign.cloudName}/auto/upload`
-  const params = new URLSearchParams({
-    api_key: String(sign.apiKey),
-    timestamp: String(sign.timestamp),
-    signature: String(sign.signature),
-    folder: String(sign.folder),
-  })
-
-  let lastResponse: any = null
-  for (let start = 0; start < total; start += chunkSize) {
-    const end = Math.min(total, start + chunkSize)
-    const chunk = zipFile.slice(start, end)
-    const res = await fetch(`${baseUrl}?${params.toString()}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/octet-stream",
-        "X-Unique-Upload-Id": uniqueId,
-        "Content-Range": `bytes ${start}-${end - 1}/${total}`,
-      },
-      body: chunk,
-    })
-    const raw = await res.text()
-    let json: any = {}
-    try {
-      json = raw ? JSON.parse(raw) : {}
-    } catch {
-      // ignore
+  return new Promise<string>((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open("POST", "/api/media/bundle")
+    xhr.responseType = "text"
+    xhr.withCredentials = true
+    xhr.setRequestHeader("Content-Type", "application/zip")
+    xhr.setRequestHeader("X-Bundle-Name", encodeURIComponent(zipFile.name || "project.zip"))
+    for (const [key, value] of Object.entries(authHeaders || {})) {
+      if (key.toLowerCase() === "content-type") continue
+      xhr.setRequestHeader(key, value)
     }
-    if (!res.ok) {
-      throw new Error(json?.error?.message || json?.error || `Upload failed (HTTP ${res.status})`)
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress?.(Math.min(99, Math.round((event.loaded / event.total) * 100)))
     }
-    lastResponse = json
-    onProgress?.(Math.min(99, Math.round(((start + chunkSize) / total) * 100)))
-  }
-
-  if (!lastResponse?.secure_url) {
-    throw new Error("Upload finished without a file URL")
-  }
-  onProgress?.(100)
-  return lastResponse.secure_url as string
+    xhr.onload = () => {
+      let json: any = {}
+      try {
+        json = xhr.responseText ? JSON.parse(xhr.responseText) : {}
+      } catch {
+        json = {}
+      }
+      if (xhr.status >= 200 && xhr.status < 300 && json?.url) {
+        onProgress?.(100)
+        resolve(json.url as string)
+      } else {
+        reject(new Error(json?.error || `Upload failed (HTTP ${xhr.status})`))
+      }
+    }
+    xhr.onerror = () => reject(new Error("Network error while uploading the archive"))
+    xhr.send(zipFile)
+  })
 }
 
 /** Counts bytes of text — used to show "X KB of source" in the dialog. */

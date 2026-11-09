@@ -96,7 +96,7 @@ export async function DELETE(request: NextRequest) {
 
     const { data: post, error: readError } = await supabase
       .from("loops")
-      .select("id, author_id, parent_loop_id, content_title, content_text")
+      .select("id, author_id, parent_loop_id, content_title, content_text, media_url, content_media_url, media_urls")
       .eq("id", id)
       .maybeSingle()
 
@@ -111,6 +111,20 @@ export async function DELETE(request: NextRequest) {
     const { error: deleteError } = await supabase.from("loops").delete().eq("id", id)
     if (deleteError) {
       return NextResponse.json({ error: `Could not delete the post: ${deleteError.message}` }, { status: 500 })
+    }
+
+    // Remove the post's uploads from the VPS. Files that another post or
+    // profile still uses are left in place.
+    try {
+      const { collectMediaUrls, deleteMediaByUrls } = await import("@/lib/media/cleanup")
+      const urls = collectMediaUrls({
+        media_url: (post as any).media_url,
+        content_media_url: (post as any).content_media_url,
+        media_urls: (post as any).media_urls,
+      })
+      if (urls.size) await deleteMediaByUrls(urls)
+    } catch (cleanupError) {
+      console.warn("[admin/posts] media cleanup failed:", cleanupError)
     }
 
     // Keep the parent's branch count honest when a branch is removed.

@@ -11,6 +11,7 @@ import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { formatDistanceToNow } from "date-fns"
 import { Smile, Plus, RefreshCw, Trash2, Eye, EyeOff, Search, Upload, X } from "lucide-react"
 import { Spinner } from "@/components/ui/skeletons"
+import { uploadMediaFile } from "@/lib/client-media-upload"
 
 interface CuratedEmoji {
   id: string
@@ -57,29 +58,15 @@ export function AdminEmojisPanel() {
 
   const uploadFileToCloudinary = async (file: File): Promise<string | null> => {
     try {
-      const signRes = await fetch("/api/upload/sign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({ type: "image", folder: "admin-emojis" }),
+      // Emojis keep exact pixels, transparency and animation.
+      const uploaded = await uploadMediaFile(file, {
+        type: "image",
+        folder: "admin-emojis",
+        purpose: "emoji",
+        originalQuality: true,
+        authHeaders: getAuthHeader(),
       })
-      if (!signRes.ok) throw new Error("Failed to get upload signature")
-      const signData = await signRes.json()
-
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("api_key", signData.apiKey)
-      formData.append("timestamp", String(signData.timestamp))
-      formData.append("signature", signData.signature)
-      formData.append("folder", signData.folder)
-      formData.append("resource_type", signData.resourceType)
-
-      const uploadRes = await fetch(
-        `https://api.cloudinary.com/v1_1/${signData.cloudName}/${signData.resourceType}/upload`,
-        { method: "POST", body: formData },
-      )
-      if (!uploadRes.ok) throw new Error("Cloudinary upload failed")
-      const uploadData = await uploadRes.json()
-      return uploadData.secure_url
+      return uploaded.url
     } catch (err: any) {
       console.error("File upload error:", err)
       toast({ title: "Upload failed", description: err.message || "Could not upload file", variant: "destructive" })

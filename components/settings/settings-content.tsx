@@ -15,10 +15,12 @@ import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Badge } from "@/components/ui/badge"
 import { User, Bell, Shield, Palette, Trash2, Moon, Sun, Upload, Crown, Mail, Lock } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { uploadMediaFile } from "@/lib/client-media-upload"
 import { useAuth } from "@/hooks/use-auth"
 import { useTheme } from "next-themes"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { ActionFeedback, type ActionPhase } from "@/components/ui/action-feedback"
 
 export function SettingsContent() {
   const { user, getAuthHeader, refreshUser, applyServerProfile } = useAuth()
@@ -26,6 +28,27 @@ export function SettingsContent() {
   const { toast } = useToast()
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [uploadingBanner, setUploadingBanner] = useState(false)
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [profilePhase, setProfilePhase] = useState<ActionPhase>("idle")
+  const [profileError, setProfileError] = useState<string | null>(null)
+  const [profileAction, setProfileAction] = useState("Saving your profile")
+
+  const startProfileAction = (label: string) => {
+    setProfileAction(label)
+    setProfileError(null)
+    setProfilePhase("working")
+  }
+
+  const finishProfileAction = (successLabel: string) => {
+    setProfileAction(successLabel)
+    setProfilePhase("success")
+    window.setTimeout(() => setProfilePhase("idle"), 1200)
+  }
+
+  const failProfileAction = (message: string) => {
+    setProfileError(message)
+    setProfilePhase("error")
+  }
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState("")
   const [deletionScheduled, setDeletionScheduled] = useState(false)
@@ -82,26 +105,15 @@ export function SettingsContent() {
     }
 
     setUploadingAvatar(true)
+    startProfileAction("Uploading your profile photo")
     try {
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("type", "image")
-      formData.append("folder", "avatars")
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        headers: {
-          ...getAuthHeader(),
-        },
-        body: formData,
+      const uploaded = await uploadMediaFile(file, {
+        type: "image",
+        folder: "avatars",
+        purpose: "avatar",
+        authHeaders: getAuthHeader(),
       })
-
-      const result = await response.json()
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || "Upload failed")
-      }
-
-      const uploadedUrl = result.url || result.data?.url
+      const uploadedUrl = uploaded.url
       if (!uploadedUrl) throw new Error("Upload succeeded but no URL returned")
 
       const saveRes = await fetch("/api/users/profile", {
@@ -118,11 +130,13 @@ export function SettingsContent() {
       setProfileData((prev) => ({ ...prev, avatar_url: uploadedUrl }))
       applyServerProfile?.(saveData.profile || { avatar_url: uploadedUrl })
       await refreshUser?.()
+      finishProfileAction("Profile photo updated")
       toast({
         title: "Avatar updated",
         description: "Your profile photo is live.",
       })
     } catch (error: any) {
+      failProfileAction(error.message || "Failed to upload avatar.")
       toast({
         title: "Upload failed",
         description: error.message || "Failed to upload avatar.",
@@ -143,26 +157,15 @@ export function SettingsContent() {
     }
 
     setUploadingBanner(true)
+    startProfileAction("Uploading your cover photo")
     try {
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("type", "image")
-      formData.append("folder", "banners")
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        headers: {
-          ...getAuthHeader(),
-        },
-        body: formData,
+      const uploaded = await uploadMediaFile(file, {
+        type: "image",
+        folder: "banners",
+        purpose: "cover",
+        authHeaders: getAuthHeader(),
       })
-
-      const result = await response.json()
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || "Upload failed")
-      }
-
-      const uploadedUrl = result.url || result.data?.url
+      const uploadedUrl = uploaded.url
       if (!uploadedUrl) throw new Error("Upload succeeded but no URL returned")
 
       const saveRes = await fetch("/api/users/profile", {
@@ -179,11 +182,13 @@ export function SettingsContent() {
       setProfileData((prev) => ({ ...prev, banner_url: uploadedUrl }))
       applyServerProfile?.(saveData.profile || { banner_url: uploadedUrl })
       await refreshUser?.()
+      finishProfileAction("Cover photo updated")
       toast({
         title: "Cover photo updated",
         description: "Your profile cover is live.",
       })
     } catch (error: any) {
+      failProfileAction(error.message || "Failed to upload banner.")
       toast({
         title: "Upload failed",
         description: error.message || "Failed to upload banner.",
@@ -196,6 +201,8 @@ export function SettingsContent() {
   }
 
   const handleProfileUpdate = async () => {
+    setSavingProfile(true)
+    startProfileAction("Saving your profile")
     try {
       const response = await fetch("/api/users/profile", {
         method: "PUT",
@@ -209,16 +216,20 @@ export function SettingsContent() {
       if (!response.ok) throw new Error(data.error || "Failed to update profile")
       applyServerProfile?.(data.profile || profileData)
       await refreshUser?.()
+      finishProfileAction("Profile saved")
       toast({
         title: "Profile saved",
         description: "Your settings were updated.",
       })
     } catch (error: any) {
+      failProfileAction(error.message || "Failed to update profile.")
       toast({
         title: "Save failed",
         description: error.message || "Failed to update profile.",
         variant: "destructive",
       })
+    } finally {
+      setSavingProfile(false)
     }
   }
 
@@ -354,6 +365,16 @@ export function SettingsContent() {
 
       <TabsContent value="profile" className="mt-6">
         <div className="space-y-6">
+          {profilePhase !== "idle" ? (
+            <ActionFeedback
+              phase={profilePhase}
+              label={profileAction}
+              successLabel={profileAction}
+              error={profileError || undefined}
+              onRetry={profileAction === "Saving your profile" ? () => void handleProfileUpdate() : undefined}
+              layout="panel"
+            />
+          ) : null}
           {/* Profile Picture */}
           <Card>
             <CardHeader>
@@ -489,8 +510,8 @@ export function SettingsContent() {
                 </div>
               </div>
 
-              <Button onClick={handleProfileUpdate} className="bg-gradient-to-r from-purple-500 to-blue-500">
-                Save Changes
+              <Button onClick={handleProfileUpdate} disabled={savingProfile} className="bg-gradient-to-r from-purple-500 to-blue-500">
+                {savingProfile ? "Saving…" : "Save Changes"}
               </Button>
             </CardContent>
           </Card>

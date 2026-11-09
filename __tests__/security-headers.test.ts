@@ -75,8 +75,14 @@ describe("content security policy sources the app depends on", () => {
     expect(pagePolicy).toContain("frame-src 'self' https:")
   })
 
-  it("keeps the browser-side upload and GIF hosts", () => {
-    expect(pagePolicy).toContain("https://api.cloudinary.com")
+  it("allows our own media origin and keeps the GIF search host", () => {
+    // Uploads now go to /api/media/upload (same origin) and are served from
+    // /media by Nginx, so the policy must allow the app origin for images and
+    // media. Direct browser uploads to Cloudinary were retired.
+    expect(pagePolicy).toContain("img-src 'self'")
+    expect(pagePolicy).toContain("media-src 'self'")
+    expect(pagePolicy).toContain("https://res.cloudinary.com")
+    expect(pagePolicy).not.toContain("https://api.cloudinary.com")
     expect(pagePolicy).toContain("https://tenor.googleapis.com")
   })
 })

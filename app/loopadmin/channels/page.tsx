@@ -49,7 +49,7 @@ export default function AdminChannelsPage() {
         <PageHeader
           eyebrow="Staff"
           title="Channels library"
-          description="Upload the movies and shows that play in Channels. Files are stored in Cloudinary and served from there."
+          description="Upload the movies and shows that play in Channels. Files are stored on our own servers and served through the media CDN."
           className="mb-6"
         />
         <AdminChannelsPanel />

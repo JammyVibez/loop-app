@@ -15,6 +15,9 @@ if (!databaseUrl) {
 }
 
 const DEFAULT_FILES = [
+  // VPS media storage: storage_provider/storage_path columns, processing
+  // status, media library indexes and the per-user storage RPC.
+  "scripts/vps-media-storage-schema.sql",
   // Enum categories used by the shop catalog (font / card_effect / …).
   "scripts/add-font-card-effect-categories.sql",
   // profiles.badge_id + verification_badges — fixes

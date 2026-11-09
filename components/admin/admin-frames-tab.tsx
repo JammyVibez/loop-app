@@ -108,10 +108,12 @@ export function AdminFramesTab() {
       const isImage = selectedFile.type.startsWith("image/") || selectedFile.type === "image/svg+xml"
       const uploadType = isVideo ? "video" : isAudio ? "audio" : isImage ? "image" : "file"
 
-      // Upload file to Cloudinary
+      // Frames keep exact pixels, transparency and animation.
       const uploaded = await uploadMediaFile(selectedFile, {
         type: uploadType,
         folder: "pfp-frames",
+        purpose: "frame",
+        originalQuality: uploadType === "image",
         authHeaders: headers,
       })
 

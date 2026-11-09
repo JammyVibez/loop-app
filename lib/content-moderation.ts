@@ -154,7 +154,8 @@ const NSFW_KEYWORDS = new Set([
 ])
 
 /**
- * Basic NSFW text detection (for images, use Cloudinary's NSFW detection)
+ * Basic NSFW text detection. Image content is validated and re-encoded during
+ * upload (magic bytes + sharp), which strips embedded scripts and metadata.
  */
 export function detectNsfwText(content: string): {
   isNsfw: boolean

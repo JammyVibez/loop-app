@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth"
 import { getHiddenUserIds } from "@/lib/user-blocks"
+import { collectMediaUrls, deleteMediaByUrls } from "@/lib/media/cleanup"
 
 export const dynamic = "force-dynamic"
 
@@ -297,11 +298,22 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
+    // Capture attachments before the rows disappear so their files can go too.
+    const collectConversationMedia = async () => {
+      const { data } = await supabase
+        .from("messages")
+        .select("media_url, attachment_url, image_url")
+        .eq("conversation_id", conversationId)
+      return collectMediaUrls(data)
+    }
+
     if (mode === "clear") {
+      const mediaUrls = await collectConversationMedia()
       const { error: clearError } = await supabase.from("messages").delete().eq("conversation_id", conversationId)
       if (clearError) {
         return NextResponse.json({ error: clearError.message || "Failed to clear messages" }, { status: 500 })
       }
+      if (mediaUrls.size) await deleteMediaByUrls(mediaUrls).catch(() => 0)
       await supabase
         .from("conversations")
         .update({ updated_at: new Date().toISOString() })
@@ -333,9 +345,11 @@ export async function DELETE(request: NextRequest) {
       .maybeSingle()
 
     if ((activeParticipants || []).length === 0 && conversation && !conversation.is_group) {
+      const mediaUrls = await collectConversationMedia()
       await supabase.from("messages").delete().eq("conversation_id", conversationId)
       await supabase.from("conversation_participants").delete().eq("conversation_id", conversationId)
       await supabase.from("conversations").delete().eq("id", conversationId)
+      if (mediaUrls.size) await deleteMediaByUrls(mediaUrls).catch(() => 0)
       return NextResponse.json({ success: true, message: "Conversation deleted", hard_deleted: true })
     }
 

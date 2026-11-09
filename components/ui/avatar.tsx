@@ -25,6 +25,9 @@ function proxyImg(url: string | Blob | null | undefined): string | undefined {
   )
     return url;
   if (url.includes("dicebear.com") || url.includes("gravatar.com")) return url;
+  // VPS uploads are served by Nginx with immutable cache headers — proxying
+  // them through Next would only add a hop and bypass the CDN cache.
+  if (url.includes("/media/")) return url;
   try {
     const parsed = new URL(url);
     if (parsed.pathname.startsWith("/api/")) return url;
