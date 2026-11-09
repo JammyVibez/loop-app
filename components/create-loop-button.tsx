@@ -165,6 +165,14 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
   const [recording, setRecording] = useState(false)
   const [isSpoiler, setIsSpoiler] = useState(false)
   const authToken = user?.access_token || user?.token
+  const authorName = user?.display_name || user?.username || "You"
+  const authorInitials = authorName
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase()
 
   useEffect(() => {
     try {
@@ -568,47 +576,46 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
   return (
     <>
       {LoginGateDialog}
-    <Card className="create-loop-composer relative overflow-hidden rounded-[28px] border border-white/10 bg-card/55 shadow-[0_34px_100px_-58px_rgba(0,0,0,0.9)] backdrop-blur-2xl">
-      <span aria-hidden className="create-loop-composer-topline pointer-events-none absolute inset-x-10 top-0 z-20 h-px" />
-      <span aria-hidden className="create-loop-composer-light pointer-events-none absolute inset-0 z-0" />
-      <CardContent className="relative z-10 space-y-6 p-4 sm:p-7 lg:p-8">
-        <div className="create-loop-composer-head flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-br from-violet-400/25 via-indigo-400/15 to-cyan-300/20 shadow-[0_12px_30px_-14px_rgba(124,92,255,0.8)]">
-              <FileText className="h-[18px] w-[18px] text-violet-200" />
+    <Card className="create-loop-composer relative overflow-hidden rounded-[30px] border border-white/[0.11] bg-[#0a0b0a] shadow-[0_40px_110px_-60px_rgba(0,0,0,0.95)]">
+      <span aria-hidden className="create-loop-composer-topline pointer-events-none absolute inset-x-14 top-0 z-20 h-px" />
+      <span
+        aria-hidden
+        className="create-loop-composer-light pointer-events-none absolute inset-0 z-0"
+        style={{
+          background:
+            "radial-gradient(44rem 20rem at 12% -12%, rgba(190,242,100,0.075), transparent 65%), radial-gradient(30rem 18rem at 100% 100%, rgba(103,232,249,0.035), transparent 70%)",
+        }}
+      />
+      <CardContent className="relative z-10 p-0">
+        <div className="flex items-center justify-between gap-3 border-b border-white/[0.08] px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-lime-300/25 bg-lime-300/10 text-lime-200">
+              <FileText className="h-3.5 w-3.5" />
             </span>
             <div className="min-w-0">
-              <h2 className="truncate text-[16px] font-semibold tracking-[-0.02em] text-foreground">Create a Loop</h2>
-              <p className="truncate text-[11px] text-muted-foreground">
-                {mediaType === "code"
-                  ? "Share a forkable snippet"
-                  : mediaType === "poll"
-                    ? "Ask the community"
-                    : "Share a story, idea, or moment"}
+              <p className="truncate text-[11.5px] font-semibold tracking-[-0.01em] text-foreground">New loop</p>
+              <p className="text-[9px] font-medium uppercase tracking-[0.16em] text-muted-foreground/65">
+                Draft · autosaved
               </p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <span className="mr-1 hidden items-center gap-1.5 rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] px-3 py-2 text-[10px] font-medium text-muted-foreground sm:inline-flex">
-              <Save className="h-3 w-3" />
-              Draft saved
-            </span>
             <Button
               type="button"
               size="sm"
               variant="outline"
-              className="h-10 rounded-full border-white/10 bg-white/[0.035] px-3.5 text-[11px]"
+              className="h-9 rounded-full border-white/10 bg-white/[0.03] px-3 text-[10.5px] text-muted-foreground hover:text-foreground"
               onClick={() => setShowPreview((v) => !v)}
               aria-label={showPreview ? "Edit loop" : "Preview loop"}
             >
-              <Eye className="mr-1 h-3.5 w-3.5" />
+              <Eye className="h-3.5 w-3.5 sm:mr-1" />
               <span className="hidden sm:inline">{showPreview ? "Edit" : "Preview"}</span>
             </Button>
             <Button
               type="button"
               size="icon"
               variant="ghost"
-              className="h-10 w-10 rounded-full border border-white/10 bg-white/[0.035]"
+              className="h-9 w-9 rounded-full border border-white/10 bg-white/[0.03] text-muted-foreground hover:text-foreground"
               onClick={() => setDiscardOpen(true)}
               title="Close composer"
             >
@@ -617,8 +624,27 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
           </div>
         </div>
 
+        <div className="px-4 pb-4 pt-5 sm:px-7 sm:pb-7 sm:pt-6 lg:px-9 lg:pb-8">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-lime-200 to-emerald-300 text-[11px] font-bold tracking-wide text-[#15200b]">
+                {authorInitials || "You"}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-[13px] font-medium text-foreground">{authorName}</p>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  Posting to <span className="text-foreground/80">Everyone</span>
+                </p>
+              </div>
+            </div>
+            <span className="hidden items-center gap-1.5 text-[10px] text-muted-foreground sm:flex">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-300/80" />
+              Saved on this device
+            </span>
+          </div>
+
         {showPreview ? (
-          <div className="create-loop-preview-panel rounded-[22px] border border-white/10 bg-white/[0.035] p-5 sm:p-6">
+          <div className="create-loop-preview-panel mt-6 rounded-[22px] border border-white/10 bg-white/[0.035] p-5 sm:p-6">
             <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Preview</p>
             <p className="mb-3 whitespace-pre-wrap text-foreground">{content || "No text yet"}</p>
             <div className="mb-3 flex flex-wrap gap-2">
@@ -633,7 +659,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
             {previewUrl && mediaType === "audio" && <audio src={previewUrl} controls className="w-full" />}
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="mt-7 space-y-5">
             {mediaType === "code" ? (
               <div className="space-y-3">
                 <div className="grid gap-2 sm:grid-cols-[1fr_160px]">
@@ -670,165 +696,187 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
               </div>
             ) : (
               <>
-                {/* Markdown Formatting Quick Toolbar */}
-                <div className="create-loop-format-toolbar flex flex-wrap items-center gap-1 rounded-[16px] border border-white/[0.08] bg-white/[0.035] p-1.5 text-xs backdrop-blur-xl sm:flex-nowrap sm:gap-1.5">
-                  <span className="mr-1 flex items-center gap-1 px-1 text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground sm:text-[10px]">
-                    <Zap className="h-3.5 w-3.5" /> Markdown
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setContent((prev) => prev + " **bold**")}
-                    className="min-h-9 min-w-9 rounded-lg border border-white/[0.08] px-2 font-bold text-foreground transition-colors hover:bg-white/[0.07]"
-                    title="Bold (**text**)"
-                  >
-                    B
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setContent((prev) => prev + " *italic*")}
-                    className="min-h-9 min-w-9 rounded-lg border border-white/[0.08] px-2 italic text-foreground transition-colors hover:bg-white/[0.07]"
-                    title="Italic (*text*)"
-                  >
-                    I
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setContent((prev) => prev + "\n# Heading")}
-                    className="min-h-9 min-w-9 rounded-lg border border-white/[0.08] px-2 font-extrabold text-foreground transition-colors hover:bg-white/[0.07]"
-                    title="Heading (# text)"
-                  >
-                    H1
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setContent((prev) => prev + " ~~strikethrough~~")}
-                    className="min-h-9 min-w-9 rounded-lg border border-white/[0.08] px-2 line-through text-foreground transition-colors hover:bg-white/[0.07]"
-                    title="Strikethrough (~~text~~)"
-                  >
-                    S
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setContent((prev) => prev + "\n> blockquote")}
-                    className="min-h-9 min-w-9 rounded-lg border border-white/[0.08] px-2 font-serif text-foreground transition-colors hover:bg-white/[0.07]"
-                    title="Blockquote (> text)"
-                  >
-                    &ldquo;
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setContent((prev) => prev + " `code`")}
-                    className="min-h-9 min-w-10 rounded-lg border border-white/[0.08] px-2 font-mono text-[10px] text-foreground transition-colors hover:bg-white/[0.07]"
-                    title="Inline Code (`text`)"
-                  >
-                    &lt;/&gt;
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setContent((prev) => prev + "\n---\n")}
-                    className="min-h-9 min-w-9 rounded-lg border border-white/[0.08] px-2 text-foreground transition-colors hover:bg-white/[0.07]"
-                    title="Horizontal Divider (---)"
-                  >
-                    &mdash;
-                  </button>
-                </div>
-
                 <MentionTextarea
                   value={content}
                   onChange={setContent}
-                  placeholder="Share a story, idea, or tag someone with @username… (Markdown supported)"
-                  className="create-loop-writing min-h-[168px] border-0 bg-transparent px-0 py-3 text-[15px] leading-7 shadow-none placeholder:text-muted-foreground/80 focus-visible:ring-0 sm:min-h-[190px] sm:text-base"
+                  placeholder="What's the story?"
+                  className="create-loop-writing min-h-[190px] w-full resize-none border-0 bg-transparent px-0 py-1 font-serif text-[clamp(1.65rem,3.4vw,2.6rem)] leading-[1.15] tracking-[-0.03em] shadow-none placeholder:text-muted-foreground/40 focus-visible:ring-0 sm:min-h-[230px]"
                   maxLength={user?.is_premium ? 10000 : 3000}
                 />
-                <div className="create-loop-writing-meta flex items-center justify-between gap-3 border-t border-white/[0.07] pt-2 text-[10.5px] text-muted-foreground">
-                  <span className={content.trim().split(/\s+/).filter(Boolean).length > (user?.is_premium ? 1800 : 500) ? "font-bold text-rose-400" : ""}>
-                    {content.trim() ? content.trim().split(/\s+/).filter(Boolean).length : 0} / {user?.is_premium ? "1800" : "500"} words
-                    {user?.is_premium ? " (Pro Limit)" : " (500 Word Limit)"}
+
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
+                  <div className="create-loop-format-toolbar flex flex-wrap items-center gap-0.5">
+                    <span className="mr-1.5 text-[8.5px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/55">
+                      Style
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setContent((prev) => prev + " **bold**")}
+                      className="flex h-8 min-w-8 items-center justify-center rounded-full px-2 text-[11px] font-bold text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
+                      title="Bold (**text**)"
+                    >
+                      B
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setContent((prev) => prev + " *italic*")}
+                      className="flex h-8 min-w-8 items-center justify-center rounded-full px-2 text-[11px] italic text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
+                      title="Italic (*text*)"
+                    >
+                      I
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setContent((prev) => prev + "\n# Heading")}
+                      className="flex h-8 min-w-8 items-center justify-center rounded-full px-2 text-[11px] font-extrabold text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
+                      title="Heading (# text)"
+                    >
+                      H1
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setContent((prev) => prev + " ~~strikethrough~~")}
+                      className="flex h-8 min-w-8 items-center justify-center rounded-full px-2 text-[11px] line-through text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
+                      title="Strikethrough (~~text~~)"
+                    >
+                      S
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setContent((prev) => prev + "\n> blockquote")}
+                      className="flex h-8 min-w-8 items-center justify-center rounded-full px-2 font-serif text-[13px] text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
+                      title="Blockquote (> text)"
+                    >
+                      &ldquo;
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setContent((prev) => prev + " `code`")}
+                      className="flex h-8 min-w-9 items-center justify-center rounded-full px-2 font-mono text-[10px] text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
+                      title="Inline Code (`text`)"
+                    >
+                      &lt;/&gt;
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setContent((prev) => prev + "\n---\n")}
+                      className="flex h-8 min-w-8 items-center justify-center rounded-full px-2 text-[11px] text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
+                      title="Horizontal Divider (---)"
+                    >
+                      &mdash;
+                    </button>
+                  </div>
+                  <span
+                    className={cn(
+                      "text-[9.5px] tabular-nums text-muted-foreground/60",
+                      content.trim().split(/\s+/).filter(Boolean).length > (user?.is_premium ? 1800 : 500) &&
+                        "font-semibold text-rose-400",
+                    )}
+                  >
+                    {content.trim() ? content.trim().split(/\s+/).filter(Boolean).length : 0} /{" "}
+                    {user?.is_premium ? "1800" : "500"} words
                   </span>
-                  <span className="inline-flex items-center gap-1"><Save className="h-3 w-3" /> Draft saved</span>
                 </div>
               </>
             )}
 
-            <div className="create-loop-topics space-y-2.5 rounded-[18px] border border-white/[0.07] bg-white/[0.025] p-3.5 sm:p-4">
-              <div className="flex items-center gap-2.5">
-                <Hash className="h-4 w-4 text-cyan-200" />
-                <Input
-                  value={hashtags}
-                  onChange={(e) => setHashtags(e.target.value)}
-                  placeholder="design creativity storytelling"
-                  className="h-10 rounded-xl border-white/10 bg-white/[0.035] text-sm placeholder:text-muted-foreground/70"
-                />
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.19em] text-muted-foreground/75">
+                  Make it more than text
+                </p>
+                <span className="text-[9px] text-muted-foreground/50">Pick a medium</span>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {suggestions.map((tag) => (
+              <div className="create-loop-type-grid grid grid-cols-4 gap-1.5 sm:grid-cols-7">
+                {[
+                  { type: "text" as const, icon: FileText, label: "Text" },
+                  { type: "image" as const, icon: ImageIcon, label: "Image" },
+                  { type: "video" as const, icon: Video, label: "Video" },
+                  { type: "audio" as const, icon: Music, label: "Audio" },
+                  { type: "code" as const, icon: Code, label: "Code" },
+                  { type: "poll" as const, icon: Vote, label: "Poll" },
+                  { type: "moment" as const, icon: Zap, label: "Moment" },
+                ].map((item) => (
                   <button
-                    key={tag}
+                    key={item.type}
                     type="button"
-                    onClick={() => addSuggestion(tag)}
-                    className="rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:border-violet-300/25 hover:bg-violet-300/[0.07] hover:text-violet-100"
+                    aria-pressed={mediaType === item.type}
+                    onClick={() => setMediaType(item.type)}
+                    className={cn(
+                      "group flex min-h-[62px] flex-col items-center justify-center gap-1.5 rounded-xl border px-1 py-2 text-[9.5px] font-medium transition-colors",
+                      mediaType === item.type
+                        ? "border-lime-300/30 bg-lime-300/[0.08] text-lime-100"
+                        : "border-white/[0.07] bg-white/[0.018] text-muted-foreground hover:border-white/15 hover:text-foreground",
+                    )}
                   >
-                    #{tag}
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.label}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="flex items-end justify-between gap-3 px-1 pt-1">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-muted-foreground">Choose a format</p>
-                <p className="mt-0.5 text-[10px] text-muted-foreground/75">A different way to tell it</p>
-              </div>
-              <span className="pb-0.5 text-[9px] text-muted-foreground/75">7 ways to create</span>
-            </div>
-            <div className="create-loop-type-grid grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-3 2xl:grid-cols-4">
-              {[
-                { type: "text" as const, icon: FileText, label: "Text" },
-                { type: "image" as const, icon: ImageIcon, label: "Image" },
-                { type: "video" as const, icon: Video, label: "Video" },
-                { type: "audio" as const, icon: Music, label: "Audio" },
-                { type: "code" as const, icon: Code, label: "Code" },
-                { type: "poll" as const, icon: Vote, label: "Poll" },
-                { type: "moment" as const, icon: Zap, label: "Moment" },
-              ].map((item) => (
-                <Button
-                  key={item.type}
-                  type="button"
-                  size="sm"
-                  variant={mediaType === item.type ? "default" : "outline"}
-                  className={
-                    mediaType === item.type
-                      ? "h-11 justify-start rounded-[14px] border-violet-300/25 bg-gradient-to-r from-violet-400/20 to-cyan-300/10 px-3.5 text-[11px] font-semibold text-violet-50 shadow-[0_10px_26px_-18px_rgba(124,92,255,0.9)]"
-                      : "h-11 justify-start rounded-[14px] border-white/[0.08] bg-white/[0.025] px-3.5 text-[11px] font-medium text-muted-foreground hover:border-white/15 hover:bg-white/[0.05] hover:text-foreground"
-                  }
-                  onClick={() => setMediaType(item.type)}
-                >
-                  <item.icon className="mr-1.5 h-3.5 w-3.5" />
-                  {item.label}
-                </Button>
-              ))}
-
-            </div>
-
-            <div className="create-loop-featured-grid grid grid-cols-2 gap-2">
-              <Button
+            <div className="create-loop-featured-grid grid grid-cols-2 gap-1.5">
+              <button
                 type="button"
-                variant="outline"
-                className="h-auto min-h-[68px] justify-start gap-3 rounded-[16px] border-amber-300/20 bg-gradient-to-br from-amber-300/[0.09] to-orange-400/[0.025] px-3.5 py-3 text-left text-foreground shadow-[0_12px_28px_-24px_rgba(245,185,66,0.6)] transition-all hover:border-amber-300/35 hover:from-amber-300/[0.14] hover:to-orange-400/[0.05]"
                 onClick={() => setDuelDialogOpen(true)}
+                className="group flex min-h-[64px] items-center gap-2.5 rounded-2xl border border-white/[0.08] bg-white/[0.018] px-3 py-2.5 text-left transition-colors hover:border-amber-300/30 hover:bg-amber-300/[0.04]"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-300/25 bg-amber-300/10 text-amber-200"><Swords className="h-4 w-4" /></span>
-                <span className="flex min-w-0 flex-col items-start gap-0.5"><span className="text-[11px] font-semibold">Duel</span><span className="text-[9px] font-normal text-muted-foreground">Go head-to-head</span></span>
-              </Button>
-              <Button
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-amber-300/20 bg-amber-300/[0.08] text-amber-200">
+                  <Swords className="h-3.5 w-3.5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[11px] font-medium text-foreground">Duel</span>
+                  <span className="block truncate text-[9px] text-muted-foreground">Go head-to-head</span>
+                </span>
+                <span aria-hidden className="text-[11px] text-muted-foreground/50 transition-colors group-hover:text-foreground">
+                  ↗
+                </span>
+              </button>
+              <button
                 type="button"
-                variant="outline"
-                className="h-auto min-h-[68px] justify-start gap-3 rounded-[16px] border-indigo-300/20 bg-gradient-to-br from-indigo-400/[0.1] to-cyan-300/[0.025] px-3.5 py-3 text-left text-foreground shadow-[0_12px_28px_-24px_rgba(99,102,241,0.65)] transition-all hover:border-indigo-300/35 hover:from-indigo-400/[0.15] hover:to-cyan-300/[0.05]"
                 onClick={() => setClutchDuelDialogOpen(true)}
+                className="group flex min-h-[64px] items-center gap-2.5 rounded-2xl border border-white/[0.08] bg-white/[0.018] px-3 py-2.5 text-left transition-colors hover:border-indigo-300/30 hover:bg-indigo-300/[0.04]"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-indigo-300/25 bg-indigo-300/10 text-indigo-200"><Zap className="h-4 w-4" /></span>
-                <span className="flex min-w-0 flex-col items-start gap-0.5"><span className="text-[11px] font-semibold">Clutch</span><span className="text-[9px] font-normal text-muted-foreground">High-stakes round</span></span>
-              </Button>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-indigo-300/20 bg-indigo-300/[0.08] text-indigo-200">
+                  <Zap className="h-3.5 w-3.5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[11px] font-medium text-foreground">Clutch</span>
+                  <span className="block truncate text-[9px] text-muted-foreground">High-stakes round</span>
+                </span>
+                <span aria-hidden className="text-[11px] text-muted-foreground/50 transition-colors group-hover:text-foreground">
+                  ↗
+                </span>
+              </button>
+            </div>
+
+            <div className="create-loop-topics space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.19em] text-muted-foreground/75">Topics</p>
+                <span className="text-[9px] text-muted-foreground/50">Optional</span>
+              </div>
+              <div className="flex items-center gap-2 border-b border-white/[0.08] pb-1">
+                <Hash className="h-4 w-4 shrink-0 text-lime-300/70" />
+                <Input
+                  value={hashtags}
+                  onChange={(e) => setHashtags(e.target.value)}
+                  placeholder="design creativity storytelling"
+                  className="h-9 min-w-0 flex-1 border-0 bg-transparent px-0 text-sm shadow-none placeholder:text-muted-foreground/50 focus-visible:ring-0"
+                />
+              </div>
+              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                {suggestions.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => addSuggestion(tag)}
+                    className="rounded-full border border-white/[0.08] bg-white/[0.02] px-2.5 py-1 text-[9.5px] font-medium text-muted-foreground transition-colors hover:border-lime-300/25 hover:bg-lime-300/[0.06] hover:text-lime-100"
+                  >
+                    #{tag}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {mediaType === "poll" && (
@@ -974,13 +1022,17 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
               </div>
             )}
 
-            <div className="create-loop-submit-row flex flex-col-reverse items-stretch justify-end gap-2.5 border-t border-white/[0.08] pt-5 sm:flex-row sm:items-center">
-              <span className="hidden flex-1 items-center gap-1.5 text-[11px] text-muted-foreground sm:flex">
-                <Zap className="h-3 w-3 text-violet-400" />
+            <div className="create-loop-submit-row flex flex-col-reverse items-stretch justify-between gap-3 border-t border-white/[0.08] pt-4 sm:flex-row sm:items-center">
+              <p className="hidden flex-1 text-[9.5px] text-muted-foreground/55 sm:block">
                 Drafts save automatically — nothing gets lost while you write.
-              </span>
+              </p>
               <div className="flex gap-2">
-                <Button type="button" variant="outline" className="h-11 rounded-full border-white/10 bg-white/[0.025] px-5 text-[11px] text-muted-foreground hover:bg-white/[0.06] hover:text-foreground" onClick={() => setDiscardOpen(true)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 flex-1 rounded-full px-5 text-[10.5px] font-medium text-muted-foreground hover:bg-white/[0.05] hover:text-foreground sm:flex-none"
+                  onClick={() => setDiscardOpen(true)}
+                >
                   Cancel
                 </Button>
                 <DynamicButton
@@ -989,7 +1041,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                   stateKey={creating ? uploadStatus || "publishing" : "create"}
                   icon={creating ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent" /> : <ArrowNarrowRightIcon size={16} /> }
                   disabled={creating || (!content.trim() && mediaFiles.length === 0)}
-                  className="create-loop-submit h-11 rounded-full border-0 bg-gradient-to-r from-violet-400 via-indigo-400 to-cyan-300 px-5 text-[11.5px] font-semibold text-[#090813] shadow-[0_14px_34px_-12px_rgba(124,92,255,0.75)] hover:brightness-105"
+                  className="create-loop-submit h-11 flex-1 rounded-full border-0 bg-gradient-to-r from-lime-200 via-lime-300 to-emerald-300 px-5 text-[11.5px] font-semibold text-[#15200b] shadow-[0_14px_34px_-16px_rgba(190,242,100,0.65)] hover:brightness-105 sm:flex-none"
                 >
                   {creating ? uploadStatus || "Publishing..." : "Create Loop"}
                 </DynamicButton>
@@ -997,6 +1049,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
             </div>
           </form>
         )}
+        </div>
       </CardContent>
 
       <ConfirmDialog

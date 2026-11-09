@@ -2,7 +2,7 @@
 
 import { useMemo } from "react"
 import Link from "next/link"
-import { ArrowUpRight, Check, Coins, CreditCard, Crown, Eye, Lock, ShoppingBag } from "lucide-react"
+import { ArrowUpRight, Check, Coins, CreditCard, Crown, Lock, ShoppingBag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { ShopItemMiniPreview, type ShopPreviewItem } from "@/components/shop/shop-item-preview"
@@ -108,7 +108,7 @@ export function ShopItemCard({
   return (
     <article
       className={cn(
-        "shop-item-card group relative flex flex-col overflow-hidden rounded-[24px] border border-white/[0.085] bg-[linear-gradient(160deg,rgba(255,255,255,0.045),rgba(255,255,255,0.018)_42%,rgba(255,255,255,0.012))] shadow-[0_18px_48px_-38px_rgba(0,0,0,0.95)] transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-white/[0.16] hover:shadow-[0_30px_70px_-38px_rgba(0,0,0,0.95)]",
+        "shop-item-card group relative flex flex-col overflow-hidden rounded-[20px] border border-white/[0.07] bg-[#0d0c11] transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-white/[0.14] hover:shadow-[0_24px_60px_-40px_rgba(0,0,0,0.95)]",
         className,
       )}
     >
@@ -133,6 +133,9 @@ export function ShopItemCard({
             className="relative z-10 p-4 transition-transform duration-500 ease-out group-hover:scale-[1.035]"
           />
           <span className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-12 bg-gradient-to-t from-black/35 to-transparent" />
+          <span className="absolute left-2.5 top-2.5 z-20">
+            <RarityChip rarity={item.rarity} />
+          </span>
         </div>
 
         {/* One badge in the top-right corner, never two: ownership is the more
@@ -149,31 +152,22 @@ export function ShopItemCard({
           </span>
         ) : null}
 
-        <span className="absolute inset-x-0 bottom-3 z-20 flex justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/60 px-3 py-1.5 text-[10px] font-semibold text-white backdrop-blur-md">
-            <Eye className="h-3 w-3" />
-            Quick view
-          </span>
-        </span>
       </button>
 
-      <div className="flex flex-1 flex-col gap-3.5 p-4 sm:p-[18px]">
+      <div className="flex flex-1 flex-col p-3.5 sm:p-4">
         <div className="min-w-0">
-          <div className="mb-2 flex min-h-5 items-center">
-            <RarityChip rarity={item.rarity} className="px-2.5 py-1 text-[8px] tracking-[0.14em]" />
-          </div>
-          <h3 className="line-clamp-2 min-h-[2.5rem] text-[14px] font-semibold leading-[1.25] tracking-[-0.015em] text-foreground sm:text-[15px]">{item.name}</h3>
-          <p className="mt-1.5 line-clamp-2 min-h-[2.5rem] text-[11px] leading-[1.55] text-muted-foreground">
+          <h3 className="truncate text-[13px] font-medium tracking-[-0.01em] text-foreground sm:text-[13.5px]">{item.name}</h3>
+          <p className="mt-0.5 line-clamp-1 text-[10px] leading-4 text-muted-foreground/75">
             {item.description || "A little something to make your Loop yours."}
           </p>
         </div>
 
-        <div className="mt-auto flex items-center justify-between gap-2 border-t border-white/[0.07] pt-3">
-          <span className="flex min-w-0 items-center gap-1.5 text-[14px] font-semibold tabular-nums text-foreground">
+        <div className="mt-auto flex items-end justify-between gap-2 border-t border-white/[0.06] pt-3">
+          <span className="flex min-w-0 items-center gap-1.5 text-[12.5px] font-semibold tabular-nums text-foreground">
             {isCoinPack ? (
               <>
                 <span className="text-emerald-300">${usd || coins}</span>
-                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">USD</span>
+                <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-muted-foreground/60">USD</span>
               </>
             ) : (
               <>
@@ -183,48 +177,50 @@ export function ShopItemCard({
             )}
           </span>
 
-          {owned && !isCoinPack ? (
-            <Button asChild size="sm" variant="outline" className="h-10 rounded-full border-white/15 px-4 text-[11px]">
-              <Link href="/inventory">
-                Equip
-                <ArrowUpRight className="ml-1 h-3 w-3" />
-              </Link>
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              onClick={() => onBuy?.(item)}
-              disabled={purchasing}
-              className="h-10 rounded-full bg-gradient-to-r from-amber-200 to-amber-300 px-4 text-[11px] font-bold text-[#1a1305] shadow-[0_8px_22px_-12px_rgba(245,185,66,0.65)] transition hover:from-amber-100 hover:to-amber-200 disabled:opacity-60"
-            >
-              {purchasing ? (
-                <Lottie animation={itemArt} className="h-4 w-4" />
-              ) : locked ? (
-                <>
-                  <Lock className="mr-1 h-3 w-3" />
-                  Pro
-                </>
-              ) : (
-                <>
-                  <ShoppingBag className="mr-1 h-3 w-3" />
-                  {isCoinPack ? "Buy now" : "Buy"}
-                </>
-              )}
-            </Button>
-          )}
-        </div>
+          <div className="flex shrink-0 flex-col items-end gap-0.5">
+            {owned && !isCoinPack ? (
+              <Button asChild size="sm" variant="outline" className="h-9 rounded-full border-white/15 px-3.5 text-[10px]">
+                <Link href="/inventory">
+                  Equip
+                  <ArrowUpRight className="ml-1 h-3 w-3" />
+                </Link>
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={() => onBuy?.(item)}
+                disabled={purchasing}
+                className="h-9 rounded-full bg-gradient-to-r from-amber-200 to-amber-300 px-3.5 text-[10px] font-bold text-[#1a1305] shadow-[0_8px_22px_-12px_rgba(245,185,66,0.65)] transition hover:from-amber-100 hover:to-amber-200 disabled:opacity-60"
+              >
+                {purchasing ? (
+                  <Lottie animation={itemArt} className="h-4 w-4" />
+                ) : locked ? (
+                  <>
+                    <Lock className="mr-1 h-3 w-3" />
+                    Pro
+                  </>
+                ) : (
+                  <>
+                    <ShoppingBag className="mr-1 h-3 w-3" />
+                    {isCoinPack ? "Buy now" : "Buy"}
+                  </>
+                )}
+              </Button>
+            )}
 
-        {!isCoinPack && usd > 0 && !owned ? (
-          <button
-            type="button"
-            onClick={() => onBuyWithCard?.(item)}
-            disabled={purchasing}
-            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <CreditCard className="h-3 w-3" />
-            or pay ${usd.toFixed(2)} by card
-          </button>
-        ) : null}
+            {!isCoinPack && usd > 0 && !owned ? (
+              <button
+                type="button"
+                onClick={() => onBuyWithCard?.(item)}
+                disabled={purchasing}
+                className="inline-flex items-center gap-1 text-[8.5px] leading-3 text-muted-foreground/55 transition-colors hover:text-foreground"
+              >
+                <CreditCard className="h-2.5 w-2.5" />
+                ${usd.toFixed(2)} card
+              </button>
+            ) : null}
+          </div>
+        </div>
       </div>
     </article>
   )

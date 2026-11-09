@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import {
   ArrowDownUp,
@@ -9,7 +9,6 @@ import {
   Package,
   Palette,
   Search,
-  SlidersHorizontal,
   Sparkle,
   UserRound,
   Wand2,
@@ -36,11 +35,10 @@ import {
   type ShopPreviewItem,
 } from "@/components/shop/shop-item-preview"
 import { LoopCoinsBalance } from "@/components/shop/loop-coins-balance"
-import { ShopItemCard, RarityChip } from "@/components/shop/shop-item-card"
+import { ShopItemCard } from "@/components/shop/shop-item-card"
 import {
   SHOP_SORTS,
   coinPrice,
-  excludeSpotlight,
   matchesQuery,
   shopBucket,
   sortShopItems,
@@ -51,7 +49,7 @@ import { ShopEmpty, ShopError, ShopGridSkeleton } from "@/components/shop/shop-s
 import { PurchaseCelebration, type CelebrationPayload } from "@/components/shop/purchase-celebration"
 import { ShopHero } from "@/components/shop/shop-hero"
 import { ProfileFramesPanel } from "@/components/profile/pfp-frames-panel"
-import { GIFT, SPARKLES } from "@/components/shop/shop-art"
+import { GIFT } from "@/components/shop/shop-art"
 import { Lottie } from "@/components/ui/lottie"
 
 type ShopItem = ShopCatalogItem
@@ -129,33 +127,7 @@ const PAGE_SIZE = 24
  * One grid rhythm for the whole storefront. Every shelf uses this so cards line
  * up column-for-column as you move between tabs.
  */
-const ITEM_GRID = "grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4"
-
-/** A consistent label above each shelf, so sections read as sections. */
-function SectionHeader({
-  icon: Icon,
-  title,
-  hint,
-  aside,
-}: {
-  icon: LucideIcon
-  title: string
-  hint?: string
-  aside?: ReactNode
-}) {
-  return (
-    <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border/60 pb-2.5">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border/70 bg-white/[0.03]">
-          <Icon className="h-3.5 w-3.5 text-amber-300" />
-        </span>
-        <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-foreground">{title}</h2>
-        {hint ? <span className="truncate text-[11px] text-muted-foreground">{hint}</span> : null}
-      </div>
-      {aside}
-    </header>
-  )
-}
+const ITEM_GRID = "grid grid-cols-2 gap-3.5 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4 2xl:gap-5"
 
 export function ShopContent() {
   const [items, setItems] = useState<ShopItem[]>([])
@@ -166,7 +138,6 @@ export function ShopContent() {
   const [sort, setSort] = useState<SortId>("featured")
   const [search, setSearch] = useState("")
   const [hideOwned, setHideOwned] = useState(false)
-  const [filtersOpen, setFiltersOpen] = useState(false)
   const [purchasing, setPurchasing] = useState<string | null>(null)
   const [preview, setPreview] = useState<ShopPreviewItem | null>(null)
   const [celebration, setCelebration] = useState<CelebrationPayload | null>(null)
@@ -369,16 +340,6 @@ export function ShopContent() {
 
   const isFiltered = rarity !== "all" || Boolean(search.trim()) || hideOwned
 
-  // The Spotlight shelf and the main grid used to show the same legendary/epic
-  // cards, so six items appeared twice on one screen. When the shelf is up, its
-  // items come out of the grid below it.
-  const showSpotlight = !isFiltered && activeCategory.id === "featured" && spotlight.length > 0
-
-  const gridItems = useMemo(
-    () => (showSpotlight ? excludeSpotlight(filtered, spotlight) : filtered),
-    [filtered, spotlight, showSpotlight],
-  )
-
   const clearFilters = () => {
     setRarity("all")
     setSearch("")
@@ -421,117 +382,79 @@ export function ShopContent() {
         <ShopGridSkeleton count={8} className={ITEM_GRID} />
       ) : (
         <>
-          <div className="grid gap-5 lg:grid-cols-[218px_minmax(0,1fr)] lg:gap-7">
-            {/* Category rail — a real navigation column on desktop, a swipeable
-                row of chips on phones. */}
-            <aside className="hidden lg:block">
-              <div className="sticky top-20 space-y-3">
-                <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/60">
-                  <p className="px-3.5 pb-1.5 pt-3 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                    Browse the vault
-                  </p>
-                  <div className="p-1.5">
-                    {CATEGORIES.filter((def) => !def.hideWhenEmpty || (counts.get(def.id) || 0) > 0).map((def) => {
-                      const Icon = def.icon
-                      const active = def.id === category
-                      return (
-                        <button
-                          key={def.id}
-                          type="button"
-                          onClick={() => setCategory(def.id)}
-                          className={cn(
-                            "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[12.5px] font-medium transition-colors",
-                            active
-                              ? "bg-white/[0.07] text-foreground"
-                              : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground",
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors",
-                              active ? "border-amber-300/40 bg-amber-300/10 text-amber-200" : "border-border/70 text-muted-foreground",
-                            )}
-                          >
-                            <Icon className="h-3.5 w-3.5" />
-                          </span>
-                          <span className="min-w-0 flex-1 truncate">{def.label}</span>
-                          {counts.has(def.id) ? (
-                            <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/70">
-                              {counts.get(def.id)}
-                            </span>
-                          ) : null}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-border/70 bg-gradient-to-b from-amber-300/[0.07] to-card/60 p-3.5">
-                  <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-                    <Coins className="h-3 w-3 text-amber-300" />
-                    Your balance
-                  </p>
-                  <p className="mt-1.5 text-2xl font-semibold tabular-nums text-foreground">
-                    {user ? (user.loop_coins || 0).toLocaleString() : "—"}
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    {user ? "Spend it before it burns a hole." : "Sign in to collect."}
-                  </p>
-                  {user ? (
-                    <Button size="sm" className="mt-2.5 w-full rounded-full bg-amber-300 text-[11px] font-bold text-[#1a1305] hover:bg-amber-200" onClick={() => setCategory("coins")}>
-                      Top up
-                    </Button>
-                  ) : (
-                    <Button asChild size="sm" className="mt-2.5 w-full rounded-full">
-                      <Link href="/login">Sign in</Link>
-                    </Button>
-                  )}
-                </div>
-
-                <Button asChild variant="ghost" size="sm" className="w-full justify-start rounded-xl text-[11px] text-muted-foreground hover:text-foreground">
-                  <Link href="/quests">
-                    <Wand2 className="mr-2 h-3.5 w-3.5 text-amber-300" />
-                    Earn coins in Quests
-                  </Link>
-                </Button>
+          <div className="space-y-5">
+            <nav className="-mx-4 overflow-x-auto border-b border-white/[0.08] px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
+              <div className="flex w-max items-center gap-0.5">
+                {CATEGORIES.filter((def) => !def.hideWhenEmpty || (counts.get(def.id) || 0) > 0).map((def) => {
+                  const Icon = def.icon
+                  const active = def.id === category
+                  return (
+                    <button
+                      key={def.id}
+                      type="button"
+                      onClick={() => setCategory(def.id)}
+                      className={cn(
+                        "relative inline-flex h-10 shrink-0 items-center gap-1.5 px-3 text-[11.5px] font-medium transition-colors",
+                        active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <Icon className={cn("h-3.5 w-3.5", active ? "text-amber-300" : "text-muted-foreground/60")} />
+                      {def.label}
+                      {counts.has(def.id) ? (
+                        <span className="text-[9px] tabular-nums text-muted-foreground/45">{counts.get(def.id)}</span>
+                      ) : null}
+                      {active ? <span aria-hidden className="absolute inset-x-3 -bottom-px h-px bg-amber-300" /> : null}
+                    </button>
+                  )
+                })}
               </div>
-            </aside>
+            </nav>
 
-            <div className="min-w-0 space-y-5">
-              <nav className="-mx-4 overflow-x-auto px-4 lg:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <div className="flex w-max items-center gap-1.5 rounded-full border border-border/70 bg-card/70 p-1">
-                  {CATEGORIES.filter((def) => !def.hideWhenEmpty || (counts.get(def.id) || 0) > 0).map((def) => {
-                    const Icon = def.icon
-                    const active = def.id === category
-                    return (
-                      <button
-                        key={def.id}
-                        type="button"
-                        onClick={() => setCategory(def.id)}
-                        className={cn(
-                          "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
-                          active ? "bg-amber-300 text-[#1a1305]" : "text-muted-foreground hover:text-foreground",
-                        )}
-                      >
-                        <Icon className="h-3.5 w-3.5" />
-                        {def.label}
-                      </button>
-                    )
-                  })}
-                </div>
-              </nav>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">The vault</p>
+                <h2 className="mt-1 font-serif text-[2rem] leading-none tracking-[-0.03em] text-foreground">
+                  {activeCategory.label}
+                </h2>
+                <p className="mt-1.5 max-w-xl text-[11px] leading-5 text-muted-foreground">{activeCategory.hint}</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/[0.1] bg-white/[0.025] px-3 text-[11px] tabular-nums text-foreground">
+                  <Coins className="h-3.5 w-3.5 text-amber-300" />
+                  {user ? (user.loop_coins || 0).toLocaleString() : "—"}
+                </span>
+                {user ? (
+                  <Button
+                    size="sm"
+                    className="h-9 rounded-full bg-amber-300 px-3.5 text-[10.5px] font-bold text-[#1a1305] hover:bg-amber-200"
+                    onClick={() => setCategory("coins")}
+                  >
+                    Top up
+                  </Button>
+                ) : (
+                  <Button asChild size="sm" className="h-9 rounded-full px-3.5 text-[10.5px]">
+                    <Link href="/login">Sign in</Link>
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="min-w-0 space-y-4">
 
           {activeCategory.custom ? (
             <section className="space-y-4">
-              <SectionHeader icon={activeCategory.icon} title={activeCategory.label} hint={activeCategory.hint} />
+              <div>
+                <h3 className="font-serif text-2xl tracking-[-0.02em] text-foreground">{activeCategory.label}</h3>
+                <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{activeCategory.hint}</p>
+              </div>
               <ProfileFramesPanel avatarUrl={user?.avatar_url} />
             </section>
           ) : activeCategory.id === "coins" ? (
-            <div className="grid gap-4 lg:grid-cols-[1fr_320px] lg:items-start">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{filtered.map((item) => card(item))}</div>
-              <div className="space-y-4 lg:sticky lg:top-20">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+              <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">{filtered.map((item) => card(item))}</div>
+              <div className="space-y-4 lg:sticky lg:top-24">
                 <LoopCoinsBalance showDetails />
-                <div className="rounded-2xl border border-border bg-card p-5">
+                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
                   <Lottie animation={GIFT} className="h-16 w-16" />
                   <h3 className="mt-2 text-sm font-semibold text-foreground">Coins you don&apos;t pay for</h3>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
@@ -546,120 +469,73 @@ export function ShopContent() {
             </div>
           ) : (
             <>
-              {showSpotlight ? (
-                <section className="space-y-3">
-                  <SectionHeader
-                    icon={Sparkle}
-                    title="Featured drops"
-                    hint="rarest first"
-                    aside={<Lottie animation={SPARKLES} className="h-6 w-6" />}
+              <div className="flex flex-col gap-2.5 border-b border-white/[0.08] pb-3 sm:flex-row sm:items-center">
+                <div className="relative min-w-0 flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
+                  <Input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search themes, frames, effects…"
+                    className="h-10 rounded-full border-white/[0.08] bg-white/[0.025] pl-9 text-[12px] placeholder:text-muted-foreground/55"
                   />
-                  <div className="-mx-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
-                    <div className="flex w-max gap-3 sm:gap-4">
-                      {spotlight.map((item) => card(item, "w-[250px] shrink-0 sm:w-[272px]"))}
-                    </div>
-                  </div>
-                </section>
-              ) : null}
-
-              {/*
-                Toolbar. Search, the filters and the result count used to be three
-                loose rows of mismatched pills floating over the grid; they now
-                live in one bordered surface with a clear order.
-              */}
-              <section className="rounded-2xl border border-border/70 bg-card/60 p-3 backdrop-blur-sm">
-                <div className="flex items-center gap-2">
-                  <div className="relative min-w-0 flex-1">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      value={search}
-                      onChange={(event) => setSearch(event.target.value)}
-                      placeholder="Search themes, frames, effects…"
-                      className="h-9 rounded-full border-border/70 bg-white/[0.03] pl-9 text-sm"
-                    />
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-9 shrink-0 rounded-full border-border/70 md:hidden"
-                    onClick={() => setFiltersOpen((open) => !open)}
-                  >
-                    <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
-                    Filters
-                    {isFiltered ? <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-amber-300" /> : null}
-                  </Button>
                 </div>
 
-                <div
-                  className={cn(
-                    "mt-3 flex-wrap items-center gap-2 border-t border-border/60 pt-3",
-                    filtersOpen ? "flex" : "hidden md:flex",
-                  )}
-                >
-                    <Select value={rarity} onValueChange={setRarity}>
-                      <SelectTrigger className="h-9 w-[130px] rounded-full text-sm">
-                        <SelectValue placeholder="Rarity" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All rarities</SelectItem>
-                        <SelectItem value="legendary">Legendary</SelectItem>
-                        <SelectItem value="epic">Epic</SelectItem>
-                        <SelectItem value="rare">Rare</SelectItem>
-                        <SelectItem value="common">Common</SelectItem>
-                      </SelectContent>
-                    </Select>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Select value={rarity} onValueChange={setRarity}>
+                    <SelectTrigger className="h-10 w-[124px] rounded-full border-white/[0.08] bg-white/[0.025] text-[11px]">
+                      <SelectValue placeholder="Rarity" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All rarities</SelectItem>
+                      <SelectItem value="legendary">Legendary</SelectItem>
+                      <SelectItem value="epic">Epic</SelectItem>
+                      <SelectItem value="rare">Rare</SelectItem>
+                      <SelectItem value="common">Common</SelectItem>
+                    </SelectContent>
+                  </Select>
 
-                    <Select value={sort} onValueChange={(value) => setSort(value as SortId)}>
-                      <SelectTrigger className="h-9 w-[170px] rounded-full text-sm">
-                        <ArrowDownUp className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SHOP_SORTS.map((option) => (
-                          <SelectItem key={option.id} value={option.id}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <Select value={sort} onValueChange={(value) => setSort(value as SortId)}>
+                    <SelectTrigger className="h-10 w-[158px] rounded-full border-white/[0.08] bg-white/[0.025] text-[11px]">
+                      <ArrowDownUp className="mr-1.5 h-3 text-muted-foreground/60" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SHOP_SORTS.map((option) => (
+                        <SelectItem key={option.id} value={option.id}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-                    <div className="flex h-9 items-center gap-2 rounded-full border border-border px-3 text-xs font-medium text-muted-foreground">
-                      <Switch checked={hideOwned} onCheckedChange={setHideOwned} />
-                      Hide owned
-                    </div>
+                  <div className="flex h-10 items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.025] px-3 text-[10.5px] font-medium text-muted-foreground">
+                    <Switch checked={hideOwned} onCheckedChange={setHideOwned} />
+                    Hide owned
+                  </div>
 
-                    {isFiltered ? (
-                      <button
-                        type="button"
-                        onClick={clearFilters}
-                        className="inline-flex h-9 items-center gap-1 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                        Clear
-                      </button>
-                    ) : null}
-                </div>
-
-                <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
-                  <span className="font-semibold tabular-nums text-foreground">
-                    {gridItems.length} {gridItems.length === 1 ? "item" : "items"}
-                  </span>
-                  <span aria-hidden>·</span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <Sparkle className="h-3 w-3" />
-                    {activeCategory.hint}
-                  </span>
-                  {rarity !== "all" ? (
-                    <>
-                      <span aria-hidden>·</span>
-                      <RarityChip rarity={rarity} />
-                    </>
+                  {isFiltered ? (
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="inline-flex h-10 items-center gap-1 rounded-full px-3 text-[10.5px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Clear
+                    </button>
                   ) : null}
                 </div>
-              </section>
+              </div>
 
-              {gridItems.length === 0 ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <Sparkle className="h-3 w-3 text-amber-300/75" />
+                  <span className="font-medium tabular-nums text-foreground">{filtered.length}</span>
+                  {filtered.length === 1 ? "item" : "items"}
+                </span>
+                <span>{SHOP_SORTS.find((option) => option.id === sort)?.label}</span>
+              </div>
+
+              {filtered.length === 0 ? (
                 <ShopEmpty
                   title={items.length === 0 ? "The shelves are empty" : "Nothing matches those filters"}
                   hint={
@@ -677,24 +553,17 @@ export function ShopContent() {
                 />
               ) : (
                 <>
-                  {showSpotlight ? (
-                    <SectionHeader
-                      icon={activeCategory.icon}
-                      title={activeCategory.label}
-                      hint="everything not on the shelf above"
-                    />
-                  ) : null}
                   <div className={ITEM_GRID}>
-                    {gridItems.slice(0, limit).map((item) => card(item))}
+                    {filtered.slice(0, limit).map((item) => card(item))}
                   </div>
-                  {gridItems.length > limit ? (
+                  {filtered.length > limit ? (
                     <div className="flex justify-center pt-1">
                       <Button
                         variant="outline"
                         className="rounded-full"
                         onClick={() => setLimit((current) => current + PAGE_SIZE)}
                       >
-                        Show {Math.min(PAGE_SIZE, gridItems.length - limit)} more
+                        Show {Math.min(PAGE_SIZE, filtered.length - limit)} more
                       </Button>
                     </div>
                   ) : null}
@@ -705,27 +574,21 @@ export function ShopContent() {
             </div>
           </div>
 
-          {/* One quiet line for anyone who does not know how any of this works. */}
-          <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-gradient-to-r from-white/[0.04] to-transparent p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-300/30 bg-amber-300/10">
-                <Wand2 className="h-4 w-4 text-amber-300" />
-              </span>
-              <div>
-                <p className="text-sm font-medium text-foreground">How it works</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                  Preview live, buy once with coins or a card, then equip it from Inventory. Unequipping
-                  never costs anything.
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button asChild variant="outline" size="sm" className="rounded-full">
-                <Link href="/inventory">Inventory</Link>
-              </Button>
-              <Button asChild variant="ghost" size="sm" className="rounded-full">
-                <Link href="/quests">Earn coins</Link>
-              </Button>
+          <div className="flex flex-col gap-3 border-t border-white/[0.08] pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-[10.5px] leading-5 text-muted-foreground">
+              <span className="text-foreground/85">Preview live.</span> Buy once with coins or a card, then
+              equip from Inventory.
+            </p>
+            <div className="flex items-center gap-4 text-[10.5px]">
+              <Link href="/inventory" className="text-muted-foreground transition-colors hover:text-foreground">
+                Inventory
+              </Link>
+              <Link
+                href="/quests"
+                className="inline-flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <Wand2 className="h-3.5 w-3.5 text-amber-300" /> Earn coins
+              </Link>
             </div>
           </div>
         </>

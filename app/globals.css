@@ -1384,9 +1384,9 @@ html.loop-reduced-motion *::after {
   pointer-events: none;
   content: "";
   background:
-    radial-gradient(38rem 26rem at 92% 0%, rgba(124, 92, 255, 0.12), transparent 68%),
-    radial-gradient(30rem 24rem at 1% 36%, rgba(34, 211, 238, 0.065), transparent 72%),
-    radial-gradient(28rem 20rem at 88% 78%, rgba(245, 185, 66, 0.045), transparent 72%);
+    radial-gradient(38rem 26rem at 92% 0%, rgba(190, 242, 100, 0.08), transparent 68%),
+    radial-gradient(30rem 24rem at 1% 36%, rgba(103, 232, 249, 0.05), transparent 72%),
+    radial-gradient(28rem 20rem at 88% 78%, rgba(16, 185, 129, 0.035), transparent 72%);
 }
 
 .create-studio-hero {
@@ -1420,18 +1420,18 @@ html.loop-reduced-motion *::after {
 }
 
 .create-loop-composer {
-  background-image: linear-gradient(155deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.012) 50%, rgba(124, 92, 255, 0.018));
-  box-shadow: 0 38px 100px -66px rgba(0, 0, 0, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.065);
+  background-image: linear-gradient(155deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.006) 50%, rgba(190, 242, 100, 0.012));
+  box-shadow: 0 38px 100px -66px rgba(0, 0, 0, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.055);
 }
 
 .create-loop-composer-topline {
-  background: linear-gradient(90deg, transparent, rgba(167, 139, 250, 0.7), rgba(103, 232, 249, 0.36), transparent);
+  background: linear-gradient(90deg, transparent, rgba(190, 242, 100, 0.65), rgba(103, 232, 249, 0.28), transparent);
 }
 
 .create-loop-composer-light {
   background:
-    radial-gradient(34rem 18rem at -10% -8%, rgba(124, 92, 255, 0.075), transparent 67%),
-    radial-gradient(30rem 18rem at 106% 88%, rgba(34, 211, 238, 0.035), transparent 66%);
+    radial-gradient(34rem 18rem at -10% -8%, rgba(190, 242, 100, 0.06), transparent 67%),
+    radial-gradient(30rem 18rem at 106% 88%, rgba(103, 232, 249, 0.03), transparent 66%);
 }
 
 .create-loop-format-toolbar,
@@ -1451,11 +1451,11 @@ html.loop-reduced-motion *::after {
 }
 
 .create-loop-dropzone {
-  background-image: radial-gradient(19rem 11rem at 50% 0%, rgba(124, 92, 255, 0.07), transparent 70%);
+  background-image: radial-gradient(19rem 11rem at 50% 0%, rgba(190, 242, 100, 0.05), transparent 70%);
 }
 
 .create-loop-submit {
-  box-shadow: 0 16px 36px -14px rgba(124, 92, 255, 0.78), 0 7px 22px -16px rgba(34, 211, 238, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  box-shadow: 0 16px 36px -14px rgba(190, 242, 100, 0.55), 0 7px 22px -16px rgba(16, 185, 129, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 
 .shop-item-card {

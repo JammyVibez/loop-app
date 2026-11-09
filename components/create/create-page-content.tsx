@@ -5,7 +5,7 @@ import { CreateHub, type CreateTab } from "@/components/create/create-hub"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
-import { Layers, Save, Sparkles, Wand2 } from "lucide-react"
+import { Sparkles } from "lucide-react"
 
 export function CreatePageContent({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
   const { user, loading, authResolved } = useAuth()
@@ -33,46 +33,57 @@ export function CreatePageContent({ defaultTab = "loop" }: { defaultTab?: Create
   return (
     <div className="bg-background text-foreground">
       <Header />
-      <main className="create-studio mx-auto w-full max-w-[1440px] px-3 pb-24 pt-4 sm:px-6 sm:pb-14 sm:pt-7 lg:px-8">
-        <section className="create-studio-hero relative mb-5 overflow-hidden rounded-[28px] border border-border/70">
-          <div aria-hidden className="create-studio-hero-glow pointer-events-none absolute inset-0" />
-          <div aria-hidden className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-violet-300/50 to-cyan-200/40" />
+      <main className="create-studio relative mx-auto w-full max-w-[1480px] px-4 pb-24 pt-3 sm:px-6 sm:pb-16 sm:pt-5 lg:px-10">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-[440px] bg-[radial-gradient(52rem_22rem_at_18%_-12%,rgba(190,242,100,0.10),transparent_65%),radial-gradient(38rem_20rem_at_86%_0%,rgba(103,232,249,0.06),transparent_68%)]"
+        />
 
-          <div className="relative flex flex-col gap-5 p-5 sm:p-7 lg:flex-row lg:items-end lg:justify-between lg:px-9 lg:py-8">
-            <div className="flex min-w-0 items-start gap-4">
-              <span className="create-studio-mark flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-br from-violet-400/25 via-indigo-400/15 to-cyan-300/15 shadow-[0_12px_36px_-16px_rgba(124,92,255,0.75)]">
-                <Sparkles className="h-5 w-5 text-violet-200" />
-              </span>
-              <div className="min-w-0">
-                <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  Creator studio <span aria-hidden className="hidden h-px w-6 bg-gradient-to-r from-violet-400/70 to-cyan-300/70 sm:block" />
-                  <span className="hidden tracking-[0.14em] sm:inline">A space for the unfinished</span>
-                </p>
-                <h1 className="mt-2 max-w-3xl text-[clamp(1.65rem,3vw,2.65rem)] font-semibold leading-[1.06] tracking-[-0.045em] text-foreground">
-                  Make something <span className="bg-gradient-to-r from-violet-300 via-indigo-200 to-cyan-200 bg-clip-text text-transparent">worth replying to.</span>
-                </h1>
-                <p className="mt-2 max-w-2xl text-[12.5px] leading-6 text-muted-foreground sm:text-[13px]">
-                  A thought, a frame, a room full of people. Start with the format that fits — refine it before it goes live.
-                </p>
+        <header className="relative border-b border-white/[0.09] pb-7 pt-2 sm:pb-9">
+          <div className="flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between lg:gap-12">
+            <div className="max-w-[780px] min-w-0">
+              <p className="flex items-center gap-2.5 text-[9.5px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-lime-200 via-lime-300 to-emerald-300 text-[#15200b] shadow-[0_10px_24px_-14px_rgba(190,242,100,0.8)]">
+                  <Sparkles className="h-3.5 w-3.5" />
+                </span>
+                Loop <span className="text-white/25">/</span> Creator atelier
+              </p>
+
+              <h1 className="mt-5 font-serif text-[clamp(2.45rem,5.2vw,4.5rem)] leading-[0.94] tracking-[-0.035em] text-foreground">
+                Give the story{" "}
+                <em className="bg-gradient-to-r from-lime-200 via-emerald-200 to-cyan-200 bg-clip-text font-normal italic text-transparent">
+                  some room.
+                </em>
+              </h1>
+
+              <p className="mt-4 max-w-[560px] text-[13px] leading-7 text-muted-foreground sm:text-[13.5px]">
+                A quieter canvas for ideas worth sharing. Choose a format when it helps, add texture when it matters,
+                and let the writing take the lead.
+              </p>
+            </div>
+
+            <dl className="grid w-full max-w-md shrink-0 grid-cols-3 gap-5 border-t border-white/10 pt-4 sm:border-t-0 sm:border-l sm:pl-7 sm:pt-1">
+              <div>
+                <dt className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">Drafts</dt>
+                <dd className="mt-1 text-[15px] font-medium tracking-[-0.01em] text-foreground">Autosaved</dd>
               </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-[10.5px] font-medium text-muted-foreground backdrop-blur-xl">
-                <Save className="h-3.5 w-3.5 text-emerald-300" /> Drafts autosave
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-[10.5px] font-medium text-muted-foreground backdrop-blur-xl">
-                <Layers className="h-3.5 w-3.5 text-violet-300" /> 5 formats
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-violet-300/20 bg-violet-300/[0.08] px-3 py-2 text-[10.5px] font-semibold text-violet-100">
-                <Wand2 className="h-3.5 w-3.5" />
-                {user.is_premium ? "Pro · up to 10 files" : user.is_verified ? "Up to 4 files" : "Up to 1 file"}
-              </span>
-            </div>
+              <div>
+                <dt className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">Formats</dt>
+                <dd className="mt-1 text-[15px] font-medium tracking-[-0.01em] text-foreground">Five ways in</dd>
+              </div>
+              <div>
+                <dt className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">Files</dt>
+                <dd className="mt-1 text-[15px] font-medium tracking-[-0.01em] text-lime-200">
+                  {user.is_premium ? "10 max" : user.is_verified ? "4 max" : "1 max"}
+                </dd>
+              </div>
+            </dl>
           </div>
-        </section>
+        </header>
 
-        <CreateHub defaultTab={defaultTab} />
+        <div className="relative mt-6 sm:mt-8">
+          <CreateHub defaultTab={defaultTab} />
+        </div>
       </main>
     </div>
   )

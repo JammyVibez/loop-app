@@ -45,7 +45,7 @@ export default function ShopPage() {
     <div className="shop-vault relative min-h-screen bg-background text-foreground">
       <div aria-hidden className="shop-vault-backdrop" />
       <Header />
-      <main className="relative z-10 mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
+      <main className="relative z-10 mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
         {state === "loading" ? (
           <ShopLoading />
         ) : state === "closed" ? (
