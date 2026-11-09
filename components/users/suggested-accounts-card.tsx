@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { Check, Sparkles, UserPlus, X } from "lucide-react"
+import { Check, Sparkles, UserPlus, Users, X } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { UserBadges } from "@/components/user-badge"
+import { stripCircleBioTokens } from "@/lib/circle-bio-tokens"
 
 type Suggestion = {
   id: string
@@ -161,49 +162,71 @@ export function SuggestedAccountsCard({ limit = 2 }: { limit?: number }) {
   if (!user || hidden || loading || suggestions.length === 0) return null
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-border/70 bg-[linear-gradient(135deg,hsl(var(--card))_0%,hsl(var(--card))_55%,hsl(var(--primary)/0.07)_100%)] shadow-sm">
-      <div className="flex items-center justify-between gap-3 px-4 pb-2.5 pt-3.5">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/15">
-            <Sparkles className="h-3.5 w-3.5" />
+    <section className="relative overflow-hidden rounded-2xl border border-border/60 bg-[linear-gradient(155deg,hsl(var(--card))_0%,hsl(var(--card))_68%,hsl(var(--primary)/0.055)_100%)] shadow-sm">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-[radial-gradient(110%_150%_at_100%_0%,hsl(var(--primary)/0.09),transparent_68%)]" />
+      <div className="absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-primary/35 to-transparent" />
+
+      <div className="relative flex items-center justify-between gap-3 px-3.5 pb-3 pt-3.5 sm:px-4">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border border-primary/15 bg-gradient-to-br from-primary/15 via-card to-secondary/15 text-primary shadow-[inset_0_1px_0_hsl(var(--background)/0.45)]">
+            <Sparkles className="h-4 w-4" />
+            <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-primary/80 ring-2 ring-card" />
           </span>
           <div className="min-w-0">
-            <h2 className="text-[13px] font-bold tracking-tight text-foreground">Suggested for you</h2>
-            <p className="truncate text-[10px] text-muted-foreground">People your circles and activity point to</p>
+            <h2 className="text-[13px] font-semibold leading-tight tracking-tight text-foreground">
+              Suggested for you
+            </h2>
+            <p className="mt-0.5 truncate text-[10.5px] text-muted-foreground">
+              People your circles and activity point to
+            </p>
           </div>
         </div>
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+          className="h-7 w-7 shrink-0 rounded-full text-muted-foreground/70 hover:bg-muted hover:text-foreground"
           onClick={hideCard}
           aria-label="Hide suggested accounts"
+          title="Hide suggestions"
         >
           <X className="h-3.5 w-3.5" />
         </Button>
       </div>
 
-      <div className="divide-y divide-border/50 border-t border-border/50">
+      <div className="relative border-t border-border/45">
         {suggestions.map((person) => {
           const isFollowed = followed.has(person.id)
+          const bio = stripCircleBioTokens(person.bio)
+          const hasCircleTie = Number(person.mutual_count || 0) > 0 || Number(person.shared_circles || 0) > 0
+          const ProofIcon = hasCircleTie ? Users : Sparkles
+
           return (
-            <div key={person.id} className="flex items-start gap-3 px-4 py-3">
+            <div
+              key={person.id}
+              className="group/row relative flex items-start gap-3 border-b border-border/40 px-3.5 py-3 transition-colors last:border-b-0 hover:bg-muted/20 sm:px-4"
+            >
               <Link
                 href={`/profile/${person.username}`}
-                className="flex min-w-0 flex-1 items-start gap-3"
+                className="flex min-w-0 flex-1 items-start gap-2.5"
               >
-                <VideoAvatar
-                  src={person.avatar_url || undefined}
-                  videoSrc={person.video_avatar_url}
-                  isPremium={Boolean(person.is_premium)}
-                  alt={person.display_name || person.username}
-                  fallback={(person.display_name || person.username).charAt(0).toUpperCase()}
-                  size="md"
-                />
-                <div className="min-w-0">
+                <span className="relative mt-0.5 shrink-0 rounded-full bg-gradient-to-br from-primary/45 via-border/80 to-secondary/40 p-[1.5px] transition-transform duration-200 group-hover/row:scale-[1.04]">
+                  <span className="block rounded-full bg-card p-[1.5px]">
+                    <VideoAvatar
+                      src={person.avatar_url || undefined}
+                      videoSrc={person.video_avatar_url}
+                      isPremium={Boolean(person.is_premium)}
+                      alt={person.display_name || person.username}
+                      fallback={(person.display_name || person.username).charAt(0).toUpperCase()}
+                      size="md"
+                      className="h-9 w-9"
+                    />
+                  </span>
+                </span>
+
+                <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 items-center gap-1.5">
-                    <p className="truncate text-[13px] font-semibold text-foreground">
+                    <p className="truncate text-[13px] font-semibold leading-tight text-foreground">
                       {person.display_name || person.username}
                     </p>
                     <UserBadges
@@ -218,17 +241,30 @@ export function SuggestedAccountsCard({ limit = 2 }: { limit?: number }) {
                       size="sm"
                     />
                   </div>
-                  <p className="truncate text-[11px] text-muted-foreground">@{person.username}</p>
-                  <p className="mt-0.5 line-clamp-1 text-[10px] font-medium text-primary/80">{person.reason}</p>
+                  <p className="mt-0.5 truncate text-[10px] text-muted-foreground">@{person.username}</p>
+
+                  {bio ? (
+                    <p className="mt-1 line-clamp-2 text-[11px] leading-[1.35] text-foreground/75">{bio}</p>
+                  ) : null}
+
+                  <p className="mt-1.5 flex items-center gap-1 text-[10px] font-medium text-primary/80">
+                    <ProofIcon className="h-3 w-3 shrink-0" />
+                    <span className="line-clamp-1">{person.reason || "A creator worth discovering"}</span>
+                  </p>
                 </div>
               </Link>
 
-              <div className="flex shrink-0 flex-col items-end gap-1.5">
+              <div className="flex shrink-0 flex-col items-end gap-1 pt-0.5">
                 <Button
                   type="button"
                   size="sm"
                   variant={isFollowed ? "secondary" : "default"}
-                  className="h-7 rounded-full px-2.5 text-[11px] font-semibold"
+                  aria-pressed={isFollowed}
+                  className={`h-8 min-w-[78px] rounded-full px-3 text-[11px] font-semibold transition-all duration-200 ${
+                    isFollowed
+                      ? "bg-muted text-muted-foreground shadow-none"
+                      : "shadow-sm hover:-translate-y-px hover:bg-primary/90"
+                  }`}
                   onClick={() => void follow(person.id)}
                   disabled={isFollowed}
                 >
@@ -247,7 +283,8 @@ export function SuggestedAccountsCard({ limit = 2 }: { limit?: number }) {
                 <button
                   type="button"
                   onClick={() => dismiss(person.id)}
-                  className="text-[10px] text-muted-foreground/70 transition-colors hover:text-foreground"
+                  aria-label={`Not interested in ${person.display_name || person.username}`}
+                  className="whitespace-nowrap rounded px-1 py-1 text-[10px] font-medium text-muted-foreground/65 transition-colors hover:bg-muted hover:text-foreground"
                 >
                   Not interested
                 </button>
