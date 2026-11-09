@@ -6,7 +6,6 @@ import { Header } from "@/components/header"
 import { HomeHighlights } from "@/components/home/home-highlights"
 import { FeedTabs } from "@/components/feed-tabs"
 import { TrendingSidebar } from "@/components/trending-sidebar"
-import { UserSuggestions } from "@/components/users/user-suggestions"
 import { PWAInstallPrompt } from "@/components/pwa/pwa-install-prompt"
 import { AppDownloadBadges } from "@/components/app-download-badges"
 import { FeedTour } from "@/components/tour/feed-tour"
@@ -151,11 +150,6 @@ function HomePageInteractive() {
 
             <FeedTabs guestMode={isGuest} />
 
-            {!isGuest && (
-              <div className="xl:hidden">
-                <UserSuggestions title="Who to follow" limit={4} compact />
-              </div>
-            )}
           </div>
 
           <aside className="hidden xl:block">
@@ -206,7 +200,6 @@ function HomePageInteractive() {
                 <DownloadCard />
               )}
               <TrendingSidebar />
-              {!isGuest && <UserSuggestions title="Who to follow" limit={5} compact />}
             </div>
           </aside>
         </div>

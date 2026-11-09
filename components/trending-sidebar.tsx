@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Hash, Code2, Star, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
-import { UserSuggestions } from "@/components/users/user-suggestions";
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { Spinner } from "@/components/ui/skeletons"
 
@@ -162,8 +161,6 @@ export function TrendingSidebar() {
           </CardContent>
         </Card>
       )}
-
-      <UserSuggestions title="Who to follow" limit={5} compact />
 
       <Card>
         <CardHeader className="pb-3">

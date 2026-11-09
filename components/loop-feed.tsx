@@ -20,16 +20,12 @@ import { cn } from "@/lib/utils"
 import { useFeedPreload } from "@/hooks/use-media-preload"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { Spinner } from "@/components/ui/skeletons"
+import { useSessionViewedLoops } from "@/hooks/use-session-viewed-loops"
+import { SuggestedAccountsCard } from "@/components/users/suggested-accounts-card"
 
-/** Max candidates the database ML recommendation engine can score per request. */
-const ML_FETCH_LIMIT = 50
 const PAGE_SIZE = 20
-/**
- * Where the first sponsored slot lands when the configured gap is larger than
- * this — keeps ads visible on the first page without turning the feed into an
- * ad board. Subsequent slots honor the admin's min–max spacing.
- */
-const FIRST_AD_SLOT = 6
+/** One lightweight suggested-accounts card, never a block at the feed bottom. */
+const SUGGESTED_ACCOUNT_SLOTS = [6, 48]
 
 /**
  * Where ephemeral Moment cards get interleaved into the For You stream
@@ -53,11 +49,12 @@ interface FeedMoment extends MomentCardMoment {
 }
 
 interface LoopFeedProps {
-  feedType?: "personalized" | "following" | "trending" | "recent"
+  feedType?: "personalized" | "following"
   showComposer?: boolean
   guestMode?: boolean
   topicFilter?: string
   searchQuery?: string
+  allowSensitive?: boolean
   viewMode?: "stream" | "cards" | "articles"
 }
 
@@ -67,6 +64,7 @@ export function LoopFeed({
   guestMode = false,
   topicFilter = "all",
   searchQuery = "",
+  allowSensitive = false,
   viewMode = "stream"
 }: LoopFeedProps) {
   const [loops, setLoops] = useState<NormalizedLoop[]>([])
@@ -81,6 +79,7 @@ export function LoopFeed({
   const [moments, setMoments] = useState<FeedMoment[]>([])
   const viewedMomentsRef = useRef<Set<string>>(new Set())
   const { user, getAuthHeader } = useAuth()
+  const { markViewed, getViewedIds } = useSessionViewedLoops(user?.id || "guest")
 
   // Media preloading for next 3 posts
   useFeedPreload(loops, 0, 3)
@@ -152,34 +151,19 @@ export function LoopFeed({
       : `sess-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
   )
 
-  /**
-   * For You pool: machine-ranked candidates + the standard personalized feed,
-   * interleaved and deduped so the tab feels mixed and "just works" — no ML
-   * chrome shown to the user.
-   */
-  const forYouPoolRef = useRef<NormalizedLoop[]>([])
-
-  const interleavePools = (a: NormalizedLoop[], b: NormalizedLoop[]): NormalizedLoop[] => {
-    const seen = new Set<string>()
-    const out: NormalizedLoop[] = []
-    const pushUnique = (item: NormalizedLoop) => {
-      if (!item?.id || seen.has(item.id)) return
-      seen.add(item.id)
-      out.push(item)
-    }
-    const max = Math.max(a.length, b.length)
-    for (let i = 0; i < max; i++) {
-      if (i < a.length) pushUnique(a[i])
-      if (i < b.length) pushUnique(b[i])
-    }
-    return out
-  }
   const { toast } = useToast()
   const pullStartY = useRef<number | null>(null)
   const [pullDistance, setPullDistance] = useState(0)
   const newestSeenAt = useRef<string | null>(null)
   const loopsLenRef = useRef(0)
   loopsLenRef.current = loops.length
+  /**
+   * Snapshot of prior-session views. We intentionally do not add posts viewed
+   * *during* this scroll to the pagination request: excluding them while also
+   * offsetting by the rendered count would skip a page. The snapshot refreshes
+   * on every reset (reload, tab switch, hard refresh).
+   */
+  const sessionSeenRef = useRef<string[]>([])
 
   const authToken = user?.access_token || user?.token
 
@@ -213,14 +197,23 @@ export function LoopFeed({
 
   const fetchLoops = useCallback(
     async (reset = false) => {
-      // Guests can load public trending/recent without a token
       if (!authToken && !guestMode) {
         setLoading(false)
         setLoadingMore(false)
         return
       }
 
+      // Following is an authenticated surface. Guests get a clear sign-in
+      // prompt instead of a silent fallback to another feed.
+      if (feedType === "following" && guestMode) {
+        setLoading(false)
+        setLoadingMore(false)
+        setHasMore(false)
+        return
+      }
+
       if (reset) {
+        sessionSeenRef.current = getViewedIds()
         setLoading(true)
         setError(null)
         setPendingNew([])
@@ -233,54 +226,27 @@ export function LoopFeed({
         const headers: HeadersInit = { ...getAuthHeader() }
         if (authToken) headers.Authorization = `Bearer ${authToken}`
 
-        let fetchedLoops: NormalizedLoop[] = []
-        let hasMore = false
-
-        if (feedType === "personalized" && authToken) {
-          // For You = a mixed pool: the ML-ranked candidate set interleaved
-          // with the regular personalized feed, so it never looks like a pure
-          // algorithm tab. Rebuild the pool on reset; extend it as the user
-          // scrolls past the first page.
-          let pool = forYouPoolRef.current
-          if (pool.length === 0 || offset === 0) {
-            const [mlRes, feedRes] = await Promise.all([
-              fetch(`/api/ml/recommendations?limit=${ML_FETCH_LIMIT}`, { headers, cache: "no-store" }),
-              fetch(`/api/loops/feed?type=personalized&limit=${PAGE_SIZE * 3}&offset=0`, { headers, cache: "no-store" }),
-            ])
-            const mlData = await mlRes.json().catch(() => ({}))
-            const feedData = await feedRes.json().catch(() => ({}))
-            if (!mlRes.ok && !feedRes.ok) {
-              throw new Error(mlData.error || feedData.error || "Failed to load loops")
-            }
-            pool = interleavePools(normalizeLoops(mlData.loops || []), normalizeLoops(feedData.loops || []))
-            forYouPoolRef.current = pool
-          }
-          if (offset >= pool.length) {
-            const feedRes = await fetch(
-              `/api/loops/feed?type=personalized&limit=${PAGE_SIZE * 2}&offset=${pool.length}`,
-              { headers, cache: "no-store" },
-            )
-            const feedData = await feedRes.json().catch(() => ({}))
-            pool = interleavePools(pool, normalizeLoops(feedData.loops || []))
-            forYouPoolRef.current = pool
-          }
-          fetchedLoops = pool.slice(offset, offset + PAGE_SIZE)
-          hasMore = offset + PAGE_SIZE < pool.length
-        } else {
-          const response = await fetch(`/api/loops/feed?type=${feedType}&limit=${PAGE_SIZE}&offset=${offset}`, {
-            headers,
-            cache: "no-store",
-          })
-
-          const data = await response.json().catch(() => ({}))
-
-          if (!response.ok || data.success === false) {
-            throw new Error(data.error || "Failed to load loops")
-          }
-
-          fetchedLoops = normalizeLoops(data.loops || [])
-          hasMore = Boolean(data.hasMore)
+        const params = new URLSearchParams({
+          type: feedType,
+          limit: String(PAGE_SIZE),
+          offset: String(offset),
+        })
+        if (feedType === "personalized") {
+          params.set("allow_sensitive", allowSensitive ? "1" : "0")
+          const viewed = sessionSeenRef.current
+          if (viewed.length) params.set("session_seen", viewed.join(","))
         }
+
+        const response = await fetch(`/api/loops/feed?${params.toString()}`, {
+          headers,
+          cache: "no-store",
+        })
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || "Failed to load loops")
+        }
+
+        const fetchedLoops = normalizeLoops(data.loops || [])
 
         if (reset) {
           setLoops(fetchedLoops)
@@ -291,7 +257,7 @@ export function LoopFeed({
             return [...prev, ...fetchedLoops.filter((l) => !ids.has(l.id))]
           })
         }
-        setHasMore(hasMore)
+        setHasMore(Boolean(data.hasMore))
       } catch (err: any) {
         console.error("Error fetching loops:", err)
         setError(err?.message || "Failed to load loops")
@@ -305,7 +271,7 @@ export function LoopFeed({
         setLoadingMore(false)
       }
     },
-    [authToken, feedType, getAuthHeader, toast, guestMode],
+    [authToken, feedType, getAuthHeader, toast, guestMode, allowSensitive, getViewedIds],
   )
 
   /** Fetch only loops newer than current top — prepend, don't reshuffle */
@@ -382,12 +348,12 @@ export function LoopFeed({
     fetchLoops(true)
     void fetchMoments()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, authToken, feedType, guestMode])
+  }, [user?.id, authToken, feedType, guestMode, allowSensitive])
 
   // Fetch ad eligibility + creatives once per session (home feed only).
   useEffect(() => {
     if (adsInitializedRef.current) return
-    const isHomeFeed = ["personalized", "following", "trending", "recent"].includes(feedType)
+    const isHomeFeed = ["personalized", "following"].includes(feedType)
     if (!isHomeFeed) return
     adsInitializedRef.current = true
     const token = user?.access_token || user?.token
@@ -407,13 +373,12 @@ export function LoopFeed({
         })
         const adsData = await adsRes.json().catch(() => ({ ads: [] }))
         if (!adsData.ads?.length) return
-        // Randomize the gap inside the admin's range once per session, then
-        // bring the first sponsored slot up near the top so the placement is
-        // actually seen (later slots keep the configured spacing).
-        const min = Math.max(1, Number(eligibility.frequencyMin) || 8)
-        const max = Math.max(min, Number(eligibility.frequencyMax) || min)
-        const gap = min + Math.floor(Math.random() * (max - min + 1))
-        setAdPacing({ first: Math.min(gap, FIRST_AD_SLOT), gap })
+        // Randomize one gap per session inside the admin's range, bounded by
+        // the product rule: one sponsored slot every 50–70 organic posts.
+        const configuredMin = Math.max(50, Math.min(70, Number(eligibility.frequencyMin) || 50))
+        const configuredMax = Math.max(configuredMin, Math.min(70, Number(eligibility.frequencyMax) || 70))
+        const gap = configuredMin + Math.floor(Math.random() * (configuredMax - configuredMin + 1))
+        setAdPacing({ first: gap, gap })
         setFeedAds(adsData.ads)
         setAdsEligible(true)
       } catch {
@@ -589,6 +554,44 @@ export function LoopFeed({
     return () => observer.disconnect()
   }, [moments, feedType, user?.id, getAuthHeader])
 
+  // Track For You posts the viewer has actually looked at. A short dwell
+  // prevents fast scrolling from marking everything as "seen".
+  useEffect(() => {
+    if (feedType !== "personalized") return
+    const root = feedRef.current
+    if (!root) return
+    const timers = new Map<string, number>()
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const loopId = (entry.target as HTMLElement).dataset.loopId
+          if (!loopId) continue
+          if (!entry.isIntersecting) {
+            const timer = timers.get(loopId)
+            if (timer) window.clearTimeout(timer)
+            timers.delete(loopId)
+            continue
+          }
+          if (timers.has(loopId)) continue
+          timers.set(
+            loopId,
+            window.setTimeout(() => {
+              markViewed(loopId)
+              timers.delete(loopId)
+            }, 900),
+          )
+        }
+      },
+      { threshold: 0.6 },
+    )
+    const nodes = root.querySelectorAll<HTMLElement>("[data-loop-card][data-loop-id]")
+    nodes.forEach((node) => observer.observe(node))
+    return () => {
+      observer.disconnect()
+      timers.forEach((timer) => window.clearTimeout(timer))
+    }
+  }, [feedType, loops, markViewed])
+
   // Pull-to-refresh (touch)
   useEffect(() => {
     const onStart = (e: TouchEvent) => {
@@ -704,6 +707,17 @@ export function LoopFeed({
     }
   }
 
+  if (feedType === "following" && guestMode) {
+    return (
+      <EmptyState
+        title="Sign in to see who you follow"
+        description="Following shows posts only from the people you follow, newest first."
+        actionLabel="Sign in"
+        actionHref={`/login?redirect=${encodeURIComponent("/?tab=following")}`}
+      />
+    )
+  }
+
   if (loading) {
     return <LoopFeedSkeleton />
   }
@@ -727,8 +741,8 @@ export function LoopFeed({
           guestMode
             ? "Check Explore or come back soon — creators are shipping."
             : feedType === "following"
-              ? "Follow creators to fill this tab, or check For You / Recent."
-              : "Create your first loop or explore trending stories to get started."
+              ? "Follow creators to fill this tab, or explore For You."
+              : "You're all caught up. Create a loop, or head to Explore for something new."
         }
         actionLabel={guestMode ? "Explore" : "Create a loop"}
         actionHref={guestMode ? "/explore" : "/create"}
@@ -809,6 +823,8 @@ export function LoopFeed({
           const momentAtSlot = !guestMode && feedType === "personalized" && slotIndex !== -1 ? moments[slotIndex] : null
           const showMomentCompose =
             !guestMode && feedType === "personalized" && idx === COMPOSE_MOMENT_SLOT && moments.length > 0
+          const showSuggestedAccounts =
+            !guestMode && feedType === "personalized" && SUGGESTED_ACCOUNT_SLOTS.includes(idx)
           return (
             // A whisper of vertical breathing room (6px each side of the
             // hairline) so posts don't collide with the divider, while the
@@ -835,6 +851,11 @@ export function LoopFeed({
                   </Link>
                 </div>
               )}
+              {showSuggestedAccounts && (
+                <div className="mb-1.5">
+                  <SuggestedAccountsCard />
+                </div>
+              )}
               {showMomentCompose && (
                 <Link
                   href="/create?tab=moment"
@@ -855,7 +876,7 @@ export function LoopFeed({
               {((loop as any).content_type === "open_coloop_invite" || (loop as any).post_type === "open_coloop_invite" || (loop as any).content_metadata?.is_open_coloop_invite) ? (
                 <OpenCoLoopInviteCard post={loop as any} />
               ) : (
-                <div data-loop-card>
+                <div data-loop-card data-loop-id={loop.id}>
                   <LoopCard
                     loop={loop}
                     interacting={interacting}

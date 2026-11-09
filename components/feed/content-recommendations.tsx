@@ -10,13 +10,9 @@ import { useAuth } from "@/hooks/use-auth"
 import {
   Compass,
   TrendingUp,
-  Users,
   RefreshCw,
   ArrowRight,
-  Eye,
-  Heart,
   Hash,
-  Crown,
   Zap,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -45,16 +41,6 @@ interface TrendingTag {
   growth?: number
 }
 
-interface SuggestedCreator {
-  id: string
-  username: string
-  display_name: string
-  avatar_url?: string
-  is_verified?: boolean
-  follower_count?: number
-  bio?: string
-}
-
 interface ContentRecommendationsProps {
   /** Current loop hashtags to find related content */
   currentHashtags?: string[]
@@ -71,7 +57,6 @@ export function ContentRecommendations({
 }: ContentRecommendationsProps) {
   const { user, getAuthHeader } = useAuth()
   const [trendingTags, setTrendingTags] = useState<TrendingTag[]>([])
-  const [suggestedCreators, setSuggestedCreators] = useState<SuggestedCreator[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -80,14 +65,9 @@ export function ContentRecommendations({
     setLoading(true)
 
     try {
-      const [tagsRes, creatorsRes] = await Promise.all([
-        fetch("/api/search?q=&type=hashtags&limit=6", {
-          headers: getAuthHeader(),
-        }).then((r) => (r.ok ? r.json() : { hashtags: [] })),
-        fetch("/api/users/suggestions?limit=4", {
-          headers: getAuthHeader(),
-        }).then((r) => (r.ok ? r.json() : { suggestions: [] })),
-      ])
+      const tagsRes = await fetch("/api/search?q=&type=hashtags&limit=6", {
+        headers: getAuthHeader(),
+      }).then((r) => (r.ok ? r.json() : { hashtags: [] }))
 
       const tags = (tagsRes.hashtags || tagsRes.data || []).map((t: any) => ({
         tag: t.tag || t.name || t.hashtag || String(t),
@@ -95,18 +75,7 @@ export function ContentRecommendations({
         growth: Number(t.growth || t.trending_score || 0),
       }))
 
-      const creators = (creatorsRes.suggestions || creatorsRes.data || []).map((c: any) => ({
-        id: c.id,
-        username: c.username,
-        display_name: c.display_name || c.username,
-        avatar_url: c.avatar_url,
-        is_verified: c.is_verified,
-        follower_count: c.follower_count,
-        bio: c.bio,
-      }))
-
       setTrendingTags(tags)
-      setSuggestedCreators(creators)
     } catch (err) {
       console.error("Failed to load recommendations:", err)
     } finally {
@@ -206,7 +175,7 @@ export function ContentRecommendations({
           </div>
         </Link>
         <Link
-          href="/trending"
+          href="/explore?tab=hashtags"
           className="flex items-center gap-2.5 rounded-xl border border-border/50 bg-card/60 p-3 hover:bg-card transition-all group"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500/10">

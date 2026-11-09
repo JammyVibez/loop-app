@@ -4,14 +4,71 @@ import { normalizeLoops } from "@/lib/normalize-loop"
 import {
   followingBoost,
   hashtagAffinityBonus,
+  rawEngagementScore,
   smartEngagementScore,
 } from "@/lib/feed-ranking"
 import { calculateBoostInfo, isBoostRelevantToUser, capBoostedPostsInFeed } from "@/lib/boost"
+import { filterPrivateContent } from "@/lib/privacy"
+import { filterCircleScopedContent } from "@/lib/circle-content-privacy"
+import {
+  FOR_YOU_CONFIG,
+  blendForYouFeed,
+  candidateLimitForOffset,
+  recencyDecay,
+  type ForYouSource,
+} from "@/lib/for-you-ranking"
 import { cosmeticsFromInventory } from "@/lib/cosmetics"
 import { applyRealCommentCounts, applyRealBranchCounts, attachParentAuthors } from "@/lib/loop-stats"
 import { enrichLoopsWithPollsAndDuels } from "@/lib/enrich-loops"
 import { getUserFromRequest } from "@/lib/server-auth";
 
+
+const FOR_YOU_SELECT = `
+  *,
+  author:profiles!author_id(id, username, display_name, avatar_url, video_avatar_url, is_verified, is_team_member, is_sponsor, is_premium, is_organization, organization_badge_url, organization_name, level, active_cosmetics, cosmetics, badge_id),
+  parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url, is_verified)),
+  loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
+`
+
+const FOR_YOU_SELECT_FALLBACK = `
+  *,
+  author:profiles!author_id(id, username, display_name, avatar_url, is_verified, is_team_member, is_sponsor, is_premium, is_organization, organization_badge_url, organization_name, equipped_frame_id, active_cosmetics, cosmetics, badge_id),
+  parent_loop:loops!parent_loop_id(id, content_text, author_id, author:profiles!author_id(username, display_name, avatar_url, video_avatar_url, is_verified)),
+  loop_stats(likes_count, comments_count, branches_count, shares_count, views_count)
+`
+
+function parseIdList(raw: string | null, max = 120): string[] {
+  if (!raw) return []
+  const ids = new Set<string>()
+  for (const value of raw.split(",")) {
+    const id = value.trim()
+    if (!id || id.length > 80) continue
+    ids.add(id)
+    if (ids.size >= max) break
+  }
+  return [...ids]
+}
+
+function isSensitiveLoop(loop: any): boolean {
+  const metadata = loop?.content_metadata || {}
+  return Boolean(
+    metadata.nsfw === true ||
+      metadata.sensitive === true ||
+      metadata.mature === true ||
+      metadata.is_nsfw === true,
+  )
+}
+
+function boostBonusForLoop(
+  loop: any,
+  userId: string,
+  followingIds: Set<string>,
+  affinity: Map<string, number>,
+): number {
+  const boostInfo = calculateBoostInfo(loop)
+  if (!isBoostRelevantToUser(loop, boostInfo, userId, followingIds, affinity)) return 0
+  return boostInfo.tier === 3 ? 150 : boostInfo.tier === 2 ? 75 : 35
+}
 
 async function buildHashtagAffinity(supabase: ReturnType<typeof createServerClient>, userId: string) {
   const affinity = new Map<string, number>()
@@ -138,6 +195,201 @@ export async function GET(request: NextRequest) {
     let type = searchParams.get("type") || "recent"
     const since = searchParams.get("since") // ISO timestamp — newer-only refresh
     const supabase = createServerClient()
+
+    // ── For You: one server-ranked blend of following + trending + discovery ──
+    // This replaces the old client-side ML/feed interleaving. The client only
+    // renders the returned order; all privacy and ranking decisions live here.
+    if (type === "personalized" || type === "for_you") {
+      const safeLimit = Math.max(1, Math.min(limit || 20, 50))
+      const safeOffset = Math.max(0, offset || 0)
+      const seenIds = parseIdList(searchParams.get("session_seen"))
+      const allowSensitive = ["1", "true"].includes((searchParams.get("allow_sensitive") || "").toLowerCase())
+
+      const followingIds = new Set<string>()
+      if (user) {
+        const { data: followingData } = await supabase
+          .from("follows")
+          .select("following_id")
+          .eq("follower_id", user.id)
+        for (const row of followingData || []) {
+          if (row.following_id) followingIds.add(row.following_id)
+        }
+      }
+
+      const affinity = user ? await buildHashtagAffinity(supabase, user.id) : new Map<string, number>()
+      const candidateLimit = candidateLimitForOffset(safeOffset, safeLimit)
+      const sinceDate = new Date(Date.now() - FOR_YOU_CONFIG.candidateWindowDays * 86_400_000)
+
+      let candidateQuery = supabase
+        .from("loops")
+        .select(FOR_YOU_SELECT)
+        .eq("visibility", "public")
+        .gte("created_at", sinceDate.toISOString())
+        .order("created_at", { ascending: false })
+        .range(0, candidateLimit - 1)
+
+      let { data: candidateRows, error: candidateError } = await candidateQuery
+      if (candidateError && (/level|active_cosmetics/i.test(candidateError.message || "") || candidateError.code === "PGRST204")) {
+        candidateQuery = supabase
+          .from("loops")
+          .select(FOR_YOU_SELECT_FALLBACK)
+          .eq("visibility", "public")
+          .gte("created_at", sinceDate.toISOString())
+          .order("created_at", { ascending: false })
+          .range(0, candidateLimit - 1)
+        ;({ data: candidateRows, error: candidateError } = await candidateQuery)
+      }
+
+      if (candidateError) {
+        console.error("Supabase For You candidate query error:", candidateError.message)
+        return NextResponse.json({ error: candidateError.message }, { status: 500 })
+      }
+
+      let candidates = candidateRows || []
+      candidates = await filterPrivateContent(supabase, candidates, user?.id || null, followingIds)
+      candidates = await filterCircleScopedContent(supabase, candidates, user?.id || null)
+      candidates = candidates.filter((loop: any) => {
+        if (seenIds.includes(loop.id)) return false
+        if (!allowSensitive && isSensitiveLoop(loop)) return false
+        return true
+      })
+
+      const now = Date.now()
+      const ranked: Array<any> = candidates.map((loop: any) => {
+        const authorId = String(loop.author_id || "")
+        const isOwn = Boolean(user?.id && authorId === user.id)
+        const isFollowing = followingIds.has(authorId)
+        const source: ForYouSource = isFollowing || isOwn ? "following" : "trending"
+        const boostBonus = boostBonusForLoop(loop, user?.id || "", followingIds, affinity)
+        const engagement = smartEngagementScore(loop, now)
+        const affinityBonus = hashtagAffinityBonus(loop, affinity)
+
+        let score = engagement + affinityBonus + boostBonus
+        if (source === "following") {
+          score += FOR_YOU_CONFIG.followingScoreBonus + (isOwn ? FOR_YOU_CONFIG.ownPostScoreBonus : 0)
+        }
+
+        return {
+          ...loop,
+          _feed_source: source,
+          _rank_score: score,
+          boostInfo: calculateBoostInfo(loop, now),
+        }
+      })
+
+      const trending = ranked
+        .map((loop) => ({ loop, score: Number(loop._rank_score) || 0 }))
+        .sort((a, b) => b.score - a.score || String(b.loop.created_at).localeCompare(String(a.loop.created_at)))
+        .map((row) => row.loop)
+
+      const discovery = ranked
+        .filter((loop) => loop._feed_source !== "following")
+        .map((loop) => {
+          const freshness = recencyDecay(loop.created_at, FOR_YOU_CONFIG.discoveryHalfLifeHours, now)
+          const engagement = Math.log1p(Math.max(0, rawEngagementScore(loop)))
+          return {
+            loop,
+            score: freshness * FOR_YOU_CONFIG.discoveryFreshnessWeight + engagement * FOR_YOU_CONFIG.discoveryEngagementWeight,
+          }
+        })
+        .sort((a, b) => b.score - a.score || String(b.loop.created_at).localeCompare(String(a.loop.created_at)))
+        .map((row) => ({ ...row.loop, _feed_source: "discovery" as const, _rank_score: row.score }))
+
+      const following = ranked
+        .filter((loop) => loop._feed_source === "following")
+        .sort((a, b) => Number(b._rank_score) - Number(a._rank_score) || String(b.created_at).localeCompare(String(a.created_at)))
+
+      const blended = blendForYouFeed({
+        sources: { following, trending, discovery },
+        limit: safeLimit,
+        offset: safeOffset,
+        seenIds,
+      })
+
+      // Do not remove items after blending: dropping an intervening post could
+      // turn two same-author posts into three in a row. Boost frequency is
+      // already bounded by scoring and the one-per-source dedupe.
+      let selected = blended.items
+
+      if (selected.length > 0) {
+        const interactionMap = new Map<string, string[]>()
+        if (user) {
+          const { data: interactions } = await supabase
+            .from("loop_interactions")
+            .select("loop_id, interaction_type")
+            .eq("user_id", user.id)
+            .in("loop_id", selected.map((loop) => loop.id))
+          interactions?.forEach((interaction) => {
+            if (!interactionMap.has(interaction.loop_id)) interactionMap.set(interaction.loop_id, [])
+            interactionMap.get(interaction.loop_id)?.push(interaction.interaction_type)
+          })
+        }
+
+        const authorIdList = [...new Set(selected.map((loop) => loop.author_id).filter(Boolean))] as string[]
+        const cosmeticsByAuthor = new Map<string, ReturnType<typeof cosmeticsFromInventory>>()
+        if (authorIdList.length) {
+          const { data: activeItems } = await supabase
+            .from("user_inventory")
+            .select("user_id, item_id, item_type, is_active, shop_item:shop_items(id, name, category, item_type, item_data, preview_data, icon_url, preview_url, rarity)")
+            .in("user_id", authorIdList)
+            .eq("is_active", true)
+            .limit(200)
+          const grouped = new Map<string, any[]>()
+          for (const row of activeItems || []) {
+            if (!grouped.has(row.user_id)) grouped.set(row.user_id, [])
+            grouped.get(row.user_id)!.push(row)
+          }
+          for (const [uid, rows] of grouped) {
+            cosmeticsByAuthor.set(uid, cosmeticsFromInventory(rows))
+          }
+        }
+
+        selected = selected.map((loop: any) => {
+          const author = Array.isArray(loop.author) ? loop.author[0] : loop.author
+          const cosmetics = cosmeticsByAuthor.get(loop.author_id) || null
+          return {
+            ...loop,
+            author: author ? { ...author, cosmetics, active_cosmetics: cosmetics } : loop.author,
+          }
+        })
+
+        selected = await attachParentAuthors(supabase, selected)
+        selected = await enrichLoopsWithPollsAndDuels(supabase, selected)
+        selected = await applyRealCommentCounts(supabase, selected)
+        selected = await applyRealBranchCounts(supabase, selected)
+
+        const normalizedLoops = normalizeLoops(selected, interactionMap).map((loop, index) => {
+          const raw = selected[index] as any
+          return {
+            ...loop,
+            engagement_score: Number(raw?._rank_score ?? smartEngagementScore(raw || loop)),
+            feed_source: raw?._feed_source || "trending",
+          }
+        })
+
+        return NextResponse.json({
+          success: true,
+          loops: normalizedLoops,
+          hasMore: blended.hasMore,
+          type: user ? "personalized" : "for_you_guest",
+          algorithm: "for_you_blend_v1",
+          mix: FOR_YOU_CONFIG.mix,
+          guest: !user,
+          pagination: { limit: safeLimit, offset: safeOffset, total: normalizedLoops.length },
+        })
+      }
+
+      return NextResponse.json({
+        success: true,
+        loops: [],
+        hasMore: false,
+        type: user ? "personalized" : "for_you_guest",
+        algorithm: "for_you_blend_v1",
+        mix: FOR_YOU_CONFIG.mix,
+        guest: !user,
+        pagination: { limit: safeLimit, offset: safeOffset, total: 0 },
+      })
+    }
 
     // Guests may only browse public chronological / trending feeds
     if (!user) {

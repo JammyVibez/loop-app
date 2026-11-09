@@ -71,11 +71,20 @@ export function GiftModal({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          className="max-h-[92dvh] w-[calc(100vw-1rem)] max-w-[460px] overflow-hidden rounded-2xl border-border bg-card text-card-foreground shadow-2xl sm:w-[min(96vw,460px)] sm:rounded-2xl"
+          scrollable={false}
+          className="max-h-[85dvh] w-[calc(100vw-1rem)] max-w-[460px] overflow-hidden rounded-2xl border-border bg-card text-card-foreground shadow-2xl sm:w-[min(96vw,460px)] sm:rounded-2xl"
           // The shared DialogContent is a padded CSS grid. Tailwind's `flex`,
           // `p-0` and `gap-0` lose to those base utilities, so the panel was
-          // clipped instead of scrolling. Set the layout explicitly.
-          style={{ display: "flex", flexDirection: "column", padding: 0, gap: 0 }}
+          // clipped instead of scrolling. Set the layout explicitly and cap it
+          // with dvh so mobile browser chrome / the keyboard can shrink it.
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            padding: 0,
+            gap: 0,
+            height: "min(85dvh, 720px)",
+            maxHeight: "85dvh",
+          }}
         >
           <DialogHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left">
             <DialogTitle className="flex items-center gap-2 text-base font-black tracking-tight text-card-foreground">

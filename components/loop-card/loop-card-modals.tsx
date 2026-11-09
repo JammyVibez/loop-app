@@ -222,7 +222,7 @@ export function LoopCardModals({
 
       {/* Media Viewer Dialog */}
       <Dialog open={viewerOpen} onOpenChange={setViewerOpen}>
-        <DialogContent className="max-h-[100dvh] max-w-[100vw] border-0 bg-black/95 p-0 text-white sm:max-w-5xl">
+        <DialogContent scrollable={false} className="max-h-[100dvh] max-w-[100vw] border-0 bg-black/95 p-0 text-white sm:max-w-5xl">
           <div className="relative flex min-h-[70vh] items-center justify-center p-4">
             {(() => {
               const url = mediaUrls[currentMediaIndex]

@@ -47,7 +47,7 @@ export default function NotFound() {
         <div className="pt-8 border-t border-gray-200 dark:border-gray-700">
           <p className="text-sm text-muted-foreground mb-4">Looking for something specific?</p>
           <div className="flex flex-wrap justify-center gap-4 text-sm">
-            <Link href="/trending" className="text-purple-600 hover:text-purple-500 dark:text-purple-400">
+            <Link href="/explore?tab=hashtags" className="text-purple-600 hover:text-purple-500 dark:text-purple-400">
               Trending
             </Link>
             <Link href="/communities" className="text-purple-600 hover:text-purple-500 dark:text-purple-400">

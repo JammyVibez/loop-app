@@ -259,7 +259,7 @@ export function EnhancedMediaViewer({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[100vw] max-h-[100vh] w-full h-full p-0 bg-black/95 border-0 overflow-hidden">
+      <DialogContent scrollable={false} className="max-w-[100vw] max-h-[100vh] w-full h-full p-0 bg-black/95 border-0 overflow-hidden">
         {/* Top Bar */}
         <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between p-3 bg-gradient-to-b from-black/60 to-transparent">
           <div className="flex items-center gap-2">

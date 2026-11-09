@@ -1,12 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Home,
   Users,
-  Clock,
-  Flame,
   LayoutList,
   LayoutGrid,
   FileText,
@@ -16,6 +14,7 @@ import {
   Bot,
   Code2,
   SlidersHorizontal,
+  Eye,
 } from "lucide-react"
 import { LoopFeed } from "./loop-feed"
 import { TrendingBoostShelf } from "@/components/boosts/trending-boost-shelf"
@@ -23,6 +22,7 @@ import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
@@ -32,12 +32,13 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 
-const allTabs = [
-  { value: "personalized", label: "For You", icon: Home, hint: "Smart mix for you", guest: false },
-  { value: "following", label: "Following", icon: Users, hint: "People you follow", guest: false },
-  { value: "trending", label: "Trending", icon: Flame, hint: "What's catching fire", guest: true },
-  { value: "recent", label: "Recent", icon: Clock, hint: "Newest public loops", guest: true },
+const FEED_TABS = [
+  { value: "personalized", label: "For You", icon: Home, hint: "A ranked blend of people, trends and fresh finds" },
+  { value: "following", label: "Following", icon: Users, hint: "Only people you follow · newest first" },
 ] as const
+
+const TAB_STORAGE_KEY = "loop:feed:tab"
+const SENSITIVE_STORAGE_KEY = "loop:feed:show-sensitive"
 
 const TOPIC_CHIPS = [
   { id: "all", label: "All Topics", icon: Compass },
@@ -60,36 +61,88 @@ type FeedTabsProps = {
 }
 
 export function FeedTabs({ guestMode = false }: FeedTabsProps) {
-  const tabs = guestMode ? allTabs.filter((t) => t.guest) : [...allTabs]
-  const [activeTab, setActiveTab] = useState(guestMode ? "trending" : "personalized")
+  const [activeTab, setActiveTab] = useState<"personalized" | "following">("personalized")
   const [activeTopic, setActiveTopic] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [viewMode, setViewMode] = useState<"stream" | "cards" | "articles">("stream")
+  const [showSensitive, setShowSensitive] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
 
-  const active = tabs.find((tab) => tab.value === activeTab) || tabs[0]
+  // Restore the last tab, and normalize legacy ?tab=trending / ?tab=recent
+  // links to For You without a reload.
+  useEffect(() => {
+    let next: "personalized" | "following" = "personalized"
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const requested = params.get("tab")
+      const saved = window.localStorage.getItem(TAB_STORAGE_KEY)
+
+      if (requested === "trending" || requested === "recent") {
+        next = "personalized"
+        params.set("tab", "for-you")
+        window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}${window.location.hash}`)
+        window.localStorage.setItem(TAB_STORAGE_KEY, "personalized")
+      } else if (requested === "following") {
+        next = "following"
+      } else if (requested === "personalized" || requested === "for-you" || requested === "for_you") {
+        next = "personalized"
+      } else if (saved === "following") {
+        next = "following"
+      }
+      setActiveTab(next)
+    } catch {
+      setActiveTab("personalized")
+    }
+
+    try {
+      setShowSensitive(window.localStorage.getItem(SENSITIVE_STORAGE_KEY) === "true")
+    } catch {
+      setShowSensitive(false)
+    }
+  }, [])
+
+  const changeTab = (value: string) => {
+    const next = value === "following" ? "following" : "personalized"
+    setActiveTab(next)
+    try {
+      window.localStorage.setItem(TAB_STORAGE_KEY, next)
+      const url = new URL(window.location.href)
+      if (next === "following") url.searchParams.set("tab", "following")
+      else url.searchParams.set("tab", "for-you")
+      window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`)
+    } catch {
+      /* persistence is a progressive enhancement */
+    }
+  }
+
+  const changeSensitive = (checked: boolean) => {
+    setShowSensitive(checked)
+    try {
+      window.localStorage.setItem(SENSITIVE_STORAGE_KEY, String(checked))
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const active = FEED_TABS.find((tab) => tab.value === activeTab) || FEED_TABS[0]
   const activeTopicLabel = TOPIC_CHIPS.find((t) => t.id === activeTopic)?.label || "All Topics"
-  const hasSecondaryFilters = activeTopic !== "all" || searchQuery.trim().length > 0 || viewMode !== "stream"
+  const hasSecondaryFilters =
+    activeTopic !== "all" || searchQuery.trim().length > 0 || viewMode !== "stream" || showSensitive
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} data-tour="feed-tabs" className="w-full space-y-3">
+    <Tabs value={activeTab} onValueChange={changeTab} data-tour="feed-tabs" className="w-full space-y-3">
       {/* Non-sticky compact toolbar — scrolls with the feed */}
       <div className="space-y-2 rounded-2xl border border-border/70 bg-card/60 p-2.5 sm:p-3">
         <div className="flex items-center gap-2">
-          <TabsList
-            className={cn(
-              "grid h-auto min-w-0 flex-1 gap-1 rounded-xl border border-border/60 bg-muted/40 p-1",
-              guestMode ? "grid-cols-2" : "grid-cols-4",
-            )}
-          >
-            {tabs.map((tab) => (
+          <TabsList className="grid h-auto min-w-0 flex-1 grid-cols-2 gap-1 rounded-xl border border-border/60 bg-muted/40 p-1">
+            {FEED_TABS.map((tab) => (
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
-                className="rounded-lg px-1 py-1.5 text-[11px] font-semibold text-muted-foreground transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm sm:px-2.5 sm:text-xs truncate"
+                className="rounded-lg px-1 py-1.5 text-[11px] font-semibold text-muted-foreground transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm sm:px-2.5 sm:text-xs"
               >
                 <tab.icon className="mr-1 hidden h-3.5 w-3.5 shrink-0 sm:inline-block" />
-                <span className="truncate">{tab.label}</span>
+                <span>{tab.label}</span>
               </TabsTrigger>
             ))}
           </TabsList>
@@ -145,6 +198,19 @@ export function FeedTabs({ guestMode = false }: FeedTabsProps) {
                   </DropdownMenuRadioItem>
                 ))}
               </DropdownMenuRadioGroup>
+
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem
+                checked={showSensitive}
+                onCheckedChange={(checked) => changeSensitive(Boolean(checked))}
+                className="gap-2 text-sm"
+              >
+                <Eye className="h-3.5 w-3.5" />
+                Sensitive posts
+              </DropdownMenuCheckboxItem>
+              <p className="px-2 pb-2 text-[10px] leading-4 text-muted-foreground">
+                NSFW and mature posts stay hidden unless you opt in.
+              </p>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -159,6 +225,7 @@ export function FeedTabs({ guestMode = false }: FeedTabsProps) {
                 setActiveTopic("all")
                 setSearchQuery("")
                 setViewMode("stream")
+                changeSensitive(false)
               }}
             >
               Clear · {activeTopicLabel}
@@ -173,14 +240,15 @@ export function FeedTabs({ guestMode = false }: FeedTabsProps) {
         </div>
       </div>
 
-      {tabs.map((tab) => (
+      {FEED_TABS.map((tab) => (
         <TabsContent key={tab.value} value={tab.value} className="mt-0 focus-visible:outline-none">
           <TrendingBoostShelf limit={6} />
           <LoopFeed
-            feedType={tab.value as any}
+            feedType={tab.value}
             guestMode={guestMode}
             topicFilter={activeTopic}
             searchQuery={searchQuery}
+            allowSensitive={showSensitive}
             viewMode={viewMode}
           />
         </TabsContent>

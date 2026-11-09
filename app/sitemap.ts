@@ -12,7 +12,6 @@ const BASE = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://loo
 const STATIC_ROUTES: Array<{ path: string; priority?: number; changeFrequency?: MetadataRoute.Sitemap[number]["changeFrequency"] }> = [
   { path: "", priority: 1.0, changeFrequency: "hourly" },
   { path: "/explore", priority: 0.9, changeFrequency: "hourly" },
-  { path: "/trending", priority: 0.9, changeFrequency: "hourly" },
   { path: "/developers", priority: 0.7, changeFrequency: "weekly" },
   { path: "/events", priority: 0.7, changeFrequency: "weekly" },
   { path: "/games", priority: 0.6, changeFrequency: "weekly" },

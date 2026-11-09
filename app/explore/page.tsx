@@ -6,7 +6,7 @@ import { Film, GitBranch, ArrowRight } from "lucide-react";
 
 export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const params = await searchParams
-  const initialTab = params.tab === "chains" ? "deepest" : "recent"
+  const initialTab = params.tab === "chains" ? "deepest" : params.tab === "hashtags" ? "hashtags" : "recent"
   return (
     <div className="min-h-screen bg-background">
       <Header />

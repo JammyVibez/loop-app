@@ -183,6 +183,7 @@ export function InAppBrowserHost() {
     <Dialog open={open} onOpenChange={(next) => (next ? undefined : close())}>
       <DialogContent
         aria-describedby={undefined}
+        scrollable={false}
         className="flex h-[88dvh] max-h-[88dvh] w-full max-w-5xl flex-col gap-0 overflow-hidden border-border/70 p-0 sm:rounded-2xl"
       >
         {/* Visually-hidden title for a11y (Radix requires a DialogTitle) */}
