@@ -1,5 +1,12 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import {
+  CANONICAL_GIFTS,
+  GIFT_TYPE_PALETTE,
+  giftDurationLabel,
+  giftTypeForTab,
+  type CanonicalGift,
+} from "@/lib/gifts/catalog"
 
 export const dynamic = "force-dynamic"
 
@@ -13,16 +20,64 @@ function isGiftable(item: any) {
 
 function mapGiftType(item: any): string {
   const category = String(item.category || "").toLowerCase()
-  if (category === "coins" || item.item_type === "gift_currency") return "coins"
+  const itemType = String(item.item_type || "").toLowerCase()
+  if (category === "coins" || itemType === "gift_currency") return "coins"
   if (category === "premium") return "premium"
   if (category === "theme") return "theme"
   if (category === "animation") return "animation"
   if (category === "effect") return "effect"
-  if (category === "badge" || item.item_type?.includes("badge") || item.item_type === "gift_item") return "badge"
-  return "special"
+  if (category === "badge" || itemType.includes("badge") || itemType === "gift_item") return "badge"
+  return "badge"
 }
 
+function canonicalGiftPayload(gift: CanonicalGift) {
+  const seconds = giftDurationLabel(gift.durationMs)
+  return {
+    id: gift.id,
+    canonical_id: gift.id,
+    name: gift.name,
+    description: gift.description,
+    type: gift.type,
+    tab: gift.type === "badge" ? "badge" : gift.type,
+    category: gift.category,
+    item_type:
+      gift.category === "badge" ? "gift_item" : gift.category === "effect" ? "gift_effect" : "gift_animation",
+    cost: gift.price,
+    price_coins: gift.price,
+    rarity: gift.rarity,
+    icon_url: null,
+    preview: null,
+    duration: seconds,
+    duration_ms: gift.durationMs,
+    art: gift.art,
+    celebration: gift.celebration,
+    palette: gift.palette,
+    is_canonical: true,
+    item_data: {
+      is_giftable: true,
+      gift_art: gift.art,
+      celebration: gift.celebration,
+      palette: gift.palette,
+      rarity: gift.rarity,
+      duration_ms: gift.durationMs,
+      gift_animation: { type: "fullscreen", duration_ms: gift.durationMs },
+    },
+    effects: {
+      animation: gift.celebration,
+      art: gift.art,
+      palette: gift.palette,
+      duration_ms: gift.durationMs,
+      particles: true,
+      sound: gift.sound || null,
+    },
+  }
+}
+
+/** Stable ordering: the ten signature gifts first, then the shop catalog. */
 export async function GET() {
+  const canonicalNames = new Set(CANONICAL_GIFTS.map((gift) => gift.name.toLowerCase()))
+  const canonical = CANONICAL_GIFTS.map(canonicalGiftPayload)
+
   try {
     const supabase = createServerClient()
     const { data: items, error } = await supabase
@@ -31,57 +86,57 @@ export async function GET() {
       .eq("is_active", true)
       .order("price_coins", { ascending: true })
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
+    if (error) throw error
 
-    const gifts = (items || [])
+    const shopGifts = (items || [])
       .filter(isGiftable)
       .filter((item) => Number(item.price_coins || 0) > 0)
-      .map((item) => ({
-        id: item.id,
-        name: item.name,
-        description: item.description || item.item_data?.description || "A thoughtful Loop gift",
-        type: mapGiftType(item),
-        category: item.category,
-        item_type: item.item_type,
-        cost: Number(item.price_coins || 0),
-        price_coins: Number(item.price_coins || 0),
-        rarity: item.rarity || item.item_data?.rarity || "common",
-        icon_url: item.icon_url || item.preview_url || null,
-        preview: item.preview_url || item.icon_url || null,
-        duration: item.item_data?.duration || null,
-        item_data: item.item_data || {},
-        effects: {
-          animation: item.item_data?.animation || item.preview_data?.animation || "sparkle",
-          particles: true,
-        },
-      }))
-
-    // Fallback catalog if shop has no giftable rows
-    if (!gifts.length) {
-      return NextResponse.json({
-        success: true,
-        data: {
-          gifts: [
-            {
-              id: "fallback-coins-100",
-              name: "100 Loop Coins",
-              description: "A small token of appreciation",
-              type: "coins",
-              cost: 100,
-              price_coins: 100,
-              rarity: "common",
-              item_data: { coins_amount: 100, is_giftable: true },
-            },
-          ],
-        },
+      .filter((item) => !canonicalNames.has(String(item.name || "").toLowerCase()))
+      .map((item) => {
+        const type = mapGiftType(item)
+        const tab = giftTypeForTab(type)
+        const itemData = item.item_data || {}
+        const durationMs =
+          Number(itemData?.gift_animation?.duration_ms) || Number(itemData?.duration_ms) || 0
+        return {
+          id: item.id,
+          canonical_id: null,
+          name: item.name,
+          description: item.description || itemData?.description || "A thoughtful Loop gift",
+          type,
+          tab,
+          category: item.category,
+          item_type: item.item_type,
+          cost: Number(item.price_coins || 0),
+          price_coins: Number(item.price_coins || 0),
+          rarity: item.rarity || itemData?.rarity || "common",
+          icon_url: item.icon_url || item.preview_url || null,
+          preview: item.preview_url || item.icon_url || null,
+          duration: durationMs ? giftDurationLabel(durationMs) : itemData?.duration || null,
+          duration_ms: durationMs || null,
+          art: itemData?.gift_art || null,
+          celebration: itemData?.celebration || null,
+          palette: itemData?.palette || GIFT_TYPE_PALETTE[tab],
+          is_canonical: false,
+          item_data: itemData,
+          effects: {
+            animation: itemData?.animation || item.preview_data?.animation || "sparkle",
+            art: itemData?.gift_art || null,
+            palette: itemData?.palette || GIFT_TYPE_PALETTE[tab],
+            duration_ms: durationMs || null,
+            particles: true,
+          },
+        }
       })
-    }
 
-    return NextResponse.json({ success: true, data: { gifts }, gifts })
+    return NextResponse.json({
+      success: true,
+      data: { gifts: [...canonical, ...shopGifts] },
+      gifts: [...canonical, ...shopGifts],
+    })
   } catch (error) {
+    // The canonical ten must remain sendable even if the shop table is down.
     console.error("Get gifts error:", error)
-    return NextResponse.json({ error: "Failed to fetch gifts" }, { status: 500 })
+    return NextResponse.json({ success: true, data: { gifts: canonical }, gifts: canonical })
   }
 }

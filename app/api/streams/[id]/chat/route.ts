@@ -46,6 +46,17 @@ export async function GET(
       else if (giftData && typeof giftData === "object") tipAmount = Number(giftData.amount || giftData.value || 0) || 0
       else if (msg.gift_amount) tipAmount = Number(msg.gift_amount) || 0
 
+      const giftInfo =
+        giftData && typeof giftData === "object" && giftData.name
+          ? {
+              name: String(giftData.name),
+              cost: tipAmount,
+              rarity: String(giftData.rarity || "common"),
+              art: giftData.art ? String(giftData.art) : null,
+              message: giftData.message ? String(giftData.message) : null,
+            }
+          : null
+
       return {
         id: msg.id,
         user_id: msg.user_id,
@@ -57,6 +68,7 @@ export async function GET(
         is_premium: Boolean(msg.user?.is_premium),
         is_tip: msg.message_type === "gift" || tipAmount > 0,
         tip_amount: tipAmount,
+        gift: giftInfo,
         timestamp: new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       }
     })
@@ -83,7 +95,7 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { message, is_tip, tip_amount } = body
+    const { message, is_tip, tip_amount, gift_name, gift_rarity, gift_art, gift_message } = body
 
     if (!message && !is_tip) {
       return NextResponse.json({ error: "Message content or tip is required" }, { status: 400 })
@@ -100,7 +112,16 @@ export async function POST(
         message: message || `Sent ${giftAmount} Loop Coins! 🎁`,
         message_type: messageType,
         // stream_chat stores gift details in the JSONB `gift_data` column.
-        gift_data: giftAmount > 0 ? { amount: giftAmount } : null,
+        gift_data:
+          giftAmount > 0
+            ? {
+                amount: giftAmount,
+                name: gift_name || null,
+                rarity: gift_rarity || "common",
+                art: gift_art || null,
+                message: gift_message || null,
+              }
+            : null,
       })
       .select(`
         id,
@@ -137,6 +158,15 @@ export async function POST(
       is_premium: Boolean(userProfile?.is_premium),
       is_tip: Boolean(is_tip),
       tip_amount: giftAmount,
+      gift: gift_name
+        ? {
+            name: String(gift_name),
+            cost: giftAmount,
+            rarity: String(gift_rarity || "common"),
+            art: gift_art ? String(gift_art) : null,
+            message: gift_message ? String(gift_message) : null,
+          }
+        : null,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     }
 
