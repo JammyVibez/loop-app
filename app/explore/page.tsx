@@ -1,56 +1,50 @@
-import Link from "next/link";
-import { Header } from "@/components/header";
-import { ExploreContent } from "@/components/explore/explore-content";
-import { PageHeader } from "@/components/ui/page-header";
-import { Film, GitBranch, ArrowRight } from "lucide-react";
+import Link from "next/link"
+import { Header } from "@/components/header"
+import { ExploreContent, type ExploreTab } from "@/components/explore/explore-content"
+import { PageHeader } from "@/components/ui/page-header"
+import { Button } from "@/components/ui/button"
+import { Film, GitBranch } from "lucide-react"
 
 export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const params = await searchParams
-  const initialTab = params.tab === "chains" ? "deepest" : params.tab === "hashtags" ? "hashtags" : "recent"
+  const requestedTab = params.tab === "chains" ? "deepest" : params.tab
+  const validTabs: ExploreTab[] = [
+    "events",
+    "recent",
+    "personalized",
+    "following",
+    "community",
+    "deepest",
+    "creative",
+    "hashtags",
+  ]
+  const initialTab = validTabs.includes(requestedTab as ExploreTab) ? (requestedTab as ExploreTab) : "recent"
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container mx-auto max-w-6xl px-4 py-6">
-        <div className="space-y-6">
+      <main className="container mx-auto max-w-5xl px-3 py-5 sm:px-4 sm:py-7">
+        <div className="space-y-4">
           <PageHeader
             eyebrow="Discover"
             title="Explore"
-            description="Loops, Trees, Reels and the people making them. Everything public, ranked by what people are actually opening."
+            description="Find a loop worth joining, a creator worth following, or a corner of Loop you haven't seen yet."
+            actions={
+              <>
+                <Button asChild variant="outline" size="sm" className="h-8 rounded-full px-3 text-xs">
+                  <Link href="/explore/reels">
+                    <Film className="mr-1.5 h-3.5 w-3.5" />
+                    Reels
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="sm" className="h-8 rounded-full px-3 text-xs">
+                  <Link href="/chains">
+                    <GitBranch className="mr-1.5 h-3.5 w-3.5" />
+                    Trees
+                  </Link>
+                </Button>
+              </>
+            }
           />
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Link
-              href="/explore/reels"
-              className="group flex min-w-0 items-center justify-between rounded-xl border border-border/70 bg-card px-4 py-3.5 transition-colors duration-150 hover:border-border hover:bg-muted/30"
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40 text-foreground">
-                  <Film className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">Reels</p>
-                  <p className="truncate text-xs text-muted-foreground">Trending and fresh clips, one swipe at a time</p>
-                </div>
-              </div>
-              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-foreground" />
-            </Link>
-
-            <Link
-              href="/chains"
-              className="group flex min-w-0 items-center justify-between rounded-xl border border-border/70 bg-card px-4 py-3.5 transition-colors duration-150 hover:border-border hover:bg-muted/30"
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40 text-foreground">
-                  <GitBranch className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">Trees</p>
-                  <p className="truncate text-xs text-muted-foreground">Branch a Loop and keep the thread growing</p>
-                </div>
-              </div>
-              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-foreground" />
-            </Link>
-          </div>
 
           <ExploreContent initialTab={initialTab} />
         </div>

@@ -1,29 +1,38 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState, type ComponentType } from "react"
 import Link from "next/link"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Clock, GitBranch, TreePine, Zap, TrendingUp, Hash, RefreshCw, Users, Sparkles } from "lucide-react"
+import {
+  Clock,
+  GitBranch,
+  TreePine,
+  Zap,
+  TrendingUp,
+  Hash,
+  RefreshCw,
+  Users,
+  Sparkles,
+  Calendar,
+} from "lucide-react"
 import { LoopCard } from "@/components/loop-card"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { normalizeLoops, type NormalizedLoop } from "@/lib/normalize-loop"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { EmptyState } from "@/components/ui/empty-state"
 
 import { GlobalEventsHub } from "@/components/events/global-events-hub"
 import { GlobalEventBanner } from "@/components/events/global-event-banner"
 import { ParticipationDiscovery } from "@/components/explore/participation-discovery"
 import { ExploreSearchAutocomplete } from "@/components/explore/explore-search-autocomplete"
-import { Calendar } from "lucide-react"
 import { Spinner } from "@/components/ui/skeletons"
 import { ExploreSearchResults } from "@/components/explore/explore-search-results"
 import { DiscoveryPreferencesPanel } from "@/components/explore/discovery-preferences-panel"
 
-type ExploreTab = "events" | "recent" | "personalized" | "following" | "community" | "deepest" | "creative" | "hashtags"
+export type ExploreTab = "events" | "recent" | "personalized" | "following" | "community" | "deepest" | "creative" | "hashtags"
 
 interface TrendingHashtag {
   tag: string
@@ -43,6 +52,33 @@ interface CollaborativeChain {
   contribution_count: number
   participant_count: number
   updated_at: string
+}
+
+function FeedHeading({
+  icon: Icon,
+  title,
+  description,
+  action,
+}: {
+  icon: ComponentType<{ className?: string }>
+  title: string
+  description: string
+  action?: React.ReactNode
+}) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border/60 pb-2.5">
+      <div className="flex min-w-0 items-start gap-2.5">
+        <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/70 bg-muted/30 text-foreground/70">
+          <Icon className="h-3.5 w-3.5" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold tracking-tight text-foreground">{title}</h2>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">{description}</p>
+        </div>
+      </div>
+      {action}
+    </div>
+  )
 }
 
 export function ExploreContent({ initialTab = "recent" }: { initialTab?: ExploreTab }) {
@@ -69,6 +105,10 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
     append = false,
     preserveOffset = false,
   ) => {
+    if (tab === "events") {
+      if (!silent) setLoading(false)
+      return
+    }
     if (!silent && !append) setLoading(true)
     if (append && !silent) setLoadingMore(true)
     try {
@@ -104,8 +144,8 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
       const sort = tab === "creative" ? "creative"
         : tab === "personalized" ? "personalized"
           : tab === "following" ? "following"
-          : tab === "community" ? "community"
-            : "recent"
+            : tab === "community" ? "community"
+              : "recent"
       const response = await fetch(`/api/explore/trending?type=loops&sort=${sort}&limit=24&offset=${offset}`, {
         headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
         cache: "no-store",
@@ -241,15 +281,16 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
   }
 
   const renderLoadMore = () => hasMore ? (
-    <div className="flex justify-center pt-3">
+    <div className="flex justify-center pt-2">
       <Button
         variant="outline"
-        className="min-w-40 rounded-full"
+        size="sm"
+        className="min-w-36 rounded-full text-xs"
         disabled={loadingMore || loading}
         onClick={() => void fetchExplore(selectedTab, false, nextOffset, true)}
       >
-        {loadingMore ? <Spinner className="mr-2 h-4 w-4" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-        {loadingMore ? "Loading more…" : "Load more"}
+        {loadingMore ? <Spinner className="mr-2 h-3.5 w-3.5" /> : <RefreshCw className="mr-2 h-3.5 w-3.5" />}
+        {loadingMore ? "Loading…" : "Load more"}
       </Button>
     </div>
   ) : null
@@ -257,7 +298,7 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
   const renderLoops = (items: NormalizedLoop[], emptyLabel: string) => {
     if (loading) {
       return (
-        <div className="flex items-center justify-center py-16 text-muted-foreground">
+        <div className="flex items-center justify-center py-14 text-sm text-muted-foreground">
           <Spinner className="mr-2 h-5 w-5" />
           Loading loops…
         </div>
@@ -269,12 +310,12 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
     }
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-2.5">
         {items.map((loop) => (
-          <div key={loop.id} className="space-y-2">
+          <div key={loop.id} className="space-y-1.5">
             {loop.discovery_reason && (
-              <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
-                <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
+              <div className="flex items-center gap-1.5 px-1 text-[10px] text-muted-foreground">
+                <Sparkles className="h-3 w-3 shrink-0 text-primary" />
                 <span>{loop.discovery_reason}</span>
               </div>
             )}
@@ -289,218 +330,244 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
     )
   }
 
-  return (
-    <div className="space-y-6">
-      <GlobalEventBanner />
+  const liveIndicator = (
+    <div className="flex items-center gap-2">
+      <span className="hidden items-center gap-1.5 text-[10px] text-muted-foreground sm:flex">
+        <span className={`inline-flex h-1.5 w-1.5 rounded-full ${live ? "bg-emerald-500" : "bg-amber-500"}`} />
+        {live ? "Live" : "Auto-refresh"}
+      </span>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 rounded-full px-2 text-[10px] text-muted-foreground"
+        onClick={() => void fetchExplore(selectedTab)}
+      >
+        <RefreshCw className="mr-1 h-3 w-3" />
+        Refresh
+      </Button>
+    </div>
+  )
 
-      {/* Search Autocomplete */}
-      <ExploreSearchAutocomplete onSearch={setSearchQuery} />
+  return (
+    <div className="space-y-4">
+      {/* Search hero */}
+      <section className="relative overflow-hidden rounded-2xl border border-border/70 bg-card p-4 sm:p-5">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-primary/[0.06] blur-3xl" />
+        <div className="relative grid gap-3 sm:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] sm:items-center sm:gap-5">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              One search
+            </p>
+            <h2 className="mt-1 text-lg font-semibold tracking-tight text-foreground">
+              Find your next loop
+            </h2>
+            <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+              People, ideas, circles, chains and collections.
+            </p>
+          </div>
+          <ExploreSearchAutocomplete onSearch={setSearchQuery} />
+        </div>
+      </section>
 
       {searchQuery.trim() ? (
         <ExploreSearchResults query={searchQuery} onClear={() => setSearchQuery("")} />
       ) : (
         <>
-          {/* Participation discovery — live duels, co-loops, circles, creators */}
-          <ParticipationDiscovery />
+          <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as ExploreTab)} className="w-full">
+            <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto rounded-full border border-border/70 bg-muted/30 p-1">
+              <TabsTrigger value="events" className="shrink-0 gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                <Calendar className="h-3.5 w-3.5" />
+                Global Events
+              </TabsTrigger>
+              <TabsTrigger value="recent" className="shrink-0 gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                <Clock className="h-3.5 w-3.5" />
+                Recent
+              </TabsTrigger>
+              {user && (
+                <TabsTrigger value="personalized" className="shrink-0 gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  For you
+                </TabsTrigger>
+              )}
+              {user && (
+                <TabsTrigger value="following" className="shrink-0 gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                  <Users className="h-3.5 w-3.5" />
+                  Following
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="community" className="shrink-0 gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                <Users className="h-3.5 w-3.5" />
+                From Circles
+              </TabsTrigger>
+              <TabsTrigger value="deepest" className="shrink-0 gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                <TreePine className="h-3.5 w-3.5" />
+                Chains
+              </TabsTrigger>
+              <TabsTrigger value="creative" className="shrink-0 gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                <Zap className="h-3.5 w-3.5" />
+                Creative
+              </TabsTrigger>
+              <TabsTrigger value="hashtags" className="shrink-0 gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                <Hash className="h-3.5 w-3.5" />
+                Hashtags
+              </TabsTrigger>
+            </TabsList>
 
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className={`inline-flex h-2 w-2 rounded-full ${live ? "bg-emerald-500" : "bg-amber-500"}`} />
-          {live ? "Live updates connected" : "Refreshing every 20s"}
-        </div>
-        <Button variant="ghost" size="sm" onClick={() => void fetchExplore(selectedTab)}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
-      </div>
+            <TabsContent value="events" className="mt-4">
+              <GlobalEventsHub />
+            </TabsContent>
 
-      <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as ExploreTab)} className="w-full">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-muted/40 p-1 sm:grid-cols-8">
-          <TabsTrigger value="events" className="rounded-xl">
-            <Calendar className="mr-1.5 h-4 w-4 text-cyan-400" />
-            Global Events
-          </TabsTrigger>
-          <TabsTrigger value="recent" className="rounded-xl">
-            <Clock className="mr-1.5 h-4 w-4" />
-            Recent
-          </TabsTrigger>
-          {user && (
-            <TabsTrigger value="personalized" className="rounded-xl">
-              <Sparkles className="mr-1.5 h-4 w-4" />
-              For you
-            </TabsTrigger>
-          )}
-          {user && (
-            <TabsTrigger value="following" className="rounded-xl">
-              <Users className="mr-1.5 h-4 w-4" />
-              Following
-            </TabsTrigger>
-          )}
-          <TabsTrigger value="community" className="rounded-xl">
-            <Users className="mr-1.5 h-4 w-4" />
-            From Circles
-          </TabsTrigger>
-          <TabsTrigger value="deepest" className="rounded-xl">
-            <TreePine className="mr-1.5 h-4 w-4" />
-            Chains
-          </TabsTrigger>
-          <TabsTrigger value="creative" className="rounded-xl">
-            <Zap className="mr-1.5 h-4 w-4" />
-            Creative
-          </TabsTrigger>
-          <TabsTrigger value="hashtags" className="rounded-xl">
-            <Hash className="mr-1.5 h-4 w-4" />
-            Hashtags
-          </TabsTrigger>
-        </TabsList>
+            <TabsContent value="recent" className="mt-4 space-y-5">
+              <ParticipationDiscovery />
+              <GlobalEventBanner />
+              <section className="space-y-3">
+                <FeedHeading
+                  icon={Clock}
+                  title="Recent loops"
+                  description="The newest public work, moment by moment."
+                  action={liveIndicator}
+                />
+                {renderLoops(loops, "No recent loops yet")}
+                {renderLoadMore()}
+              </section>
+            </TabsContent>
 
-        <TabsContent value="events" className="mt-6">
-          <GlobalEventsHub />
-        </TabsContent>
+            {user && (
+              <TabsContent value="personalized" className="mt-4 space-y-4">
+                <DiscoveryPreferencesPanel onChanged={() => void fetchExplore("personalized")} />
+                <section className="space-y-3">
+                  <FeedHeading
+                    icon={Sparkles}
+                    title="For you"
+                    description="Recommended from topic tags on public loops you like or save."
+                    action={liveIndicator}
+                  />
+                  {renderLoops(loops, "No interest matches yet. Like or save public loops with topic tags to build this feed.")}
+                  {renderLoadMore()}
+                </section>
+              </TabsContent>
+            )}
 
-        <TabsContent value="recent" className="mt-6 space-y-4">
-          <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-semibold">Recent Loops</h2>
-            <Badge variant="secondary">Newest first</Badge>
-          </div>
-          {renderLoops(loops, "No recent loops yet")}
-          {renderLoadMore()}
-        </TabsContent>
+            {user && (
+              <TabsContent value="following" className="mt-4 space-y-3">
+                <FeedHeading
+                  icon={Users}
+                  title="From people you follow"
+                  description="Latest public loops from your circle."
+                  action={liveIndicator}
+                />
+                {renderLoops(loops, "No recent public loops from people you follow yet")}
+                {renderLoadMore()}
+              </TabsContent>
+            )}
 
-        {user && (
-          <TabsContent value="personalized" className="mt-6 space-y-4">
-            <DiscoveryPreferencesPanel onChanged={() => void fetchExplore("personalized")} />
-            <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold">
-                <Sparkles className="h-4 w-4 text-primary" />
-                A feed shaped by your interests
-              </div>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Recommendations use topic tags from public Loops you have liked or saved. Private posts are never used as signals or shown here. Latest, Following and From Circles remain available whenever you prefer a different view.
-              </p>
-            </div>
-            {renderLoops(loops, "No interest matches yet. Like or save public Loops with topic tags to build this feed.")}
-          {renderLoadMore()}
-          </TabsContent>
-        )}
+            <TabsContent value="community" className="mt-4 space-y-3">
+              <FeedHeading
+                icon={Users}
+                title="From Circles"
+                description="Public work shared by communities you can discover."
+                action={liveIndicator}
+              />
+              {renderLoops(loops, "No public Circle loops found yet")}
+              {renderLoadMore()}
+            </TabsContent>
 
-        {user && (
-          <TabsContent value="following" className="mt-6 space-y-4">
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-semibold">From people you follow</h2>
-              <Badge variant="secondary">Latest first</Badge>
-            </div>
-            {renderLoops(loops, "No recent public Loops from people you follow yet")}
-          {renderLoadMore()}
-          </TabsContent>
-        )}
+            <TabsContent value="deepest" className="mt-4 space-y-3">
+              <FeedHeading
+                icon={GitBranch}
+                title="Collaborative Chains"
+                description="Open ideas with the most contributions."
+                action={
+                  <Link href="/chains" className="text-[11px] font-semibold text-primary hover:underline">
+                    Explore all
+                  </Link>
+                }
+              />
+              {loading ? (
+                <div className="flex items-center justify-center py-14 text-sm text-muted-foreground">
+                  <Spinner className="mr-2 h-5 w-5" /> Loading Chains…
+                </div>
+              ) : chains.length === 0 ? (
+                <EmptyState title="No collaborative Chains yet" icon={<GitBranch className="h-6 w-6" />} />
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {chains.map((chain) => (
+                    <Link
+                      key={chain.id}
+                      href={`/chains/${chain.id}`}
+                      className="group flex min-h-40 flex-col rounded-xl border border-border/70 bg-card p-3.5 transition-colors hover:border-border hover:bg-muted/20"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge variant="secondary" className="capitalize text-[10px]">{chain.kind.replace(/_/g, " ")}</Badge>
+                        <GitBranch className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
+                      </div>
+                      <h3 className="mt-2 line-clamp-2 text-sm font-semibold text-foreground">{chain.title}</h3>
+                      <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                        {chain.prompt || chain.description || "An idea waiting for its next contribution."}
+                      </p>
+                      <div className="mt-auto flex flex-wrap items-center gap-2.5 border-t border-border/50 pt-2.5 text-[10px] text-muted-foreground">
+                        <span className="inline-flex items-center gap-1"><GitBranch className="h-3 w-3" /> {chain.contribution_count}</span>
+                        <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" /> {chain.participant_count}</span>
+                        <span className="ml-auto truncate">by {chain.creator_display_name || chain.creator_username}</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
 
-        <TabsContent value="community" className="mt-6 space-y-4">
-          <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-semibold">From Circles</h2>
-            <Badge variant="secondary">Public community work</Badge>
-          </div>
-          {renderLoops(loops, "No public Circle Loops found yet")}
-          {renderLoadMore()}
-        </TabsContent>
+            <TabsContent value="creative" className="mt-4 space-y-3">
+              <FeedHeading
+                icon={Zap}
+                title="Most creative"
+                description="Loops with the strongest engagement."
+                action={liveIndicator}
+              />
+              {renderLoops(loops, "No creative loops yet")}
+              {renderLoadMore()}
+            </TabsContent>
 
-        <TabsContent value="deepest" className="mt-6 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <GitBranch className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-semibold">Collaborative Chains</h2>
-              <Badge variant="secondary">Most contributions</Badge>
-            </div>
-            <Link href="/chains" className="text-xs font-semibold text-primary hover:underline">Explore all Chains</Link>
-          </div>
-          {loading ? (
-            <div className="flex items-center justify-center py-16 text-muted-foreground">
-              <Spinner className="mr-2 h-5 w-5" /> Loading Chains…
-            </div>
-          ) : chains.length === 0 ? (
-            <EmptyState title="No collaborative Chains yet" icon={<GitBranch className="h-6 w-6" />} />
-          ) : (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {chains.map((chain) => (
-                <Link
-                  key={chain.id}
-                  href={`/chains/${chain.id}`}
-                  className="group flex min-h-48 flex-col rounded-2xl border border-border bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <Badge variant="secondary" className="capitalize">{chain.kind.replace(/_/g, " ")}</Badge>
-                    <GitBranch className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />
-                  </div>
-                  <h3 className="mt-3 line-clamp-2 text-base font-bold">{chain.title}</h3>
-                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                    {chain.prompt || chain.description || "An idea waiting for its next contribution."}
-                  </p>
-                  <div className="mt-auto flex flex-wrap items-center gap-3 border-t border-border pt-3 text-[11px] text-muted-foreground">
-                    <span className="inline-flex items-center gap-1"><GitBranch className="h-3 w-3" /> {chain.contribution_count} contributions</span>
-                    <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" /> {chain.participant_count} people</span>
-                    <span className="ml-auto truncate">by {chain.creator_display_name || chain.creator_username}</span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="creative" className="mt-6 space-y-4">
-          <div className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-amber-500" />
-            <h2 className="text-xl font-semibold">Most Creative</h2>
-            <Badge variant="secondary">Highest engagement</Badge>
-          </div>
-          {renderLoops(loops, "No creative loops yet")}
-          {renderLoadMore()}
-        </TabsContent>
-
-        <TabsContent value="hashtags" className="mt-6 space-y-4">
-          <div className="flex items-center gap-2">
-            <Hash className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-semibold">Trending Hashtags</h2>
-            <Badge variant="secondary">Live</Badge>
-          </div>
-          {loading ? (
-            <div className="flex items-center justify-center py-16 text-muted-foreground">
-              <Spinner className="mr-2 h-5 w-5" />
-              Loading hashtags…
-            </div>
-          ) : hashtags.length === 0 ? (
-            <EmptyState title="No hashtags trending yet" icon={<Hash className="h-6 w-6" />} />
-          ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {hashtags.map((hashtag, index) => {
-                const count = Number(hashtag.usage_count ?? hashtag.count ?? 0)
-                return (
-                  <Link key={hashtag.tag} href={`/hashtag/${encodeURIComponent(hashtag.tag)}`}>
-                    <Card className="transition hover:bg-muted/40">
-                      <CardContent className="p-4">
-                        <div className="mb-2 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-2xl font-bold text-muted-foreground">#{index + 1}</span>
-                            <Hash className="h-5 w-5 text-primary" />
-                          </div>
-                          <Badge variant="secondary" className="gap-1">
+            <TabsContent value="hashtags" className="mt-4 space-y-3">
+              <FeedHeading
+                icon={Hash}
+                title="Trending hashtags"
+                description="What the community is talking about right now."
+                action={<Badge variant="secondary" className="text-[10px]">Live</Badge>}
+              />
+              {loading ? (
+                <div className="flex items-center justify-center py-14 text-sm text-muted-foreground">
+                  <Spinner className="mr-2 h-5 w-5" /> Loading hashtags…
+                </div>
+              ) : hashtags.length === 0 ? (
+                <EmptyState title="No hashtags trending yet" icon={<Hash className="h-6 w-6" />} />
+              ) : (
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                  {hashtags.map((hashtag, index) => {
+                    const count = Number(hashtag.usage_count ?? hashtag.count ?? 0)
+                    return (
+                      <Link
+                        key={hashtag.tag}
+                        href={`/hashtag/${encodeURIComponent(hashtag.tag)}`}
+                        className="group rounded-xl border border-border/70 bg-card p-3.5 transition-colors hover:border-border hover:bg-muted/20"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-semibold tabular-nums text-muted-foreground">
+                            #{String(index + 1).padStart(2, "0")}
+                          </span>
+                          <Badge variant="secondary" className="gap-1 text-[10px]">
                             <TrendingUp className="h-3 w-3" />
                             {hashtag.growth ?? "hot"}
                           </Badge>
                         </div>
-                        <h3 className="text-lg font-bold text-primary">#{hashtag.tag}</h3>
-                        <p className="text-sm text-muted-foreground">{formatNumber(count)} loops</p>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                )
-              })}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+                        <h3 className="mt-2 truncate text-sm font-semibold text-primary">#{hashtag.tag}</h3>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">{formatNumber(count)} loops</p>
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </>
       )}
     </div>

@@ -222,10 +222,10 @@ export function ExploreSearchAutocomplete({ onSearch, className }: ExploreSearch
     <div className={cn("relative", className)}>
       {/* Search Input */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           ref={inputRef}
-          placeholder="Search people, ideas, Chains, Collections..."
+          placeholder="Search people, loops, circles, Chains…"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value)
@@ -234,7 +234,7 @@ export function ExploreSearchAutocomplete({ onSearch, className }: ExploreSearch
           onFocus={() => setFocused(true)}
           onBlur={() => setTimeout(() => setFocused(false), 200)}
           onKeyDown={handleKeyDown}
-          className="pl-9 pr-9"
+          className="h-11 rounded-xl border-border/80 bg-background pl-10 pr-10 text-sm shadow-sm"
         />
         {query && (
           <button
@@ -253,7 +253,7 @@ export function ExploreSearchAutocomplete({ onSearch, className }: ExploreSearch
       {showDropdown && (
         <div
           ref={dropdownRef}
-          className="absolute top-full left-0 right-0 z-50 mt-1 rounded-xl border border-border bg-card shadow-xl overflow-hidden max-h-[400px] overflow-y-auto"
+          className="absolute top-full left-0 right-0 z-50 mt-1.5 max-h-[400px] overflow-y-auto overflow-hidden rounded-xl border border-border bg-card shadow-xl"
         >
           {query.trim() ? (
             // Search Results
