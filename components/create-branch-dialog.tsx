@@ -1,7 +1,7 @@
 "use client";
 import type React from "react";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,8 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [actionPhase, setActionPhase] = useState<ActionPhase>("idle")
   const [actionError, setActionError] = useState<string | null>(null)
+  // Guard against a same-frame double click before `isSubmitting` re-renders.
+  const submittingRef = useRef(false)
   /** Set after a successful post — the dialog flips to a confirmation step. */
   const [createdBranchId, setCreatedBranchId] = useState<string | null>(null)
   /** Branch mode: "new" = write your own take, "rebranch" = repost the same content */
@@ -186,6 +188,8 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
       return
     }
 
+    if (submittingRef.current) return
+    submittingRef.current = true
     setActionError(null)
     setActionPhase("working")
     setIsSubmitting(true)
@@ -234,6 +238,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
       setActionError(message)
       toast({ title: "Couldn't create branch", description: message, variant: "destructive" })
     } finally {
+      submittingRef.current = false
       setIsSubmitting(false)
     }
   }
@@ -255,6 +260,8 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
       toast({ title: "Sign in required", description: "Please sign in to rebranch." })
       return
     }
+    if (submittingRef.current) return
+    submittingRef.current = true
     setActionError(null)
     setActionPhase("working")
     setIsSubmitting(true)
@@ -335,6 +342,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
       setActionError(message)
       toast({ title: "Couldn't rebranch", description: message, variant: "destructive" })
     } finally {
+      submittingRef.current = false
       setIsSubmitting(false)
     }
   }

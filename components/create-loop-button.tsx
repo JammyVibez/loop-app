@@ -165,6 +165,8 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
   const [videoEdits, setVideoEdits] = useState<Record<string, VideoEdit>>({})
   const editingFile = editQueue[editIndex] ?? null
   const recorderRef = useRef<MediaRecorder | null>(null)
+  // `creating` only flips after a render; this blocks a same-frame double click.
+  const publishingRef = useRef(false)
   const chunksRef = useRef<Blob[]>([])
   const [recording, setRecording] = useState(false)
   const [isSpoiler, setIsSpoiler] = useState(false)
@@ -272,9 +274,10 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
   }
 
   const publish = async () => {
-    if (creating || actionPhase === "working") return
+    if (publishingRef.current || creating || actionPhase === "working") return
     if (!requireAuth("post")) return
     if (!user || !authToken) return
+    publishingRef.current = true
     setActionError(null)
     setActionPhase("working")
     setCreating(true)
@@ -460,6 +463,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
       setActionError(message)
       toast({ title: "Failed to create loop", description: message, variant: "destructive" })
     } finally {
+      publishingRef.current = false
       setCreating(false)
       setUploadStatus(null)
     }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Check, Coins, Gift, Info, Lock, RotateCcw, Sparkles, Star } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
@@ -140,6 +140,8 @@ export function GiftPanel({
     anonymous: boolean
   } | null>(null)
   const [balance, setBalance] = useState(Number(user?.loop_coins || 0))
+  // A gift is money: block a same-frame double send before `sending` renders.
+  const sendingRef = useRef(false)
 
   useEffect(() => {
     setBalance(Number(user?.loop_coins || 0))
@@ -210,6 +212,9 @@ export function GiftPanel({
       }
 
       const key = `gift-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+
+      if (sendingRef.current) return
+      sendingRef.current = true
 
       // Optimistic: balance and animation start now; the server reconciles.
       setBalance((prev) => prev - gift.cost)
@@ -302,6 +307,7 @@ export function GiftPanel({
           ),
         })
       } finally {
+        sendingRef.current = false
         setSending(false)
       }
     },

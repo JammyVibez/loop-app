@@ -300,6 +300,9 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
   const [uploadingFor, setUploadingFor] = useState<string | null>(null)
   const [lightbox, setLightbox] = useState<string | null>(null)
   const fileTargetRef = useRef<string>("new")
+  // Same-frame click guards: state only reflects the submit after a render.
+  const commentBusyRef = useRef(false)
+  const replyBusyRef = useRef(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const openFilePicker = (target: string) => {
@@ -419,6 +422,8 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
 
   const handleSubmitComment = async () => {
     if ((!newComment.trim() && newAttachments.length === 0) || !token || submitting) return
+    if (commentBusyRef.current) return
+    commentBusyRef.current = true
     const submittedContent = newComment
     const submittedAttachments = newAttachments
     setCommentError(null)
@@ -452,6 +457,7 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
       // its thread instead of waiting for the realtime echo.
       if (data.ai_reply) void loadComments()
     } finally {
+      commentBusyRef.current = false
       setSubmitting(false)
     }
   }
@@ -459,6 +465,8 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
   const handleSubmitReply = async (parentId: string) => {
     const pending = replyAttachments[parentId] || []
     if ((!replyContent.trim() && pending.length === 0) || !token || submittingReplyId) return
+    if (replyBusyRef.current) return
+    replyBusyRef.current = true
     setReplyError(null)
     setReplyPhase("working")
     setSubmittingReplyId(parentId)
@@ -487,6 +495,7 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
       setReplyingTo(null)
       await loadComments()
     } finally {
+      replyBusyRef.current = false
       setSubmittingReplyId(null)
     }
   }

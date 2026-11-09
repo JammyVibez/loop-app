@@ -38,6 +38,7 @@ export function CreateMomentForm({ onMomentCreated }: CreateMomentFormProps) {
   const [publishPhase, setPublishPhase] = useState<ActionPhase>("idle")
   const [publishError, setPublishError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const publishBusyRef = useRef(false)
 
   const pickFile = useCallback((file: File) => {
     if (file.size > 100 * 1024 * 1024) {
@@ -78,11 +79,12 @@ export function CreateMomentForm({ onMomentCreated }: CreateMomentFormProps) {
   )
 
   const createMoment = useCallback(async () => {
-    if (creating) return
+    if (creating || publishBusyRef.current) return
     if (!mediaFile && !caption.trim()) {
       toast({ title: "Add a photo, video, or caption", variant: "destructive" })
       return
     }
+    publishBusyRef.current = true
     setPublishError(null)
     setPublishPhase("working")
     setCreating(true)
@@ -133,6 +135,7 @@ export function CreateMomentForm({ onMomentCreated }: CreateMomentFormProps) {
       setPublishError(error.message || "Something went wrong")
       toast({ title: "Couldn't create moment", description: error.message, variant: "destructive" })
     } finally {
+      publishBusyRef.current = false
       setCreating(false)
       setUploading(false)
     }

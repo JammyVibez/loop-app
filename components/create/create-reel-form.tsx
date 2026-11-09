@@ -25,6 +25,7 @@ export function CreateTreeForm({ onTreeCreated }: CreateTreeFormProps) {
   const { requireAuth, isGuest, LoginGateDialog } = useLoginGate()
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const publishBusyRef = useRef(false)
 
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -75,6 +76,8 @@ export function CreateTreeForm({ onTreeCreated }: CreateTreeFormProps) {
       return
     }
 
+    if (publishBusyRef.current) return
+    publishBusyRef.current = true
     setPublishError(null)
     setPublishPhase("working")
     setUploading(true)
@@ -128,6 +131,7 @@ export function CreateTreeForm({ onTreeCreated }: CreateTreeFormProps) {
       setPublishError(error.message || "Something went wrong")
       toast({ title: "Couldn't publish reel", description: error.message || "Something went wrong", variant: "destructive" })
     } finally {
+      publishBusyRef.current = false
       setUploading(false)
       setUploadProgressLabel(null)
     }
