@@ -205,7 +205,9 @@ export function LoopCardHeader({
 
           {/* Author line — name, check, handle and timestamp on one row. */}
           <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 items-center gap-1.5 text-regular">
+            {/* Wrap the handle/timestamp on narrow phones instead of letting a
+                long display name collapse to an unreadable ellipsis. */}
+            <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-regular leading-tight">
               {isCoLoop ? (
                 <div className="flex min-w-0 items-center gap-1 truncate font-semibold">
                   <Link

@@ -31,25 +31,34 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 type DialogContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
   /** Set false for full-screen media/browser surfaces that own their layout. */
   scrollable?: boolean
+  /**
+   * "sheet" anchors the dialog to the bottom of the viewport on phones and
+   * restores the centered desktop dialog above the sm breakpoint. Use this for
+   * long forms opened from a scrolled feed so the first field is always on
+   * screen instead of arriving off the bottom of the page.
+   */
+  placement?: "center" | "sheet"
 }
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, scrollable = true, ...props }, ref) => (
+>(({ className, children, scrollable = true, placement = "center", ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg",
+        placement === "sheet" &&
+          "inset-x-0 bottom-0 top-auto max-h-[92dvh] max-w-none translate-x-0 translate-y-0 rounded-t-3xl border-x-0 border-b-0 sm:inset-x-auto sm:bottom-auto sm:left-[50%] sm:right-auto sm:top-[50%] sm:max-h-[88dvh] sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:border",
         scrollable && "max-h-[85dvh] overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]",
         className
       )}
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+      <DialogPrimitive.Close className="absolute right-3 top-3 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-background/80 text-muted-foreground shadow-sm ring-1 ring-border/60 backdrop-blur transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none sm:right-4 sm:top-4 sm:h-7 sm:w-7 sm:bg-transparent sm:shadow-none sm:ring-0">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>

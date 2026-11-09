@@ -57,6 +57,8 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
   const [actionError, setActionError] = useState<string | null>(null)
   // Guard against a same-frame double click before `isSubmitting` re-renders.
   const submittingRef = useRef(false)
+  /** The dialog's own scroll container, so a step change starts at the top. */
+  const dialogScrollRef = useRef<HTMLDivElement>(null)
   /** Set after a successful post — the dialog flips to a confirmation step. */
   const [createdBranchId, setCreatedBranchId] = useState<string | null>(null)
   /** Branch mode: "new" = write your own take, "rebranch" = repost the same content */
@@ -90,6 +92,17 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
     setCreatedBranchId(null)
     if (initialMode) setBranchMode(initialMode)
   }, [open, initialMode])
+
+  // The dialog is reused between posts and between its mode/composer steps.
+  // Reset its inner scroll on each step so "Rebranch" and the submit action
+  // never open below the fold of the previous view.
+  useEffect(() => {
+    if (!open) return
+    const frame = requestAnimationFrame(() => {
+      dialogScrollRef.current?.scrollTo({ top: 0 })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [open, branchMode, createdBranchId])
 
   const parentPreview = useMemo(() => parentContentText(parentLoop), [parentLoop])
   const author = useMemo(() => parentAuthor(parentLoop), [parentLoop])
@@ -361,7 +374,11 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="relative max-w-2xl border-border bg-card text-foreground max-h-[88dvh] overflow-y-auto p-0 sm:p-0">
+      <DialogContent
+        ref={dialogScrollRef}
+        placement="sheet"
+        className="relative max-h-[92dvh] overflow-y-auto border-border bg-card p-0 pb-[env(safe-area-inset-bottom)] text-foreground sm:max-h-[88dvh] sm:max-w-2xl sm:pb-0 sm:p-0"
+      >
         <ActionFeedback
           phase={actionPhase}
           label={branchMode === "rebranch" ? "Rebranching this loop" : "Creating your branch"}
@@ -370,7 +387,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
           successLabel={branchMode === "rebranch" ? "Rebranched" : "Branch created"}
           layout="overlay"
         />
-        <DialogHeader className="sticky top-0 z-10 border-b border-border/70 bg-card px-5 pb-3 pt-5 backdrop-blur sm:px-6">
+        <DialogHeader className="sticky top-0 z-10 border-b border-border/70 bg-card px-5 pb-3 pr-12 pt-5 backdrop-blur sm:px-6 sm:pr-14">
           <div className="flex items-start justify-between gap-3">
             <DialogTitle className="flex items-center gap-2 text-foreground">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/15">

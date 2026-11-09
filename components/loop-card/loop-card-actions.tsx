@@ -175,20 +175,18 @@ export function LoopCardActions({
           <Count value={likesCount} />
         </Button>
 
-        <Link href={`/loop/${loop.id}`} aria-label="View comments on this loop">
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`${action} gap-1.5 hover:text-sky-500`}
-          >
+        {/* `Button asChild` keeps a single anchor in the DOM. Nesting a button
+            inside a link made some mobile browsers swallow the first tap. */}
+        <Button asChild variant="ghost" size="sm" className={`${action} gap-1.5 hover:text-sky-500`}>
+          <Link href={`/loop/${loop.id}`} aria-label="View comments on this loop">
             {loop.comments_disabled ? (
               <Lock className="h-[22px] w-[22px] text-amber-500" />
             ) : (
               <AnimatedIconView component={MessageCircleIcon} size={22} />
             )}
             <Count value={commentsCount} />
-          </Button>
-        </Link>
+          </Link>
+        </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
