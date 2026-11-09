@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { BarChart3, Eye, EyeOff, Heart, LayoutGrid, List, MessageCircle, Newspaper, Pin, PinOff, Vote, Swords, Users, Play } from "lucide-react"
+import { AlertCircle, BarChart3, Eye, EyeOff, Heart, LayoutGrid, List, Loader2, MessageCircle, Newspaper, Pin, PinOff, Vote, Swords, Users, Play } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { PostAnalyticsDialog } from "@/components/analytics/post-analytics-dialog"
 import { LoopCard } from "@/components/loop-card"
@@ -342,6 +342,11 @@ export function ProfilePostGrid({
   onHide,
   busyId,
   defaultView = "grid",
+  hasMore = false,
+  loadingMore = false,
+  loadMoreError,
+  totalCount,
+  onLoadMore,
 }: {
   loops: ProfilePost[]
   hiddenLoops?: ProfilePost[]
@@ -351,10 +356,16 @@ export function ProfilePostGrid({
   busyId?: string | null
   /** The owner's chosen presentation, shown to visitors until they pick one. */
   defaultView?: PostView | null
+  hasMore?: boolean
+  loadingMore?: boolean
+  loadMoreError?: string | null
+  totalCount?: number
+  onLoadMore?: () => void
 }) {
   const [showHidden, setShowHidden] = useState(false)
   const [view, setView] = useState<PostView>(defaultView || "grid")
   const [analyticsLoopId, setAnalyticsLoopId] = useState<string | null>(null)
+  const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
   // A visitor's own choice beats the owner's default, and is remembered after
   // mount so server and client markup stay identical on first paint.
@@ -375,6 +386,20 @@ export function ProfilePostGrid({
       /* non-blocking */
     }
   }
+
+  useEffect(() => {
+    if (!hasMore || loadingMore || loadMoreError || !onLoadMore) return
+    const node = loadMoreRef.current
+    if (!node || typeof IntersectionObserver === "undefined") return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) onLoadMore()
+      },
+      { rootMargin: "320px 0px" },
+    )
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [hasMore, loadingMore, loadMoreError, onLoadMore])
 
   const ordered = [...loops].sort((a, b) => Number(Boolean(b.is_pinned)) - Number(Boolean(a.is_pinned)))
 
@@ -481,6 +506,38 @@ export function ProfilePostGrid({
       </div>
 
       {renderLoops(ordered)}
+
+      {(hasMore || loadMoreError) && onLoadMore && (
+        <div ref={loadMoreRef} className="flex flex-col items-center gap-2 border-t border-border/60 px-4 py-4">
+          <button
+            type="button"
+            onClick={onLoadMore}
+            disabled={loadingMore}
+            className="inline-flex h-8 min-w-36 items-center justify-center rounded-full border border-border/70 bg-card px-4 text-xs font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-60"
+          >
+            {loadingMore ? (
+              <>
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                Loading posts…
+              </>
+            ) : (
+              "Load more posts"
+            )}
+          </button>
+          {loadMoreError && (
+            <p className="flex items-center gap-1 text-[11px] text-rose-600 dark:text-rose-400">
+              <AlertCircle className="h-3 w-3" />
+              {loadMoreError}
+            </p>
+          )}
+        </div>
+      )}
+
+      {!hasMore && !loadMoreError && ordered.length > 0 && typeof totalCount === "number" && totalCount > 0 && (
+        <p className="px-4 py-3 text-center text-[11px] text-muted-foreground">
+          {ordered.length >= totalCount ? `All ${totalCount.toLocaleString()} posts loaded` : `${ordered.length.toLocaleString()} of ${totalCount.toLocaleString()} posts`}
+        </p>
+      )}
 
       {analyticsLoopId && (
         <PostAnalyticsDialog

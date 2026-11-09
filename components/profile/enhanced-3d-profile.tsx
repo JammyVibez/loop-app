@@ -272,6 +272,65 @@ export function Enhanced3DProfile({ username }: { username: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [username, user?.id])
 
+  // The header payload is capped, so the Loops tab has its own paginated
+  // source. That makes every authored post reachable, including duels and
+  // clutch duels, without inflating the profile header response.
+  const [profileLoops, setProfileLoops] = useState<any[] | null>(null)
+  const [loopsHasMore, setLoopsHasMore] = useState(false)
+  const [loopsLoading, setLoopsLoading] = useState(false)
+  const [loopsError, setLoopsError] = useState<string | null>(null)
+  const loopsOffsetRef = useRef(0)
+  const loopsLoadingRef = useRef(false)
+
+  const fetchProfileLoops = useCallback(async (reset = false) => {
+    if (!profile?.id || !canViewFull || loopsLoadingRef.current) return
+    loopsLoadingRef.current = true
+    setLoopsLoading(true)
+    setLoopsError(null)
+    if (reset) {
+      loopsOffsetRef.current = 0
+      setLoopsHasMore(false)
+    }
+
+    const offset = reset ? 0 : loopsOffsetRef.current
+    try {
+      const response = await fetch(
+        `/api/users/profile/posts?username=${encodeURIComponent(username)}&offset=${offset}&limit=24`,
+        {
+          headers: user ? getAuthHeader() : undefined,
+          cache: "no-store",
+        },
+      )
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || "Could not load posts")
+
+      const incoming = Array.isArray(data.loops) ? data.loops : []
+      setProfileLoops((previous) => {
+        if (reset || !previous) return incoming
+        const seen = new Set(previous.map((loop: any) => loop.id))
+        return [...previous, ...incoming.filter((loop: any) => !seen.has(loop.id))]
+      })
+      loopsOffsetRef.current = Number.isFinite(data.pagination?.next_offset)
+        ? Number(data.pagination.next_offset)
+        : offset + incoming.length
+      setLoopsHasMore(Boolean(data.pagination?.has_more))
+    } catch (error: any) {
+      setLoopsError(error?.message || "Could not load more posts")
+      if (reset) setProfileLoops(null)
+    } finally {
+      loopsLoadingRef.current = false
+      setLoopsLoading(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id, canViewFull, username, user?.id])
+
+  useEffect(() => {
+    if (!profile?.id || !canViewFull) return
+    setProfileLoops(null)
+    void fetchProfileLoops(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id, canViewFull, username])
+
   const [pinningId, setPinningId] = useState<string | null>(null)
   const handleTogglePin = async (loopId: string, nextPinned: boolean) => {
     setPinningId(loopId)
@@ -285,6 +344,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       if (!res.ok) throw new Error(data.error || "Failed to update pin")
       toast({ description: nextPinned ? "Pinned to your profile" : "Unpinned from your profile" })
       await fetchProfile({ silent: true })
+      void fetchProfileLoops(true)
     } catch (error: any) {
       toast({ title: "Couldn't update pin", description: error.message, variant: "destructive" })
     } finally {
@@ -305,6 +365,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       if (!res.ok) throw new Error(data.error || "Failed to update post")
       toast({ description: hidden ? "Hidden from your profile" : "Back on your profile" })
       await fetchProfile({ silent: true })
+      void fetchProfileLoops(true)
     } catch (error: any) {
       toast({ title: "Couldn't update post", description: error.message, variant: "destructive" })
     } finally {
@@ -329,6 +390,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
         { event: "INSERT", schema: "public", table: "loops", filter: `author_id=eq.${profile.id}` },
         () => {
           void fetchProfile({ silent: true })
+          void fetchProfileLoops(true)
         },
       )
       .on(
@@ -1425,13 +1487,18 @@ export function Enhanced3DProfile({ username }: { username: string }) {
               first and anything the author wants off their profile hideable
               without deleting it from the app. */}
           <ProfilePostGrid
-            loops={profile.recent_loops || []}
+            loops={profileLoops ?? profile.recent_loops ?? []}
             hiddenLoops={profile.hidden_loops || []}
             isOwnProfile={isOwnProfile}
             onTogglePin={handleTogglePin}
             onHide={handleHidePost}
             busyId={hidingId || pinningId}
             defaultView={atmosphere.postView}
+            hasMore={loopsHasMore}
+            loadingMore={loopsLoading && profileLoops !== null}
+            loadMoreError={loopsError}
+            totalCount={profile.loops_count}
+            onLoadMore={() => void fetchProfileLoops(false)}
           />
         </TabsContent>
 
