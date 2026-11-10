@@ -1,5 +1,6 @@
 "use client"
 
+import { HeartIcon, MessageCircleIcon, BookmarkIcon, SendIcon as SendHorizontalIcon } from "@/components/icons"
 import Link from "next/link"
 import {
   Heart,
@@ -18,12 +19,9 @@ import {
   MoreHorizontal,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { AnimatedIconView } from "@/components/icons/animated/animated-icon-view"
-import HeartIcon from "@/components/icons/animated/heart-icon"
-import MessageCircleIcon from "@/components/icons/animated/message-circle-icon"
-import BookmarkIcon from "@/components/icons/animated/bookmark-icon"
+import { AnimatedIconView, type AnimatedIconComponent } from "@/components/icons/animated-icon-view"
 import { AddLoopToCollectionItem } from "@/components/collections/add-loop-to-collection-item"
-import SendHorizontalIcon from "@/components/icons/animated/send-horizontal-icon"
+
 import {
   DropdownMenu,
   DropdownMenuContent,

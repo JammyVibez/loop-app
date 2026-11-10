@@ -1,5 +1,6 @@
 "use client"
 
+import { FlameIcon } from "@/components/icons"
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -14,9 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { ProxyImg } from "@/components/ui/proxy-img"
-import { AnimatedIconView } from "@/components/icons/animated/animated-icon-view"
-import FlameIcon from "@/components/icons/animated/flame-icon"
-
+import { AnimatedIconView, type AnimatedIconComponent } from "@/components/icons/animated-icon-view"
 type DropKind = "event" | "challenge"
 type DropFilter = "all" | "live" | "upcoming" | "event" | "challenge"
 

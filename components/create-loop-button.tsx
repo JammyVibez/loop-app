@@ -1,5 +1,6 @@
 "use client"
 
+import { ArrowRightIcon as ArrowNarrowRightIcon } from "@/components/icons"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -49,7 +50,7 @@ import {
   Swords,
   Zap,
 } from "lucide-react"
-import ArrowNarrowRightIcon from "@/components/icons/animated/arrow-narrow-right-icon"
+
 import { CreateDuelDialog } from "@/components/duels/create-duel-dialog"
 import { CreateClutchDuelDialog } from "@/components/duels/create-clutch-duel-dialog"
 

@@ -1,4 +1,5 @@
 "use client";
+import { BellIcon as FilledBellIcon } from "@/components/icons"
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -9,8 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Bell, Check, Settings, Heart, MessageCircle, UserPlus, GitBranch, AtSign, Gift, Mail, BellRing, ChevronRight, Lock, Coins, Megaphone, Radio, Phone, Trophy, Users, Crown, Info, Swords, ShieldCheck, Zap, Quote } from "lucide-react"
 import { NotificationQuickReply } from "@/components/notifications/notification-quick-reply";
-import { AnimatedIconView } from "@/components/icons/animated/animated-icon-view";
-import FilledBellIcon from "@/components/icons/animated/filled-bell-icon";
+import { AnimatedIconView, type AnimatedIconComponent } from "@/components/icons/animated-icon-view"
 import { getNotificationCopy, SYSTEM_SENDER } from "@/lib/notification-copy";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";

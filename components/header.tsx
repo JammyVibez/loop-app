@@ -1,5 +1,6 @@
 "use client"
 
+import { SearchIcon as MagnifierIcon } from "@/components/icons"
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -45,8 +46,7 @@ import {
   Users,
 } from "lucide-react"
 import { useTheme } from "next-themes"
-import { AnimatedIconView } from "@/components/icons/animated/animated-icon-view"
-import MagnifierIcon from "@/components/icons/animated/magnifier-icon"
+import { AnimatedIconView, type AnimatedIconComponent } from "@/components/icons/animated-icon-view"
 import { useAuth } from "@/hooks/use-auth"
 import { NotificationDropdown } from "@/components/notifications/notification-dropdown"
 import { NotificationCenterSheet } from "@/components/notifications/notification-center-sheet"
