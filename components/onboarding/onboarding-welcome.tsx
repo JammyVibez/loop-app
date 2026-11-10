@@ -98,7 +98,7 @@ export function OnboardingWelcome({ onComplete }: OnboardingWelcomeProps) {
             >
               <TreePine className="text-primary-foreground w-16 h-16 drop-shadow-lg" />
             </motion.div>
-            {/* Sparkle effects */}
+            {/* Soft glow accents */}
             <motion.div
               className="absolute top-4 right-8"
               animate={{ rotate: 360 }}

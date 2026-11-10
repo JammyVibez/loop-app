@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { Bell, ChevronRight, Loader2, MessageSquare, Sparkles } from "lucide-react"
+import { Bell, ChevronRight, Loader2, MessageSquare } from "lucide-react"
 import { Header } from "@/components/header"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
@@ -104,7 +104,7 @@ export default function CommunityNotificationsPage() {
           </div>
         ) : items.length === 0 ? (
           <div className="mt-8 rounded-2xl border border-border bg-card p-8 text-center">
-            <Sparkles className="mx-auto h-6 w-6 text-muted-foreground" />
+            <Bell className="mx-auto h-6 w-6 text-muted-foreground" />
             <p className="mt-2 text-sm font-semibold">Nothing yet</p>
             <p className="mt-1 text-xs text-muted-foreground">
               When someone tags you in a thread or replies to your post, it lands here.

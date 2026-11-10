@@ -1,6 +1,6 @@
 import { Header } from "@/components/header"
 import { CreateCommunityWizard } from "@/components/communities/create-community-wizard"
-import { Layers, Sparkles, Users } from "lucide-react"
+import { Layers, Users } from "lucide-react"
 
 export const dynamic = "force-dynamic"
 
@@ -16,7 +16,7 @@ const PERKS = [
     body: "You start as owner, with moderators, members and a join flow that already works.",
   },
   {
-    icon: Sparkles,
+    icon: Users,
     title: "Memory that compounds",
     body: "Every milestone, project and decision is kept, so the world grows instead of scrolling away.",
   },

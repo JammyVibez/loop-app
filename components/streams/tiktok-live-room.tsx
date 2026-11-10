@@ -23,7 +23,6 @@ import {
   Radio,
   Send,
   Share2,
-  Sparkles,
   SwitchCamera,
   UserPlus,
   Video,
@@ -967,7 +966,7 @@ export function TikTokLiveRoom({ streamId }: { streamId: string }) {
         <div className="pointer-events-auto max-h-[34dvh] overflow-y-auto rounded-2xl bg-gradient-to-t from-black/55 via-black/20 to-transparent px-2 py-2 [mask-image:linear-gradient(to_bottom,transparent_0%,black_14%,black_100%)] sm:max-h-[42dvh] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="mb-1.5 flex items-center gap-1.5 pl-0.5">
             <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white/10">
-              <Sparkles className="h-2.5 w-2.5 text-white/70" />
+              <Zap className="h-2.5 w-2.5 text-white/70" />
             </span>
             <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/45">
               Live chat

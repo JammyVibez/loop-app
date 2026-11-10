@@ -36,8 +36,12 @@ type DialogContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.
    * restores the centered desktop dialog above the sm breakpoint. Use this for
    * long forms opened from a scrolled feed so the first field is always on
    * screen instead of arriving off the bottom of the page.
+   *
+   * "fullscreen" gives a composer the whole phone viewport with a fixed
+   * header/footer, then becomes a centered desktop dialog. Use it when the
+   * keyboard and the form must share the screen without a nested sticky footer.
    */
-  placement?: "center" | "sheet"
+  placement?: "center" | "sheet" | "fullscreen"
 }
 
 const DialogContent = React.forwardRef<
@@ -52,6 +56,8 @@ const DialogContent = React.forwardRef<
         "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg",
         placement === "sheet" &&
           "inset-x-0 bottom-0 top-auto max-h-[92dvh] max-w-none translate-x-0 translate-y-0 rounded-t-3xl border-x-0 border-b-0 sm:inset-x-auto sm:bottom-auto sm:left-[50%] sm:right-auto sm:top-[50%] sm:max-h-[88dvh] sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:border",
+        placement === "fullscreen" &&
+          "inset-0 left-0 top-0 h-[100dvh] max-h-none w-full max-w-none translate-x-0 translate-y-0 gap-0 rounded-none border-0 p-0 sm:inset-auto sm:left-[50%] sm:top-[50%] sm:h-auto sm:max-h-[88dvh] sm:max-w-2xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border",
         scrollable && "max-h-[85dvh] overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]",
         className
       )}

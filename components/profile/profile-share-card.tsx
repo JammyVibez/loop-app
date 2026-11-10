@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Check, Copy, ExternalLink, Link2, QrCode, Share2, Sparkles, UserPlus } from "lucide-react"
+import { BadgeCheck, Check, Copy, ExternalLink, Link2, QrCode, Share2, UserPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
@@ -162,7 +162,7 @@ export function ProfileShareCard({
 
             <div className="absolute inset-x-3 top-3 flex items-center justify-between gap-2">
               <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/45 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-white/90 backdrop-blur-sm">
-                <Sparkles className="h-2.5 w-2.5" />
+                <BadgeCheck className="h-2.5 w-2.5" />
                 {themeName || "Loop profile"}
               </span>
               <span className="rounded-full border border-white/15 bg-black/45 px-2 py-0.5 text-[9px] font-semibold text-white/70 backdrop-blur-sm">

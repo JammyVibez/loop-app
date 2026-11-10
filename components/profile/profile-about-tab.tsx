@@ -25,7 +25,6 @@ import {
   Clock,
   Award,
   AtSign,
-  Sparkles,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
@@ -261,7 +260,7 @@ export function ProfileAboutTab({ profile, isOwnProfile, onEdit }: ProfileAboutP
               title={giftHighlight.effect || undefined}
               className="gap-1 border-amber-500/30 bg-amber-500/5 text-xs text-amber-600 dark:text-amber-400"
             >
-              <Sparkles className="h-3 w-3" /> {giftHighlight.label || "Profile highlight"}
+              <Star className="h-3 w-3" /> {giftHighlight.label || "Profile highlight"}
             </Badge>
           ) : null}
         </div>

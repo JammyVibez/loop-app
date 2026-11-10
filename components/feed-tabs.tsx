@@ -130,9 +130,9 @@ export function FeedTabs({ guestMode = false }: FeedTabsProps) {
     activeTopic !== "all" || searchQuery.trim().length > 0 || viewMode !== "stream" || showSensitive
 
   return (
-    <Tabs value={activeTab} onValueChange={changeTab} data-tour="feed-tabs" className="w-full space-y-3">
+    <Tabs value={activeTab} onValueChange={changeTab} className="w-full space-y-3">
       {/* Non-sticky compact toolbar — scrolls with the feed */}
-      <div className="space-y-2 rounded-2xl border border-border/70 bg-card/60 p-2.5 sm:p-3">
+      <div data-tour="feed-tools" className="space-y-2 rounded-2xl border border-border/70 bg-card/60 p-2.5 sm:p-3">
         <div className="flex items-center gap-2">
           <TabsList className="grid h-auto min-w-0 flex-1 grid-cols-2 gap-1 rounded-xl border border-border/60 bg-muted/40 p-1">
             {FEED_TABS.map((tab) => (

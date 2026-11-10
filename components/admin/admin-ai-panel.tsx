@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Bot, Check, KeyRound, Loader2, PlugZap, Sparkles, Trash2 } from "lucide-react"
+import { Bot, Check, KeyRound, Loader2, PlugZap, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -167,7 +167,7 @@ export function AdminAiPanel() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Sparkles className="h-4 w-4 text-primary" />
+            <Bot className="h-4 w-4 text-primary" />
             Loop AI providers
           </CardTitle>
           <CardDescription>

@@ -10,7 +10,7 @@ import {
   Heart,
   MessageCircle,
   Send,
-  Sparkles,
+  Star,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -427,7 +427,7 @@ export function GiftReceivingSystem() {
 
                 <div className="mt-2.5 flex flex-wrap items-center justify-center gap-1.5">
                   <span className="rounded-full border border-white/15 bg-white/[0.07] px-2.5 py-1 text-[10px] font-bold capitalize text-white/70 backdrop-blur">
-                    <Sparkles className="mr-1 inline h-3 w-3" style={{ color: palette.accent || palette.primary }} />
+                    <Star className="mr-1 inline h-3 w-3" style={{ color: palette.accent || palette.primary }} />
                     {current.rarity}
                   </span>
                   {current.cost ? (

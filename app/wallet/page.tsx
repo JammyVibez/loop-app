@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
-import { Coins, ArrowDownLeft, ArrowUpRight, Gift, PlusCircle, CreditCard, ShieldCheck, RefreshCw, History, Zap, Check, Package, User, Heart, DollarSign, Building2, Wallet as WalletIcon, AlertCircle, RotateCcw, Target, Loader2, Sparkles, BadgeCheck } from "lucide-react"
+import { Coins, ArrowDownLeft, ArrowUpRight, Gift, PlusCircle, CreditCard, ShieldCheck, RefreshCw, History, Zap, Check, Package, User, Heart, DollarSign, Building2, Wallet as WalletIcon, AlertCircle, RotateCcw, Target, Loader2, BadgeCheck } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
@@ -841,7 +841,7 @@ function WalletContent() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h4 className="text-xs uppercase font-bold tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                      <Gift className="w-3.5 h-3.5 text-amber-500" />
                       Gift Collection
                     </h4>
                     <p className="text-[11px] text-muted-foreground mt-1">

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_DISCOVERY_PREFERENCES, type DiscoveryPreferences } from "@/lib/discovery-preferences"
-import { Plus, Sparkles, VolumeX, X } from "lucide-react"
+import { Plus, SlidersHorizontal, VolumeX, X } from "lucide-react"
 
 type TopicSuggestion = { tag: string; usage_count?: number; count?: number }
 
@@ -90,7 +90,7 @@ export function DiscoveryPreferencesPanel({ onChanged }: { onChanged?: () => voi
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base"><Sparkles className="h-4 w-4 text-primary" /> Your Discover controls</CardTitle>
+        <CardTitle className="flex items-center gap-2 text-base"><SlidersHorizontal className="h-4 w-4 text-primary" /> Your Discover controls</CardTitle>
         <CardDescription>Choose topics that matter to you, mute ones you do not want recommended, or pause personalization completely.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { Check, Sparkles, UserPlus, Users, X } from "lucide-react"
+import { Check, UserPlus, Users, X } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
@@ -169,7 +169,7 @@ export function SuggestedAccountsCard({ limit = 2 }: { limit?: number }) {
       <div className="relative flex items-center justify-between gap-3 px-3.5 pb-3 pt-3.5 sm:px-4">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border border-primary/15 bg-gradient-to-br from-primary/15 via-card to-secondary/15 text-primary shadow-[inset_0_1px_0_hsl(var(--background)/0.45)]">
-            <Sparkles className="h-4 w-4" />
+            <Users className="h-4 w-4" />
             <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-primary/80 ring-2 ring-card" />
           </span>
           <div className="min-w-0">
@@ -199,7 +199,7 @@ export function SuggestedAccountsCard({ limit = 2 }: { limit?: number }) {
           const isFollowed = followed.has(person.id)
           const bio = stripCircleBioTokens(person.bio)
           const hasCircleTie = Number(person.mutual_count || 0) > 0 || Number(person.shared_circles || 0) > 0
-          const ProofIcon = hasCircleTie ? Users : Sparkles
+          const ProofIcon = hasCircleTie ? Users : UserPlus
 
           return (
             <div

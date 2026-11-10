@@ -13,7 +13,7 @@ import { ProfileFramesPanel } from "@/components/profile/pfp-frames-panel"
 import { RarityChip, RARITY_STYLE } from "@/components/shop/shop-item-card"
 import { Lottie } from "@/components/ui/lottie"
 import { artForItem, LOCK, LOADER, EMPTY_BOX } from "@/components/shop/shop-art"
-import { Coins, Palette, ShoppingBag, Sparkles, Shield, Check, Eye, X, Crown, Star, Zap, Layers } from "lucide-react"
+import { Coins, Palette, ShoppingBag, Shield, Check, Eye, X, Crown, Star, Zap, Layers } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 /* ── Inventory item shape from the API ──────────────────────────────────── */
@@ -55,7 +55,7 @@ function shelfFor(item: InventoryItem): Shelf {
 
 const SHELF_META: Record<Shelf, { label: string; icon: React.ReactNode; hint: string }> = {
   theme: { label: "Themes", icon: <Palette className="h-4 w-4" />, hint: "Accent colour palettes for the app" },
-  effect: { label: "Effects", icon: <Sparkles className="h-4 w-4" />, hint: "Visual effects that follow you around" },
+  effect: { label: "Effects", icon: <Zap className="h-4 w-4" />, hint: "Visual effects that follow you around" },
   identity: { label: "Identity", icon: <Shield className="h-4 w-4" />, hint: "Badges, frames, fonts, and accessories" },
   coins: { label: "Coins", icon: <Coins className="h-4 w-4" />, hint: "Coin packs and currency" },
   other: { label: "Other", icon: <Star className="h-4 w-4" />, hint: "Miscellaneous items" },

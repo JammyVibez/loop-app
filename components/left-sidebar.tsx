@@ -184,7 +184,7 @@ export function LeftSidebar() {
   if (!user) return null
 
   return (
-    <aside className="sticky top-0 hidden h-dvh w-[264px] flex-col border-r border-border/60 bg-card/50 p-3.5 lg:flex">
+    <aside data-tour="app-sidebar" className="sticky top-0 hidden h-dvh w-[264px] flex-col border-r border-border/60 bg-card/50 p-3.5 lg:flex">
       <SidebarContent />
     </aside>
   )

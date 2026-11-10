@@ -5,7 +5,7 @@ import { CreateHub, type CreateTab } from "@/components/create/create-hub"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
-import { Sparkles } from "lucide-react"
+import { PenLine } from "lucide-react"
 
 export function CreatePageContent({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
   const { user, loading, authResolved } = useAuth()
@@ -37,7 +37,7 @@ export function CreatePageContent({ defaultTab = "loop" }: { defaultTab?: Create
         <header className="relative flex flex-col gap-4 border-b border-border/70 pb-5 pt-1 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
             <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <PenLine className="h-3.5 w-3.5 text-primary" />
               Create
             </p>
             <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-foreground sm:text-[28px]">

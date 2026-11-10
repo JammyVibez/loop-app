@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
-import { Check, Coins, Gift, Info, Lock, RotateCcw, Sparkles, Star } from "lucide-react"
+import { Check, Clock, Coins, Gift, Info, Lock, RotateCcw, Star } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
@@ -518,7 +518,7 @@ export function GiftPanel({
 
                   <div className="relative mt-1.5 flex items-center justify-between gap-1 border-t border-border pt-1.5">
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
-                      <Sparkles className="h-2.5 w-2.5" />
+                      <Clock className="h-2.5 w-2.5" />
                       {gift.duration || (gift.duration_ms ? `${Math.round(gift.duration_ms / 1000)}s` : "live")}
                     </span>
                     <span className="inline-flex items-center gap-0.5 text-[11px] font-black text-warning">

@@ -18,7 +18,6 @@ import {
   Palette,
   RotateCcw,
   Save,
-  Sparkles,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -410,7 +409,7 @@ export function ProfileDesigner({
                     </TactileButton>
                     {isPremium ? (
                       <Button type="button" size="sm" variant="outline" className="rounded-full" onClick={() => setCss((current) => [buildProfileLayoutCss(layout), current].filter(Boolean).join("\n\n"))}>
-                        <Sparkles className="mr-1.5 h-3.5 w-3.5" /> Add layout CSS to Pro CSS
+                        <Save className="mr-1.5 h-3.5 w-3.5" /> Add layout CSS to Pro CSS
                       </Button>
                     ) : (
                       <Button asChild type="button" size="sm" variant="outline" className="rounded-full">

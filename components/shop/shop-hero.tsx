@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowUpRight, Coins, Sparkles } from "lucide-react"
+import { ArrowUpRight, Coins } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Lottie } from "@/components/ui/lottie"
 import { RarityChip } from "@/components/shop/shop-item-card"
@@ -93,7 +93,7 @@ export function ShopHero({
         <div className="flex min-w-0 flex-col justify-between gap-8 p-6 sm:p-8 lg:p-10">
           <div className="min-w-0">
             <p className="inline-flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.22em] text-primary">
-              <Sparkles className="h-3 w-3" />
+              <ArrowUpRight className="h-3 w-3" />
               Featured drop
             </p>
 

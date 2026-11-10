@@ -12,7 +12,7 @@ import {
   Hash,
   RefreshCw,
   Users,
-  Sparkles,
+  Compass,
   Calendar,
 } from "lucide-react"
 import { LoopCard } from "@/components/loop-card"
@@ -315,7 +315,7 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
           <div key={loop.id} className="space-y-1.5">
             {loop.discovery_reason && (
               <div className="flex items-center gap-1.5 px-1 text-[10px] text-muted-foreground">
-                <Sparkles className="h-3 w-3 shrink-0 text-primary" />
+                <Compass className="h-3 w-3 shrink-0 text-primary" />
                 <span>{loop.discovery_reason}</span>
               </div>
             )}
@@ -385,7 +385,7 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
               </TabsTrigger>
               {user && (
                 <TabsTrigger value="personalized" className="shrink-0 gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium data-[state=active]:bg-card data-[state=active]:shadow-sm">
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <Compass className="h-3.5 w-3.5" />
                   For you
                 </TabsTrigger>
               )}
@@ -437,7 +437,7 @@ export function ExploreContent({ initialTab = "recent" }: { initialTab?: Explore
                 <DiscoveryPreferencesPanel onChanged={() => void fetchExplore("personalized")} />
                 <section className="space-y-3">
                   <FeedHeading
-                    icon={Sparkles}
+                    icon={Compass}
                     title="For you"
                     description="Recommended from topic tags on public loops you like or save."
                     action={liveIndicator}

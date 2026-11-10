@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Hash, Users, GitBranch, Search, Circle, Bookmark, Sparkles } from "lucide-react"
+import { Hash, Users, GitBranch, Search, Circle, Bookmark } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { UserBadges } from "@/components/user-badge"
@@ -180,7 +180,7 @@ export function SearchResults({ query }: SearchResultsProps) {
           <Circle className="h-3.5 w-3.5" /> Circles ({searchResults.circles.length})
         </TabsTrigger>
         <TabsTrigger value="chains" className="gap-1">
-          <Sparkles className="h-3.5 w-3.5" /> Chains ({searchResults.chains.length})
+          <GitBranch className="h-3.5 w-3.5" /> Chains ({searchResults.chains.length})
         </TabsTrigger>
         <TabsTrigger value="collections" className="gap-1">
           <Bookmark className="h-3.5 w-3.5" /> Collections ({searchResults.collections.length})
@@ -322,7 +322,7 @@ function ChainCard({ chain, formatNumber }: { chain: any; formatNumber: (n: numb
       <Card className="h-full transition hover:bg-muted/40">
         <CardContent className="flex h-full gap-3 p-4">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Sparkles className="h-5 w-5" />
+            <Search className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">

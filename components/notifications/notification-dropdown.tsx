@@ -290,7 +290,7 @@ export function NotificationDropdown() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-[min(360px,calc(100vw-1.5rem))] p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-lg"
+        className="w-[min(360px,calc(100vw-1.5rem))] max-h-[calc(100dvh-5.5rem)] overflow-x-hidden overflow-y-auto overscroll-contain rounded-xl border border-border bg-popover p-0 shadow-lg"
         align="end"
         side="bottom"
         sideOffset={8}
@@ -329,7 +329,7 @@ export function NotificationDropdown() {
         </div>
 
         {/* Notification list */}
-        <ScrollArea className="h-[400px]">
+        <ScrollArea className="h-[min(400px,calc(100dvh-13rem))]">
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <Spinner className="h-5 w-5 text-muted-foreground" />

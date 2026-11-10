@@ -22,7 +22,6 @@ import {
   MessagesSquare,
   MonitorPlay,
   Package,
-  Sparkles,
   Star,
   Target,
   TrendingUp,
@@ -386,7 +385,7 @@ export default function QuestsClient() {
         {sections.length > 0 && (
           <div className="sticky top-0 z-20 -mx-3 mt-4 border-b border-border/60 bg-background/85 px-3 py-2.5 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
             <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {[{ key: "all" as const, label: "All", icon: Sparkles, count: data?.quests.length ?? 0 }, ...filters].map((item) => {
+              {[{ key: "all" as const, label: "All", icon: ListChecks, count: data?.quests.length ?? 0 }, ...filters].map((item) => {
                 const active = filter === item.key
                 return (
                   <button

@@ -16,7 +16,6 @@ import {
   MessageCircle,
   Radio,
   ShieldCheck,
-  Sparkles,
   UserPlus,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -164,7 +163,7 @@ export function NotificationCenterSheet({ className }: { className?: string }) {
         <SheetHeader className="space-y-1 border-b border-border/70 px-5 pb-4 pt-5 text-left">
           <div className="flex items-center justify-between gap-3 pr-8">
             <SheetTitle className="flex items-center gap-2 text-lg">
-              <Sparkles className="h-4 w-4 text-primary" />
+              <Bell className="h-4 w-4 text-primary" />
               Notifications
             </SheetTitle>
             <Button

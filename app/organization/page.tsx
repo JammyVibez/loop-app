@@ -204,7 +204,7 @@ export default function OrganizationDashboardPage() {
                 </div>
                 {config?.exclusive_rewards_enabled && (
                   <p className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                    ✦ Exclusive rewards enabled for your community
+                    <Zap className="h-3.5 w-3.5" /> Exclusive rewards enabled for your community
                   </p>
                 )}
               </CardContent>

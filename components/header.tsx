@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { AppLogo } from "@/components/brand/app-logo"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { AvatarWithFrame } from "@/components/ui/avatar-with-frame"
 import { Badge } from "@/components/ui/badge"
@@ -75,6 +76,7 @@ const THEME_OPTIONS = [
 export function Header() {
   const [searchQuery, setSearchQuery] = useState("")
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+  const [accountDialogOpen, setAccountDialogOpen] = useState(false)
   const { user, signOut } = useAuth()
   const { theme, setTheme } = useTheme()
   const router = useRouter()
@@ -140,6 +142,7 @@ export function Header() {
   const isAdmin = Boolean(user.staff_role || user.is_admin || user.is_moderator)
 
   return (
+    <>
     <header className="sticky top-0 z-[45] w-full touch-manipulation border-b border-border/70 bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 [&_a]:touch-manipulation [&_button]:touch-manipulation">
       <div
         className="container mx-auto flex h-16 items-center justify-between gap-2 px-3 sm:px-4"
@@ -249,7 +252,13 @@ export function Header() {
                 />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="bottom" sideOffset={8} collisionPadding={12} className="w-56 rounded-2xl p-1.5">
+            <DropdownMenuContent
+              align="end"
+              side="bottom"
+              sideOffset={8}
+              collisionPadding={12}
+              className="max-h-[min(34rem,calc(100dvh-5.75rem))] w-[min(18rem,calc(100vw-1.5rem))] rounded-2xl p-1.5"
+            >
               <DropdownMenuLabel className="font-normal p-2">
                 <div className="flex flex-col space-y-1">
                   <div className="flex items-center gap-1.5">
@@ -380,10 +389,13 @@ export function Header() {
 
               <DropdownMenuSeparator />
 
-              {/* Account Switcher */}
-              <div className="px-1">
-                <AccountSwitcher variant="dropdown" />
-              </div>
+              <DropdownMenuItem
+                onSelect={() => setAccountDialogOpen(true)}
+                className="rounded-xl cursor-pointer"
+              >
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs font-medium">Switch account</span>
+              </DropdownMenuItem>
 
               <DropdownMenuSeparator />
 
@@ -399,5 +411,18 @@ export function Header() {
         </div>
       </div>
     </header>
+
+    <Dialog open={accountDialogOpen} onOpenChange={setAccountDialogOpen}>
+      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Accounts</DialogTitle>
+          <DialogDescription>
+            Switch between linked accounts or add another one. Your current session stays intact.
+          </DialogDescription>
+        </DialogHeader>
+        <AccountSwitcher variant="settings" />
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }

@@ -13,7 +13,6 @@ import {
   Plus,
   Power,
   Save,
-  Sparkles,
   Trash2,
   Upload,
   X,
@@ -609,7 +608,7 @@ export function AdsAdminPanel() {
 
         <div className="space-y-3 lg:sticky lg:top-4 lg:self-start">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
+            <Eye className="h-4 w-4 text-primary" />
             <h3 className="text-sm font-semibold">Live preview</h3>
             <Badge variant="outline" className="rounded-full text-[10px]">
               Feed unit

@@ -119,6 +119,7 @@ export function MobileBottomNav() {
       <MobileSidebarSheet open={menuOpen} onOpenChange={setMenuOpen} />
 
       <nav
+        data-tour="mobile-nav"
         className="loop-mobile-nav fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
         aria-label="Mobile navigation"
       >

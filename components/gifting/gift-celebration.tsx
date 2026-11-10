@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Gift, Sparkles, X } from "lucide-react"
+import { Gift, Star, X } from "lucide-react"
 import { GiftArtwork } from "@/components/gifting/gift-art"
 import { cn } from "@/lib/utils"
 
@@ -517,7 +517,7 @@ export function GiftCelebration({
             ) : null}
             <div className="mt-3 flex items-center justify-center gap-2 text-[11px] font-semibold text-white/65">
               <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 capitalize">
-                <Sparkles className="h-3 w-3" style={{ color: palette.accent || palette.primary }} />
+                <Star className="h-3 w-3" style={{ color: palette.accent || palette.primary }} />
                 {event.rarity}
               </span>
               <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2.5 py-1">

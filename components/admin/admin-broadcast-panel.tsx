@@ -29,7 +29,7 @@ import {
   Mail,
   Megaphone,
   Send,
-  Sparkles,
+  Shuffle,
   TrendingUp,
   Users,
 } from "lucide-react"
@@ -176,7 +176,7 @@ export function AdminBroadcastPanel() {
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-indigo-200">
-              <Sparkles className="h-4 w-4 text-indigo-300" aria-hidden="true" />
+              <Megaphone className="h-4 w-4 text-indigo-300" aria-hidden="true" />
               Campaign Studio
             </div>
             <h2
@@ -392,7 +392,7 @@ export function AdminBroadcastPanel() {
                     {(
                       [
                         { value: "all" as Scope, label: "All users", icon: Users },
-                        { value: "random" as Scope, label: "Random sample", icon: Sparkles },
+                        { value: "random" as Scope, label: "Random sample", icon: Shuffle },
                       ]
                     ).map(({ value, label, icon: Icon }) => (
                       <Button

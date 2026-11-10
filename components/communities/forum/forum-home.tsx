@@ -42,8 +42,8 @@ import {
   Settings2,
   Share2,
   Shield,
-  Sparkles,
   Swords,
+  Tag,
   Trash2,
   Users,
 } from "lucide-react"
@@ -121,7 +121,7 @@ type ForumData = {
 
 const SORTS = [
   { id: "latest", label: "Latest", icon: Clock },
-  { id: "newest", label: "New", icon: Sparkles },
+  { id: "newest", label: "New", icon: Plus },
   { id: "top", label: "Top", icon: Flame },
   { id: "views", label: "Most read", icon: Eye },
 ] as const
@@ -805,7 +805,7 @@ export function ForumHome({ communityId }: { communityId: string }) {
               {community.category && (
                 <div className="flex items-center justify-between gap-2">
                   <dt className="inline-flex items-center gap-1.5 text-muted-foreground">
-                    <Sparkles className="h-3.5 w-3.5" /> Category
+                    <Tag className="h-3.5 w-3.5" /> Category
                   </dt>
                   <dd className="font-semibold capitalize">{String(community.category).replace(/_/g, " ")}</dd>
                 </div>

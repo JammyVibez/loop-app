@@ -30,10 +30,10 @@ const colorPresets = [
 
 const animations = [
   { id: "none", name: "None", icon: "⚪", premium: false },
-  { id: "pulse-glow", name: "Pulse Glow", icon: "✨", premium: false },
+  { id: "pulse-glow", name: "Pulse Glow", icon: "◉", premium: false },
   { id: "float", name: "Float", icon: "🎈", premium: true },
   { id: "rainbow", name: "Rainbow", icon: "🌈", premium: true },
-  { id: "sparkle", name: "Sparkle", icon: "⭐", premium: true },
+  { id: "sparkle", name: "Starfield", icon: "★", premium: true },
 ]
 
 export function ProfileThemeCustomizer({

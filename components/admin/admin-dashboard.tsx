@@ -33,7 +33,7 @@ import {
   Search,
   Shield,
   Smile,
-  Sparkles,
+  Bot,
   Star,
   Target,
   TrendingUp,
@@ -149,7 +149,7 @@ const NAV_GROUPS: {
       { value: "coloops", label: "Co-Loops", icon: GitBranch },
       { value: "broadcast", label: "Broadcast", icon: Megaphone },
       { value: "ads", label: "Ads", icon: Images },
-      { value: "ai", label: "Loop AI", icon: Sparkles },
+      { value: "ai", label: "Loop AI", icon: Bot },
     ],
   },
   {

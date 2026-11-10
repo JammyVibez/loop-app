@@ -375,8 +375,9 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        placement="sheet"
-        className="relative flex max-h-[92dvh] flex-col overflow-hidden border-border bg-card p-0 pb-[env(safe-area-inset-bottom)] text-foreground sm:max-h-[88dvh] sm:max-w-2xl sm:pb-0 sm:p-0"
+        placement="fullscreen"
+        scrollable={false}
+        className="relative flex flex-col overflow-hidden border-border bg-card p-0 text-foreground"
       >
         <ActionFeedback
           phase={actionPhase}
@@ -386,29 +387,69 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
           successLabel={branchMode === "rebranch" ? "Rebranched" : "Branch created"}
           layout="overlay"
         />
-        <DialogHeader className="sticky top-0 z-10 border-b border-border/70 bg-card px-5 pb-3 pr-12 pt-5 backdrop-blur sm:px-6 sm:pr-14">
-          <div className="flex items-start justify-between gap-3">
-            <DialogTitle className="flex items-center gap-2 text-foreground">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/15">
-                <GitBranch className="h-4 w-4 text-emerald-500" />
-              </span>
-              {createdBranchId ? "Branch created" : "Branch this Loop"}
-            </DialogTitle>
+        <DialogHeader className="relative z-10 shrink-0 space-y-0 border-b border-border/70 bg-card px-4 pb-3.5 pr-14 pt-[max(1rem,env(safe-area-inset-top))] text-left sm:px-6 sm:pb-4 sm:pr-16 sm:pt-5">
+          <span
+            aria-hidden="true"
+            className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-500"
+          />
+          <div className="flex items-start gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10">
+              <GitBranch className="h-4 w-4 text-emerald-500" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                {createdBranchId
+                  ? "Published"
+                  : branchMode === "rebranch"
+                    ? "Repost to your feed"
+                    : branchMode === "new"
+                      ? "Your new take"
+                      : "Choose a path"}
+              </p>
+              <DialogTitle className="mt-0.5 truncate text-base text-foreground sm:text-lg">
+                {createdBranchId ? "Branch created" : "Branch this Loop"}
+              </DialogTitle>
+              <DialogDescription className="mt-1 text-[12px] leading-snug text-muted-foreground">
+                {createdBranchId
+                  ? "Your take is live in the loop tree — others can branch from it too."
+                  : branchMode === "rebranch"
+                    ? `Repost this loop with your commentary, credited to ${authorName}.`
+                    : branchMode === "new"
+                      ? "Add your perspective, reply, or creative take. This stays attached to the tree."
+                      : "Repost it with your support, or add a new take of your own."}
+              </DialogDescription>
+            </div>
             {!createdBranchId && (
               <Link
                 href="/create"
-                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition hover:border-emerald-500/40 hover:text-emerald-500"
+                className="hidden shrink-0 items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition hover:border-emerald-500/40 hover:text-emerald-500 sm:inline-flex"
               >
                 Full studio
                 <ArrowUpRight className="h-3 w-3" />
               </Link>
             )}
           </div>
-          <DialogDescription className="text-muted-foreground">
-            {createdBranchId
-              ? "Your take is live in the loop tree — others can branch from it too."
-              : "Add your take to the tree — others can branch from yours too."}
-          </DialogDescription>
+          <div className="mt-3 flex items-center gap-1.5 text-[10px] font-semibold">
+            {[
+              { label: "1 Choose", active: !branchMode && !createdBranchId, done: Boolean(branchMode) || Boolean(createdBranchId) },
+              { label: branchMode === "rebranch" ? "2 Repost" : "2 Compose", active: Boolean(branchMode) && !createdBranchId, done: Boolean(createdBranchId) },
+              { label: "3 Live", active: Boolean(createdBranchId), done: false },
+            ].map((item) => (
+              <span
+                key={item.label}
+                className={cn(
+                  "rounded-full border px-2.5 py-1 transition-colors",
+                  item.active
+                    ? "border-primary/30 bg-primary/10 text-primary"
+                    : item.done
+                      ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                      : "border-border/70 bg-muted/40 text-muted-foreground",
+                )}
+              >
+                {item.label}
+              </span>
+            ))}
+          </div>
         </DialogHeader>
 
         <div
@@ -441,7 +482,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
             </div>
           </div>
         ) : (
-        <div className="space-y-5 px-5 py-4 sm:px-6">
+        <div className="space-y-5 px-4 pb-6 pt-4 sm:px-6 sm:pb-7 sm:pt-5">
           {/* Branch Mode Selector — choose Rebranch or Branch New */}
           {!branchMode && (
             <div className="space-y-3">
@@ -567,20 +608,6 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
                 </div>
               </div>
 
-              <Button
-                onClick={() => void handleRebranch()}
-                disabled={isSubmitting}
-                className="w-full gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold"
-              >
-                {isSubmitting ? (
-                  <><Spinner className="h-4 w-4" /> Rebranching…</>
-                ) : (
-                  <><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> Rebranch</>
-                )}
-              </Button>
-              <button type="button" onClick={() => setBranchMode(null)} className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition">
-                ← Back to options
-              </button>
             </div>
           )}
 
@@ -780,38 +807,81 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
             </ul>
           </div>
 
-          {/* Action Buttons — sticky footer */}
-          <div className="sticky bottom-0 flex gap-2.5 border-t border-border/70 bg-card/95 px-5 py-3.5 backdrop-blur sm:px-6">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-              className="flex-1 border-border text-foreground hover:bg-muted"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => void handleSubmit()}
-              disabled={isSubmitting || (!content.trim() && !selectedFile) || branchBlocked}
-              className="flex-1 gap-1.5 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
-            >
-              {isSubmitting ? (
-                <>
-                  <Spinner className="h-4 w-4" /> Posting…
-                </>
-              ) : (
-                <>
-                  <GitBranch className="h-4 w-4" /> {branchBlocked ? "Limit reached" : "Create branch"}
-                </>
-              )}
-            </Button>
-          </div>
           </>
           )}
 
         </div>
         )}
         </div>
+
+        {!createdBranchId && (
+          <div className="relative z-10 shrink-0 border-t border-border/70 bg-card/95 px-4 pb-[max(0.85rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl sm:px-6 sm:pb-4">
+            <div className="mx-auto flex w-full max-w-2xl items-center gap-2.5">
+              {!branchMode ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleOpenChange(false)}
+                    className="h-10 flex-1 border-border text-foreground hover:bg-muted sm:flex-none sm:px-5"
+                  >
+                    Cancel
+                  </Button>
+                  <p className="flex-1 text-right text-[11px] text-muted-foreground">
+                    Choose a path above to continue
+                  </p>
+                </>
+              ) : branchMode === "rebranch" ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setBranchMode(null)}
+                    disabled={isSubmitting}
+                    className="h-10 border-border text-foreground hover:bg-muted sm:flex-none sm:px-5"
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    onClick={() => void handleRebranch()}
+                    disabled={isSubmitting || branchBlocked}
+                    className="h-10 flex-1 gap-2 bg-gradient-to-r from-amber-500 to-orange-500 font-bold text-white hover:from-amber-600 hover:to-orange-600"
+                  >
+                    {isSubmitting ? (
+                      <><Spinner className="h-4 w-4" /> Rebranching…</>
+                    ) : (
+                      <><GitBranch className="h-4 w-4" /> {branchBlocked ? "Limit reached" : "Rebranch"}</>
+                    )}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleOpenChange(false)}
+                    disabled={isSubmitting}
+                    className="h-10 border-border text-foreground hover:bg-muted sm:flex-none sm:px-5"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => void handleSubmit()}
+                    disabled={isSubmitting || (!content.trim() && !selectedFile) || branchBlocked}
+                    className="h-10 flex-1 gap-1.5 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Spinner className="h-4 w-4" /> Posting…
+                      </>
+                    ) : (
+                      <>
+                        <GitBranch className="h-4 w-4" /> {branchBlocked ? "Limit reached" : "Create branch"}
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )

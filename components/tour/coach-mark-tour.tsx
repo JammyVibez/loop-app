@@ -21,20 +21,42 @@ interface Layout {
   placement: Placement
   cardTop: number
   cardLeft: number
+  cardWidth: number
   arrow: { top: number; left: number }
 }
 
-const CARD_WIDTH = 300
-const CARD_ESTIMATED_HEIGHT = 190
+const CARD_WIDTH = 320
+const CARD_ESTIMATED_HEIGHT = 240
 const GAP = 14
 const VIEWPORT_PAD = 12
+
+function isVisibleTarget(el: HTMLElement) {
+  const rect = el.getBoundingClientRect()
+  if (rect.width <= 0 || rect.height <= 0) return false
+  const style = window.getComputedStyle(el)
+  return style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0"
+}
+
+/** Header controls are static children of a sticky bar — don't scroll them. */
+function isPinned(el: HTMLElement) {
+  let node: HTMLElement | null = el
+  while (node && node !== document.body) {
+    const position = window.getComputedStyle(node).position
+    if (position === "fixed" || position === "sticky") return true
+    node = node.parentElement
+  }
+  return false
+}
 
 export function findTourTarget(step: CoachMarkStep): HTMLElement | null {
   const candidates = [step.target, ...(step.fallbackTargets || [])]
   for (const selector of candidates) {
     try {
-      const el = document.querySelector(selector)
-      if (el instanceof HTMLElement) return el
+      const elements = Array.from(document.querySelectorAll(selector))
+      const el = elements.find((candidate): candidate is HTMLElement =>
+        candidate instanceof HTMLElement && isVisibleTarget(candidate),
+      )
+      if (el) return el
     } catch {
       /* invalid selector — try the next one */
     }
@@ -63,7 +85,7 @@ interface CoachMarkTourProps {
 export function CoachMarkTour({
   steps,
   open,
-  autoAdvanceMs = 10_000,
+  autoAdvanceMs = 12_000,
   onFinish,
   onSkip,
 }: CoachMarkTourProps) {
@@ -119,7 +141,11 @@ export function CoachMarkTour({
   useLayoutEffect(() => {
     if (!open || !step) return
     const el = findTourTarget(step)
-    el?.scrollIntoView?.({ behavior: "smooth", block: "center", inline: "center" })
+    // Sticky headers and the fixed mobile bar are already on screen. Calling
+    // scrollIntoView on them would move the feed underneath the spotlight.
+    if (el && !isPinned(el)) {
+      el.scrollIntoView?.({ behavior: "smooth", block: "center", inline: "center" })
+    }
     measure()
     const first = setTimeout(measure, 320)
     const second = setTimeout(measure, 720)
@@ -189,13 +215,14 @@ export function CoachMarkTour({
   const layout = useMemo<Layout | null>(() => {
     if (!hole || !step || !viewport.width || !viewport.height) return null
     const { width: vw, height: vh } = viewport
+    const cardWidth = Math.max(240, Math.min(CARD_WIDTH, vw - VIEWPORT_PAD * 2))
 
     let placement: Placement = step.placement || "bottom"
     const room = (side: Placement) => {
       if (side === "bottom") return hole.top + hole.height + GAP + CARD_ESTIMATED_HEIGHT <= vh
       if (side === "top") return hole.top - GAP - CARD_ESTIMATED_HEIGHT >= 0
-      if (side === "left") return hole.left - GAP - CARD_WIDTH >= 0
-      return hole.left + hole.width + GAP + CARD_WIDTH <= vw
+      if (side === "left") return hole.left - GAP - cardWidth >= 0
+      return hole.left + hole.width + GAP + cardWidth <= vw
     }
     if (!room(placement)) {
       const order: Placement[] =
@@ -210,18 +237,18 @@ export function CoachMarkTour({
     }
 
     let cardTop = hole.top + hole.height + GAP
-    let cardLeft = hole.left + hole.width / 2 - CARD_WIDTH / 2
+    let cardLeft = hole.left + hole.width / 2 - cardWidth / 2
     if (placement === "top") {
       cardTop = hole.top - GAP - CARD_ESTIMATED_HEIGHT
     } else if (placement === "left") {
       cardTop = hole.top + hole.height / 2 - CARD_ESTIMATED_HEIGHT / 2
-      cardLeft = hole.left - GAP - CARD_WIDTH
+      cardLeft = hole.left - GAP - cardWidth
     } else if (placement === "right") {
       cardTop = hole.top + hole.height / 2 - CARD_ESTIMATED_HEIGHT / 2
       cardLeft = hole.left + hole.width + GAP
     }
 
-    cardLeft = Math.min(Math.max(VIEWPORT_PAD, cardLeft), Math.max(VIEWPORT_PAD, vw - CARD_WIDTH - VIEWPORT_PAD))
+    cardLeft = Math.min(Math.max(VIEWPORT_PAD, cardLeft), Math.max(VIEWPORT_PAD, vw - cardWidth - VIEWPORT_PAD))
     cardTop = Math.min(
       Math.max(VIEWPORT_PAD, cardTop),
       Math.max(VIEWPORT_PAD, vh - CARD_ESTIMATED_HEIGHT - VIEWPORT_PAD),
@@ -232,16 +259,16 @@ export function CoachMarkTour({
     const anchorY = hole.top + hole.height / 2
     let arrow = { top: 0, left: 0 }
     if (placement === "bottom") {
-      arrow = { top: -5, left: Math.min(Math.max(14, anchorX - cardLeft - 5), CARD_WIDTH - 24) }
+      arrow = { top: -5, left: Math.min(Math.max(14, anchorX - cardLeft - 5), cardWidth - 24) }
     } else if (placement === "top") {
-      arrow = { top: CARD_ESTIMATED_HEIGHT - 5, left: Math.min(Math.max(14, anchorX - cardLeft - 5), CARD_WIDTH - 24) }
+      arrow = { top: CARD_ESTIMATED_HEIGHT - 5, left: Math.min(Math.max(14, anchorX - cardLeft - 5), cardWidth - 24) }
     } else if (placement === "left") {
-      arrow = { top: Math.min(Math.max(14, anchorY - cardTop - 5), CARD_ESTIMATED_HEIGHT - 24), left: CARD_WIDTH - 5 }
+      arrow = { top: Math.min(Math.max(14, anchorY - cardTop - 5), CARD_ESTIMATED_HEIGHT - 24), left: cardWidth - 5 }
     } else {
       arrow = { top: Math.min(Math.max(14, anchorY - cardTop - 5), CARD_ESTIMATED_HEIGHT - 24), left: -5 }
     }
 
-    return { hole, placement, cardTop, cardLeft, arrow }
+    return { hole, placement, cardTop, cardLeft, cardWidth, arrow }
   }, [hole, step, viewport])
 
   if (!mounted || !open || !step || !layout) return null
@@ -275,40 +302,46 @@ export function CoachMarkTour({
 
       <div
         className="absolute z-[101]"
-        style={{ top: layout.cardTop, left: layout.cardLeft, width: CARD_WIDTH }}
+        style={{ top: layout.cardTop, left: layout.cardLeft, width: layout.cardWidth }}
       >
-        <div className="relative overflow-visible rounded-2xl border border-border bg-card p-4 shadow-xl shadow-foreground/10">
+        <div className="relative overflow-visible rounded-3xl border border-border/80 bg-card/95 p-4 shadow-[0_28px_80px_-32px_rgba(0,0,0,0.65)] backdrop-blur-xl sm:p-5">
           <span
-            className={cn("absolute h-2.5 w-2.5 rotate-45 bg-card", arrowClasses)}
+            className={cn("absolute h-2.5 w-2.5 rotate-45 border-border/80 bg-card", arrowClasses)}
             style={{ top: layout.arrow.top, left: layout.arrow.left }}
             aria-hidden="true"
           />
 
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
-              Quick tour · {index + 1}/{visibleSteps.length}
-            </p>
-            <button
-              type="button"
-              onClick={skip}
-              className="-mr-1 -mt-1 rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label="Skip the tour"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
+          <div className="flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              Quick tour
+            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+                {index + 1} of {visibleSteps.length}
+              </span>
+              <button
+                type="button"
+                onClick={skip}
+                className="-mr-1 rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label="Skip the tour"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
 
-          <p className="mt-2 text-sm font-semibold tracking-tight text-foreground">{step.title}</p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{step.body}</p>
+          <p className="mt-2.5 text-base font-semibold tracking-tight text-foreground">{step.title}</p>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{step.body}</p>
 
-          <div className="mt-3.5 flex items-center justify-between gap-2">
+          <div className="mt-4 flex items-center justify-between gap-2 border-t border-border/60 pt-3">
             <div className="flex items-center gap-1" aria-hidden="true">
               {visibleSteps.map((s, i) => (
                 <span
                   key={s.id}
                   className={cn(
-                    "h-1.5 rounded-full transition-all",
-                    i === index ? "w-4 bg-primary" : "w-1.5 bg-border",
+                    "h-1.5 rounded-full transition-all duration-200",
+                    i === index ? "w-5 bg-primary" : i < index ? "w-1.5 bg-primary/40" : "w-1.5 bg-border",
                   )}
                 />
               ))}
@@ -318,15 +351,15 @@ export function CoachMarkTour({
                 variant="ghost"
                 size="sm"
                 onClick={skip}
-                className="h-7 px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                className="h-8 px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground"
               >
                 Skip
               </Button>
-              <Button size="sm" onClick={next} className="h-7 rounded-full px-3 text-[11px] font-semibold">
+              <Button size="sm" onClick={next} className="h-8 rounded-full px-3.5 text-[11px] font-semibold">
                 {isLast ? (
                   <>
                     <Check className="mr-1 h-3 w-3" />
-                    Done
+                    Finish
                   </>
                 ) : (
                   <>
@@ -341,7 +374,7 @@ export function CoachMarkTour({
           {/* Auto-advance indicator */}
           <span
             key={`${runId}-${index}`}
-            className="loop-tour-progress absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-primary/60"
+            className="loop-tour-progress absolute inset-x-4 top-0 h-0.5 rounded-full bg-gradient-to-r from-primary via-primary/70 to-primary/30"
             style={{ animationDuration: `${autoAdvanceMs}ms` }}
             aria-hidden="true"
           />

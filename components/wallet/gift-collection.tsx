@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   Coins,
   Gift,
-  Sparkles,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -266,7 +265,7 @@ export function GiftCollection({ items, onConverted }: GiftCollectionProps) {
                     +{convertedCoins.toLocaleString()}
                   </p>
                   <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                    <Sparkles className="h-3.5 w-3.5" /> Loop Coins added to your wallet
+                    <Coins className="h-3.5 w-3.5" /> Loop Coins added to your wallet
                   </p>
                 </div>
               ) : (

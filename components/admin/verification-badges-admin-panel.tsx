@@ -37,7 +37,7 @@ const ICONS = [
   { value: "star", label: "Star", glyph: <Star className="h-3.5 w-3.5" /> },
   { value: "shield", label: "Shield", glyph: <Shield className="h-3.5 w-3.5" /> },
   { value: "crown", label: "Crown", glyph: <Crown className="h-3.5 w-3.5" /> },
-  { value: "sparkle", label: "Sparkle", glyph: <Zap className="h-3.5 w-3.5" /> },
+  { value: "sparkle", label: "Bolt", glyph: <Zap className="h-3.5 w-3.5" /> },
 ]
 
 export function VerificationBadgesAdminPanel() {

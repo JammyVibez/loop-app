@@ -9,7 +9,7 @@ import {
   Package,
   Palette,
   Search,
-  Sparkle,
+  Star,
   UserRound,
   Wand2,
   X,
@@ -106,7 +106,7 @@ const CATEGORIES: CategoryDef[] = [
   {
     id: "frames",
     label: "Profile frames",
-    icon: Sparkle,
+    icon: UserRound,
     hint: "Rings you collect and wear on your avatar.",
     custom: true,
   },
@@ -528,7 +528,7 @@ export function ShopContent() {
 
               <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
-                  <Sparkle className="h-3 w-3 text-amber-300/75" />
+                  <Star className="h-3 w-3 text-amber-300/75" />
                   <span className="font-medium tabular-nums text-foreground">{filtered.length}</span>
                   {filtered.length === 1 ? "item" : "items"}
                 </span>

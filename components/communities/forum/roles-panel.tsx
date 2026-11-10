@@ -36,7 +36,6 @@ import {
   Pencil,
   Plus,
   Shield,
-  Sparkles,
   Star,
   Trash2,
   X,
@@ -66,7 +65,7 @@ interface Power {
 const ICONS: Record<string, LucideIcon> = {
   shield: Shield,
   star: Star,
-  sparkles: Sparkles,
+  sparkles: Star,
   hammer: Hammer,
   palette: Palette,
   compass: Leaf,

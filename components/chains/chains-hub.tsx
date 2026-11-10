@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowRight, Compass, GitBranch, Plus, Sparkles, Users } from "lucide-react"
+import { ArrowRight, Compass, GitBranch, Plus, Users } from "lucide-react"
 import { safeResponseJson } from "@/lib/safe-response-json"
 
 type Chain = {
@@ -327,7 +327,7 @@ export function ChainsHub() {
             <h3 className="mt-4 text-lg font-semibold">The next great Chain hasn't started yet.</h3>
             <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">Start with an idea, invite a Circle and let the result grow through contributions.</p>
             <Button className="mt-5" onClick={() => user ? setCreating(true) : router.push("/auth?returnTo=/chains")}>
-              <Sparkles className="h-4 w-4" /> Start the first Chain
+              <GitBranch className="h-4 w-4" /> Start the first Chain
             </Button>
           </div>
         ) : (
