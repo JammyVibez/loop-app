@@ -375,9 +375,8 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        ref={dialogScrollRef}
         placement="sheet"
-        className="relative max-h-[92dvh] overflow-y-auto border-border bg-card p-0 pb-[env(safe-area-inset-bottom)] text-foreground sm:max-h-[88dvh] sm:max-w-2xl sm:pb-0 sm:p-0"
+        className="relative flex max-h-[92dvh] flex-col overflow-hidden border-border bg-card p-0 pb-[env(safe-area-inset-bottom)] text-foreground sm:max-h-[88dvh] sm:max-w-2xl sm:pb-0 sm:p-0"
       >
         <ActionFeedback
           phase={actionPhase}
@@ -412,6 +411,10 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
           </DialogDescription>
         </DialogHeader>
 
+        <div
+          ref={dialogScrollRef}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
+        >
         {createdBranchId ? (
           <div className="flex flex-col items-center gap-4 px-5 py-12 text-center sm:px-6">
             <span className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15">
@@ -808,6 +811,7 @@ export function CreateBranchDialog({ open, onOpenChange, parentLoop, onBranchCre
 
         </div>
         )}
+        </div>
       </DialogContent>
     </Dialog>
   )

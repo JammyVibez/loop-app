@@ -95,6 +95,117 @@ async function grantCollectible(
   if (error) throw error
 }
 
+function addHours(base: Date, hours: number) {
+  return new Date(base.getTime() + hours * 60 * 60 * 1000)
+}
+
+/** Visible, expiring flair shown on the profile About tab and in the wallet. */
+async function applyGiftFlair(
+  supabase: Supabase,
+  recipientId: string,
+  gift: GiftReceipt,
+  kind: "gift_badge" | "gift_highlight",
+) {
+  const value = giftValueOf(gift)
+  const hours = Number(value.effect_hours || 0)
+  if (!Number.isFinite(hours) || hours <= 0) return
+
+  const now = new Date()
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("active_cosmetics")
+    .eq("id", recipientId)
+    .maybeSingle()
+
+  const current =
+    profile?.active_cosmetics && typeof profile.active_cosmetics === "object"
+      ? (profile.active_cosmetics as Record<string, any>)
+      : {}
+  const next = {
+    ...current,
+    [kind]: {
+      gift_id: gift.id,
+      label: value.use_label || "Gift perk",
+      effect: value.effect || null,
+      starts_at: now.toISOString(),
+      expires_at: addHours(now, hours).toISOString(),
+    },
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ active_cosmetics: next, updated_at: now.toISOString() })
+    .eq("id", recipientId)
+  if (error) throw error
+}
+
+/** Boost gifts are credited to the post they were sent on, when possible. */
+async function applyPostBoost(supabase: Supabase, gift: GiftReceipt) {
+  const value = giftValueOf(gift)
+  const amount = Number(value.boost_amount || 0)
+  const contextType = String(gift.context_type || "").toLowerCase()
+  if (
+    !Number.isFinite(amount) ||
+    amount <= 0 ||
+    !gift.context_id ||
+    !["post", "branch", "comment", "loop"].includes(contextType)
+  ) {
+    return false
+  }
+
+  const { data: loop } = await supabase
+    .from("loops")
+    .select("id, boost_coins_current, boost_tier, trending_score")
+    .eq("id", gift.context_id)
+    .maybeSingle()
+  if (!loop) return false
+
+  const current = Number(loop.boost_coins_current || 0)
+  const next = current + amount
+  const tier = next >= 2000 ? 3 : next >= 500 ? 2 : next >= 100 ? 1 : 0
+  const { error } = await supabase
+    .from("loops")
+    .update({
+      boost_coins_current: next,
+      is_boosted: tier > 0,
+      boost_tier: tier,
+      boosted_at: new Date().toISOString(),
+      trending_score: Number(loop.trending_score || 0) + amount * 3,
+    })
+    .eq("id", loop.id)
+  if (error) throw error
+  return true
+}
+
+async function applyGiftUse(supabase: Supabase, gift: GiftReceipt, recipientId: string) {
+  const value = giftValueOf(gift)
+  const use = String(value.use_type || "").toLowerCase()
+
+  try {
+    if (use === "boost") {
+      const boosted = await applyPostBoost(supabase, gift)
+      if (!boosted) await applyGiftFlair(supabase, recipientId, gift, "gift_highlight")
+      return
+    }
+    if (use === "utility") {
+      await applyGiftFlair(supabase, recipientId, gift, "gift_highlight")
+      return
+    }
+    if (use === "support") {
+      await applyGiftFlair(supabase, recipientId, gift, "gift_badge")
+      return
+    }
+    if (use === "exclusive") {
+      await applyGiftFlair(supabase, recipientId, gift, "gift_badge")
+      await applyGiftFlair(supabase, recipientId, gift, "gift_highlight")
+    }
+  } catch (effectError) {
+    // The collectible itself is already granted. A transient profile/boost
+    // write must not make the recipient lose the whole gift.
+    console.warn("Gift effect delivery failed:", effectError)
+  }
+}
+
 /**
  * Apply the benefit exactly once after the gift has been atomically claimed.
  * Coin credits are guarded by the ledger reference, inventory by `gift_id`,
@@ -174,6 +285,8 @@ export async function deliverAcceptedGift(
   } else {
     await grantCollectible(supabase, gift, recipientId)
   }
+
+  await applyGiftUse(supabase, gift, recipientId)
 
   // Creator earnings and XP are rewards for a completed gift, not a send in
   // flight. Both helpers are best-effort and must not undo a delivered gift.

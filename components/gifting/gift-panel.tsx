@@ -37,6 +37,10 @@ export interface PanelGift {
   effects?: any
   is_canonical?: boolean
   icon_url?: string | null
+  use_label?: string | null
+  effect?: string | null
+  coin_value?: number | null
+  coin_conversion?: number | null
 }
 
 export interface GiftPanelContext {
@@ -506,6 +510,11 @@ export function GiftPanel({
                   <p className="relative mt-0.5 line-clamp-2 min-h-[28px] text-[10px] leading-snug text-muted-foreground">
                     {gift.description}
                   </p>
+                  {gift.use_label ? (
+                    <p className="relative mt-1 truncate text-[9px] font-bold uppercase tracking-[0.12em] text-primary/80">
+                      {gift.use_label}
+                    </p>
+                  ) : null}
 
                   <div className="relative mt-1.5 flex items-center justify-between gap-1 border-t border-border pt-1.5">
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
@@ -548,6 +557,13 @@ export function GiftPanel({
               <p className="text-[10px] text-muted-foreground">
                 {selected.cost.toLocaleString()} coins · {selected.duration || "live effect"}
               </p>
+              {selected.coin_value && selected.coin_value > 0 ? (
+                <p className="text-[10px] font-semibold text-emerald-500">
+                  Converts to {selected.coin_value.toLocaleString()} coins
+                </p>
+              ) : selected.type === "coins" ? (
+                <p className="text-[10px] font-semibold text-amber-500">Delivered as coins</p>
+              ) : null}
             </div>
             <span
               className={cn(
@@ -567,6 +583,13 @@ export function GiftPanel({
             maxLength={500}
             className="mb-2 min-h-[58px] resize-none rounded-xl border-border bg-background text-[12px] text-foreground placeholder:text-muted-foreground focus-visible:ring-ring"
           />
+
+          {selected.effect ? (
+            <p className="mb-2 rounded-xl border border-border/70 bg-background/50 px-2.5 py-2 text-[10px] leading-snug text-muted-foreground">
+              <span className="font-bold text-foreground/80">What it does: </span>
+              {selected.effect}
+            </p>
+          ) : null}
 
           <div className="flex items-center justify-between gap-2">
             <label className="inline-flex cursor-pointer items-center gap-1.5 text-[11px] font-medium text-muted-foreground">

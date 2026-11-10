@@ -4,6 +4,7 @@ import {
   CANONICAL_GIFTS,
   GIFT_TYPE_PALETTE,
   giftDurationLabel,
+  giftPanelTabForUse,
   giftTypeForTab,
   type CanonicalGift,
 } from "@/lib/gifts/catalog"
@@ -38,10 +39,18 @@ function canonicalGiftPayload(gift: CanonicalGift) {
     name: gift.name,
     description: gift.description,
     type: gift.type,
-    tab: gift.type === "badge" ? "badge" : gift.type,
-    category: gift.category,
+    tab: giftPanelTabForUse(gift.use),
+    use: gift.use,
+    use_type: gift.use,
+    use_label: gift.useLabel,
+    effect: gift.effect,
+    coin_value: gift.coinValue,
+    coin_conversion: gift.coinValue,
+    effect_hours: gift.effectHours || null,
+    boost_amount: gift.boostAmount || null,
+    category: gift.type,
     item_type:
-      gift.category === "badge" ? "gift_item" : gift.category === "effect" ? "gift_effect" : "gift_animation",
+      gift.type === "badge" ? "gift_item" : gift.type === "effect" ? "gift_effect" : "gift_animation",
     cost: gift.price,
     price_coins: gift.price,
     rarity: gift.rarity,
@@ -60,6 +69,12 @@ function canonicalGiftPayload(gift: CanonicalGift) {
       palette: gift.palette,
       rarity: gift.rarity,
       duration_ms: gift.durationMs,
+      use_type: gift.use,
+      use_label: gift.useLabel,
+      effect: gift.effect,
+      coin_conversion: gift.coinValue,
+      effect_hours: gift.effectHours || null,
+      boost_amount: gift.boostAmount || null,
       gift_animation: { type: "fullscreen", duration_ms: gift.durationMs },
     },
     effects: {
@@ -94,10 +109,22 @@ export async function GET() {
       .filter((item) => !canonicalNames.has(String(item.name || "").toLowerCase()))
       .map((item) => {
         const type = mapGiftType(item)
-        const tab = giftTypeForTab(type)
         const itemData = item.item_data || {}
+        const useType = String(itemData?.use_type || itemData?.use || "").toLowerCase()
+        const use = useType || (type === "coins" ? "currency" : type === "premium" ? "premium" : type === "effect" ? "utility" : type === "animation" ? "interactive" : "standard")
+        const tab = useType ? giftPanelTabForUse(useType) : giftTypeForTab(type)
         const durationMs =
           Number(itemData?.gift_animation?.duration_ms) || Number(itemData?.duration_ms) || 0
+        const price = Number(item.price_coins || 0)
+        const coinValue =
+          type === "coins"
+            ? 0
+            : Math.max(
+                0,
+                Math.floor(
+                  Number(itemData?.coin_conversion ?? itemData?.coin_value) || price * 0.8,
+                ),
+              )
         return {
           id: item.id,
           canonical_id: null,
@@ -105,10 +132,32 @@ export async function GET() {
           description: item.description || itemData?.description || "A thoughtful Loop gift",
           type,
           tab,
+          use,
+          use_type: use,
+          use_label:
+            itemData?.use_label ||
+            (type === "coins"
+              ? "Coins"
+              : type === "premium"
+                ? "Premium access"
+                : use === "utility"
+                  ? "Profile utility"
+                  : use === "interactive"
+                    ? "Reaction unlock"
+                    : "Collectible"),
+          effect:
+            itemData?.effect ||
+            (type === "coins"
+              ? "Delivers Loop Coins directly to your balance."
+              : "Adds this gift to your collection when accepted."),
+          coin_value: coinValue,
+          coin_conversion: coinValue,
+          effect_hours: Number(itemData?.effect_hours || 0) || null,
+          boost_amount: Number(itemData?.boost_amount || 0) || null,
           category: item.category,
           item_type: item.item_type,
-          cost: Number(item.price_coins || 0),
-          price_coins: Number(item.price_coins || 0),
+          cost: price,
+          price_coins: price,
           rarity: item.rarity || itemData?.rarity || "common",
           icon_url: item.icon_url || item.preview_url || null,
           preview: item.preview_url || item.icon_url || null,
@@ -118,13 +167,19 @@ export async function GET() {
           celebration: itemData?.celebration || null,
           palette: itemData?.palette || GIFT_TYPE_PALETTE[tab],
           is_canonical: false,
-          item_data: itemData,
           effects: {
             animation: itemData?.animation || item.preview_data?.animation || "sparkle",
             art: itemData?.gift_art || null,
             palette: itemData?.palette || GIFT_TYPE_PALETTE[tab],
             duration_ms: durationMs || null,
             particles: true,
+          },
+          item_data: {
+            ...itemData,
+            use_type: use,
+            use_label: itemData?.use_label || null,
+            effect: itemData?.effect || null,
+            coin_conversion: coinValue,
           },
         }
       })

@@ -4,6 +4,7 @@ import { getUserFromRequest } from "@/lib/server-auth"
 import { checkBlockStatus } from "@/lib/user-blocks"
 import { broadcastRealtime } from "@/lib/realtime-server"
 import { deliverAcceptedGift, giftValueOf, isPendingGift } from "@/lib/gifts/delivery"
+import { giftCoinValue, giftConvertedAt } from "@/lib/gifts/conversion"
 
 export const dynamic = "force-dynamic"
 
@@ -213,6 +214,104 @@ async function sendThankYou(
   })
 }
 
+async function convertGiftToCoins(
+  supabase: Supabase,
+  gift: Record<string, any>,
+  userId: string,
+) {
+  const value = giftValueOf(gift)
+
+  if (gift.status === "sent" && isPendingGift(gift)) {
+    return NextResponse.json(
+      { error: "Accept this gift before converting it to coins." },
+      { status: 409 },
+    )
+  }
+  if (gift.status !== "claimed") {
+    return NextResponse.json(
+      { error: "Only gifts you have accepted can be converted." },
+      { status: 409 },
+    )
+  }
+  if (String(gift.gift_type || "").toLowerCase() === "coins") {
+    return NextResponse.json(
+      { error: "This gift was already delivered as Loop Coins." },
+      { status: 409 },
+    )
+  }
+
+  const existingConversion = giftConvertedAt(gift)
+  const convertedCoins = giftCoinValue(gift)
+  if (!existingConversion && convertedCoins <= 0) {
+    return NextResponse.json(
+      { error: "This gift has no coin conversion value." },
+      { status: 409 },
+    )
+  }
+
+  const { data, error } = await supabase.rpc("convert_gift_to_coins", {
+    p_user_id: userId,
+    p_gift_id: String(gift.id),
+    p_coins: convertedCoins,
+  })
+
+  if (error) {
+    console.error("Gift conversion failed:", error)
+    if (error.code === "P0002") {
+      return NextResponse.json({ error: "Gift not found." }, { status: 404 })
+    }
+    if (error.code === "42501") {
+      return NextResponse.json(
+        { error: "This gift is not available to convert." },
+        { status: 403 },
+      )
+    }
+    if (error.code === "22023") {
+      return NextResponse.json(
+        { error: error.message || "This gift cannot be converted." },
+        { status: 409 },
+      )
+    }
+    if (["42883", "42P01", "42703"].includes(error.code || "")) {
+      return NextResponse.json(
+        { error: "Gift conversion is temporarily unavailable. Please try again later." },
+        { status: 503 },
+      )
+    }
+    return NextResponse.json(
+      { error: "The gift is safe, but its coins could not be added yet. Try again." },
+      { status: 500 },
+    )
+  }
+
+  const result = (Array.isArray(data) ? data[0] : data) as {
+    loop_coins?: number
+    converted_coins?: number
+    already_converted?: boolean
+  } | null
+  if (!result || typeof result.loop_coins !== "number") {
+    return NextResponse.json(
+      { error: "The conversion completed, but the balance could not be confirmed." },
+      { status: 500 },
+    )
+  }
+
+  return NextResponse.json({
+    success: true,
+    already_converted: Boolean(result.already_converted || existingConversion),
+    converted_coins: Number(result.converted_coins || convertedCoins),
+    loop_coins: result.loop_coins,
+    message: `Added ${Number(
+      result.converted_coins || convertedCoins,
+    ).toLocaleString()} Loop Coins to your wallet.`,
+    gift: {
+      ...value,
+      converted_at: existingConversion || new Date().toISOString(),
+      converted_coins: Number(result.converted_coins || convertedCoins),
+    },
+  })
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
@@ -240,6 +339,10 @@ export async function POST(request: NextRequest) {
 
     if (action === "thank") {
       return sendThankYou(request, supabase, gift, user.id, String(body.message || ""))
+    }
+
+    if (action === "convert") {
+      return convertGiftToCoins(supabase, gift, user.id)
     }
 
     if (gift.status !== "sent") {
@@ -470,6 +573,13 @@ export async function GET(request: NextRequest) {
             }
           : null,
         cost: Number(gift.cost || 0),
+        coin_value: giftCoinValue(gift),
+        use_type: value.use_type || null,
+        use_label: value.use_label || null,
+        effect: value.effect || null,
+        effect_hours: Number(value.effect_hours || 0) || null,
+        boost_amount: Number(value.boost_amount || 0) || null,
+        converted_at: giftConvertedAt(gift),
         status: gift.status,
         created_at: gift.created_at,
       }

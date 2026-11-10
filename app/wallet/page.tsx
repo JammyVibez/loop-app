@@ -12,14 +12,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
-import { Coins, ArrowDownLeft, ArrowUpRight, Gift, PlusCircle, CreditCard, ShieldCheck, RefreshCw, History, Zap, Check, Package, User, Heart, DollarSign, Building2, Wallet as WalletIcon, AlertCircle, RotateCcw, Target, Loader2 } from "lucide-react"
+import { Coins, ArrowDownLeft, ArrowUpRight, Gift, PlusCircle, CreditCard, ShieldCheck, RefreshCw, History, Zap, Check, Package, User, Heart, DollarSign, Building2, Wallet as WalletIcon, AlertCircle, RotateCcw, Target, Loader2, Sparkles, BadgeCheck } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import { TransactionFilter } from "@/components/wallet/transaction-filter"
+import { GiftCollection, type GiftCollectionItem } from "@/components/wallet/gift-collection"
 import { Spinner } from "@/components/ui/skeletons"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { PageHeader } from "@/components/ui/page-header"
+import { cn } from "@/lib/utils"
 
 interface Transaction {
   id: string
@@ -86,7 +88,7 @@ export default function WalletPage() {
 }
 
 function WalletContent() {
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -95,6 +97,7 @@ function WalletContent() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [receivedGifts, setReceivedGifts] = useState<CoinGift[]>([])
   const [sentGifts, setSentGifts] = useState<CoinGift[]>([])
+  const [giftCollection, setGiftCollection] = useState<GiftCollectionItem[]>([])
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -327,6 +330,7 @@ function WalletContent() {
           setReceivedGifts(data.received || [])
           setSentGifts(data.sent || [])
           setInventory(data.inventory || [])
+          setGiftCollection(data.gift_collection || [])
         }
       }
     } catch (err) {
@@ -351,7 +355,17 @@ function WalletContent() {
     }
   }
 
+  const withdrawalEligible = Boolean(user?.is_verified)
+
   const handleRequestWithdrawal = async () => {
+    if (!withdrawalEligible) {
+      toast({
+        title: "Verified creators only",
+        description: "Complete creator verification before requesting a cash payout.",
+        variant: "destructive",
+      })
+      return
+    }
     if (withdrawCoins < 500) {
       toast({ title: "Minimum Threshold", description: "Minimum cashout pre-order is 500 Loop Coins ($5.00 USD).", variant: "destructive" })
       return
@@ -520,6 +534,18 @@ function WalletContent() {
     } finally {
       setGifting(false)
     }
+  }
+
+  const handleGiftConverted = (itemId: string, coins: number, newBalance?: number) => {
+    if (Number.isFinite(Number(newBalance))) setBalance(Number(newBalance))
+    setGiftCollection((current) =>
+      current.map((item) =>
+        item.id === itemId
+          ? { ...item, converted_at: new Date().toISOString(), converted_coins: coins }
+          : item,
+      ),
+    )
+    void refreshUser()
   }
 
   const handleUseItem = async (itemId: string, itemName: string) => {
@@ -811,10 +837,28 @@ function WalletContent() {
 
             {/* Tab 2: Received & Sent Gifts */}
             <TabsContent value="gifts" className="m-0 space-y-4">
-              <div className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-xs uppercase font-bold tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                      Gift Collection
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Keep the collectible or turn it into Loop Coins.
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="shrink-0 text-[10px] font-semibold">
+                    {giftCollection.length} kept
+                  </Badge>
+                </div>
+                <GiftCollection items={giftCollection} onConverted={handleGiftConverted} />
+              </div>
+
+              <div className="space-y-4 border-t border-border/50 pt-4">
                 <h4 className="text-xs uppercase font-bold tracking-wider text-muted-foreground flex items-center gap-1.5">
                   <Gift className="w-3.5 h-3.5 text-rose-500" />
-                  Received Gifts
+                  Coin Transfers Received
                 </h4>
 
                 {receivedGifts.length === 0 ? (
@@ -883,6 +927,35 @@ function WalletContent() {
                     <DollarSign className="w-4 h-4 mr-1.5" />
                     Request payout
                   </Button>
+                </div>
+
+                <div className="flex flex-col gap-2 rounded-xl border border-border/50 bg-muted/25 px-3.5 py-3 text-xs sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-2.5">
+                    <BadgeCheck className={cn("mt-0.5 h-4 w-4 shrink-0", withdrawalEligible ? "text-emerald-500" : "text-amber-500")} />
+                    <div>
+                      <p className="font-semibold text-foreground">
+                        {withdrawalEligible ? "You are eligible to request a payout" : "Verified creator status required"}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {withdrawalEligible
+                          ? "Your balance can be withdrawn once you meet the 500-coin minimum."
+                          : "Only verified creators can withdraw Loop Coins as real money."}
+                      </p>
+                    </div>
+                  </div>
+                  {!withdrawalEligible ? (
+                    <Button asChild size="sm" variant="outline" className="shrink-0 rounded-full text-[11px]">
+                      <Link href="/settings?tab=verification">Get verified</Link>
+                    </Button>
+                  ) : balance < 500 ? (
+                    <Button asChild size="sm" variant="outline" className="shrink-0 rounded-full text-[11px]">
+                      <Link href="/wallet?tab=gifts">Convert gifts</Link>
+                    </Button>
+                  ) : (
+                    <Badge className="shrink-0 border-emerald-500/30 bg-emerald-500/10 text-[10px] text-emerald-600 dark:text-emerald-400">
+                      Payout ready
+                    </Badge>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
@@ -1219,13 +1292,32 @@ function WalletContent() {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-2.5 text-xs">
-              <AlertCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold text-emerald-400">Verified Creator Privilege</p>
+            <div
+              className={cn(
+                "p-3 rounded-xl border flex items-start gap-2.5 text-xs",
+                withdrawalEligible
+                  ? "bg-emerald-500/10 border-emerald-500/30"
+                  : "bg-amber-500/10 border-amber-500/30",
+              )}
+            >
+              {withdrawalEligible ? (
+                <BadgeCheck className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+              )}
+              <div className="min-w-0">
+                <p className={cn("font-bold", withdrawalEligible ? "text-emerald-500" : "text-amber-600 dark:text-amber-400")}>
+                  {withdrawalEligible ? "Verified creator — eligible" : "Verification required"}
+                </p>
                 <p className="text-muted-foreground text-[11px] mt-0.5">
                   100 coins = $1.00 USD. Minimum cashout threshold is 500 coins ($5.00 USD).
+                  {!withdrawalEligible ? " Only verified creators can request a real-money payout." : ""}
                 </p>
+                {!withdrawalEligible ? (
+                  <Button asChild size="sm" variant="outline" className="mt-2 h-7 rounded-full text-[11px]">
+                    <Link href="/settings?tab=verification">Get verified</Link>
+                  </Button>
+                ) : null}
               </div>
             </div>
 
@@ -1281,7 +1373,13 @@ function WalletContent() {
             </Button>
             <Button
               onClick={handleRequestWithdrawal}
-              disabled={withdrawing || !payoutDetails.trim() || withdrawCoins < 500 || withdrawCoins > balance}
+              disabled={
+                withdrawing ||
+                !withdrawalEligible ||
+                !payoutDetails.trim() ||
+                withdrawCoins < 500 ||
+                withdrawCoins > balance
+              }
               className="rounded-lg font-semibold"
             >
               {withdrawing ? "Submitting..." : `Request $${(withdrawCoins * 0.01).toFixed(2)} Payout`}

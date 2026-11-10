@@ -37,6 +37,9 @@ const DEFAULT_FILES = [
   "scripts/100ms-calls-schema.sql",
   // Inventory integrity repairs (orphaned/mismatched items).
   "scripts/user-inventory-integrity.sql",
+  // Received gifts can be exchanged for Loop Coins through one locked,
+  // idempotent function (see /api/gifts/manage and lib/gifts/conversion.ts).
+  "scripts/gift-conversion-schema.sql",
   // Per-post link-preview toggle + owner-configurable branch limits.
   "scripts/loop-preview-and-branch-limits-schema.sql",
   // Admin tab integrity: audit tables, wallet/circle/notification columns,

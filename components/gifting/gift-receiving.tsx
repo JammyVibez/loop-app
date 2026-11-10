@@ -436,12 +436,28 @@ export function GiftReceivingSystem() {
                       {current.cost.toLocaleString()} coins
                     </span>
                   ) : null}
+                  {current.useLabel ? (
+                    <span className="rounded-full border border-white/15 bg-white/[0.07] px-2.5 py-1 text-[10px] font-bold text-white/70 backdrop-blur">
+                      {current.useLabel}
+                    </span>
+                  ) : null}
+                  {current.coinValue && current.coinValue > 0 ? (
+                    <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold text-emerald-100/80 backdrop-blur">
+                      Convert later for {current.coinValue.toLocaleString()} coins
+                    </span>
+                  ) : null}
                   {current.anonymous ? (
                     <span className="rounded-full border border-rose-300/20 bg-rose-400/10 px-2.5 py-1 text-[10px] font-bold text-rose-200/80">
                       Anonymous
                     </span>
                   ) : null}
                 </div>
+
+                {current.effect ? (
+                  <p className="mx-auto mt-3 max-w-sm text-[11px] leading-relaxed text-white/55">
+                    {current.effect}
+                  </p>
+                ) : null}
 
                 {current.message ? (
                   <blockquote className="gift-receive-message mx-auto mt-4 max-w-sm rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3 text-[13px] italic leading-relaxed text-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl">
@@ -493,7 +509,9 @@ export function GiftReceivingSystem() {
                   </p>
                   <p className="mt-0.5 text-[11px] text-white/50">
                     {phase === "accepted"
-                      ? "Added to your account. Enjoy it."
+                      ? current.coinValue && current.coinValue > 0
+                        ? `Added to your account. Convert it for ${current.coinValue.toLocaleString()} coins anytime in Wallet.`
+                        : "Added to your account. Enjoy it."
                       : "The sender has been refunded."}
                   </p>
                 </div>

@@ -55,6 +55,12 @@ type ResolvedGift = {
   durationMs: number | null
   iconUrl: string | null
   coinAmount: number
+  useType: string
+  useLabel: string
+  effect: string
+  coinValue: number
+  effectHours: number | null
+  boostAmount: number | null
 }
 
 /**
@@ -77,9 +83,9 @@ async function resolveGift(
       .maybeSingle()
 
     const subtype =
-      canonical.category === "badge"
+      canonical.type === "badge"
         ? "gift_item"
-        : canonical.category === "effect"
+        : canonical.type === "effect"
           ? "gift_effect"
           : "gift_animation"
 
@@ -91,7 +97,7 @@ async function resolveGift(
       description: canonical.description,
       type: canonical.type,
       subtype,
-      category: canonical.category,
+      category: canonical.type,
       rarity: canonical.rarity,
       price: canonical.price,
       itemData: {
@@ -117,6 +123,12 @@ async function resolveGift(
       durationMs: canonical.durationMs,
       iconUrl: shopRow?.icon_url || shopRow?.preview_url || null,
       coinAmount: 0,
+      useType: canonical.use,
+      useLabel: canonical.useLabel,
+      effect: canonical.effect,
+      coinValue: canonical.coinValue,
+      effectHours: canonical.effectHours || null,
+      boostAmount: canonical.boostAmount || null,
     }
   }
 
@@ -136,6 +148,24 @@ async function resolveGift(
   const itemData = item.item_data || {}
   const durationMs =
     Number(itemData?.gift_animation?.duration_ms) || Number(itemData?.duration_ms) || null
+  const useType =
+    String(itemData?.use_type || itemData?.use || "").toLowerCase() ||
+    (type === "coins"
+      ? "currency"
+      : type === "premium"
+        ? "premium"
+        : type === "effect"
+          ? "utility"
+          : type === "animation"
+            ? "interactive"
+            : "standard")
+  const coinValue =
+    type === "coins"
+      ? 0
+      : Math.max(
+          0,
+          Math.floor(Number(itemData?.coin_conversion ?? itemData?.coin_value) || price * 0.8),
+        )
 
   return {
     canonical: null,
@@ -155,6 +185,26 @@ async function resolveGift(
     iconUrl: item.icon_url || item.preview_url || null,
     coinAmount:
       Number(itemData?.coins_amount ?? itemData?.coin_amount ?? 0) || (type === "coins" ? price : 0),
+    useType,
+    useLabel:
+      itemData?.use_label ||
+      (type === "coins"
+        ? "Coins"
+        : type === "premium"
+          ? "Premium access"
+          : useType === "utility"
+            ? "Profile utility"
+            : useType === "interactive"
+              ? "Reaction unlock"
+              : "Collectible"),
+    effect:
+      itemData?.effect ||
+      (type === "coins"
+        ? "Delivers Loop Coins directly to your balance."
+        : "Adds this gift to your collection when accepted."),
+    coinValue,
+    effectHours: Number(itemData?.effect_hours || 0) || null,
+    boostAmount: Number(itemData?.boost_amount || 0) || null,
   }
 }
 
@@ -313,6 +363,12 @@ export async function POST(request: NextRequest) {
       art: gift.art,
       duration_ms: gift.durationMs,
       coins_amount: gift.coinAmount || null,
+      use_type: gift.useType,
+      use_label: gift.useLabel,
+      effect: gift.effect,
+      coin_conversion: gift.coinValue,
+      effect_hours: gift.effectHours,
+      boost_amount: gift.boostAmount,
       is_anonymous: isAnonymous,
       // The benefit is released only when the recipient accepts. Older gifts
       // (without this marker) were delivered inline and remain acknowledgements
@@ -447,6 +503,9 @@ export async function POST(request: NextRequest) {
       gift_palette: gift.effects?.palette || null,
       gift_duration_ms: gift.durationMs,
       gift_cost: price,
+      use_label: gift.useLabel,
+      effect: gift.effect,
+      coin_value: gift.coinValue,
       delivery_pending: true,
       sender_id: isAnonymous ? null : user.id,
       sender_name: isAnonymous ? null : sender.display_name,
@@ -507,6 +566,9 @@ export async function POST(request: NextRequest) {
           palette: gift.effects?.palette || null,
           duration_ms: gift.durationMs,
           cost: price,
+          use_label: gift.useLabel,
+          effect: gift.effect,
+          coin_value: gift.coinValue,
           is_anonymous: isAnonymous,
           sender: isAnonymous
             ? null
@@ -550,6 +612,9 @@ export async function POST(request: NextRequest) {
         art: gift.art,
         duration_ms: gift.durationMs,
         cost: price,
+        use_label: gift.useLabel,
+        effect: gift.effect,
+        coin_value: gift.coinValue,
         effects: providedEffects || gift.effects,
       },
       recipient: {

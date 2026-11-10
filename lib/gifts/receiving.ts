@@ -28,6 +28,10 @@ export type ReceivingGift = {
   createdAt: string
   cost?: number | null
   durationMs?: number | null
+  useLabel?: string | null
+  effect?: string | null
+  coinValue?: number | null
+  convertedAt?: string | null
 }
 
 function asRecord(value: unknown): Record<string, any> {
@@ -36,6 +40,12 @@ function asRecord(value: unknown): Record<string, any> {
 
 function stringOrNull(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null
+}
+
+function idOrNull(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) return value.trim()
+  if (typeof value === "number" && Number.isFinite(value)) return String(value)
+  return null
 }
 
 /**
@@ -53,7 +63,7 @@ export function normalizeReceivingGift(
   const rawEffects = asRecord(raw.effects)
   const effects = Object.keys(rawEffects).length ? rawEffects : valueEffects
 
-  const id = stringOrNull(raw.id) || stringOrNull(raw.gift_id) || stringOrNull(nestedGift.id)
+  const id = idOrNull(raw.id) || idOrNull(raw.gift_id) || idOrNull(nestedGift.id)
   const name =
     stringOrNull(raw.gift_name) ||
     stringOrNull(raw.name) ||
@@ -146,6 +156,22 @@ export function normalizeReceivingGift(
         : Number.isFinite(Number(value.duration_ms))
           ? Number(value.duration_ms)
           : null,
+    useLabel:
+      stringOrNull(raw.use_label) ||
+      stringOrNull(value.use_label) ||
+      stringOrNull(nestedGift.use_label),
+    effect:
+      stringOrNull(raw.effect) ||
+      stringOrNull(value.effect) ||
+      stringOrNull(nestedGift.effect),
+    coinValue:
+      Number.isFinite(Number(raw.coin_value ?? raw.coin_conversion))
+        ? Number(raw.coin_value ?? raw.coin_conversion)
+        : Number.isFinite(Number(value.coin_conversion ?? value.coin_value))
+          ? Number(value.coin_conversion ?? value.coin_value)
+          : null,
+    convertedAt:
+      stringOrNull(raw.converted_at) || stringOrNull(value.converted_at),
   }
 }
 

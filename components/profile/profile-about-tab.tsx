@@ -25,6 +25,7 @@ import {
   Clock,
   Award,
   AtSign,
+  Sparkles,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
@@ -65,6 +66,7 @@ interface ProfileAboutProps {
       views_received?: number
     }
     recent_loops?: any[]
+    active_cosmetics?: Record<string, any> | null
   }
   isOwnProfile?: boolean
   onEdit?: () => void
@@ -108,6 +110,16 @@ export function ProfileAboutTab({ profile, isOwnProfile, onEdit }: ProfileAboutP
   const socialLinks = [
     profile.website ? { label: "Website", url: profile.website, icon: LinkIcon } : null,
   ].filter(Boolean) as Array<{ label: string; url: string; icon: typeof LinkIcon }>
+
+  const now = Date.now()
+  const activeFlair = (key: "gift_badge" | "gift_highlight") => {
+    const flair = profile.active_cosmetics?.[key]
+    if (!flair || typeof flair !== "object") return null
+    if (flair.expires_at && new Date(flair.expires_at).getTime() <= now) return null
+    return flair as { label?: string; effect?: string; expires_at?: string }
+  }
+  const giftBadge = activeFlair("gift_badge")
+  const giftHighlight = activeFlair("gift_highlight")
 
   return (
     <div className="space-y-4 p-4">
@@ -234,6 +246,24 @@ export function ProfileAboutTab({ profile, isOwnProfile, onEdit }: ProfileAboutP
               <Users className="h-3 w-3" /> {profile.organization_name || "Organization"}
             </Badge>
           )}
+          {giftBadge ? (
+            <Badge
+              variant="outline"
+              title={giftBadge.effect || undefined}
+              className="gap-1 border-rose-500/30 bg-rose-500/5 text-xs text-rose-500"
+            >
+              <Award className="h-3 w-3" /> {giftBadge.label || "Gift supporter"}
+            </Badge>
+          ) : null}
+          {giftHighlight ? (
+            <Badge
+              variant="outline"
+              title={giftHighlight.effect || undefined}
+              className="gap-1 border-amber-500/30 bg-amber-500/5 text-xs text-amber-600 dark:text-amber-400"
+            >
+              <Sparkles className="h-3 w-3" /> {giftHighlight.label || "Profile highlight"}
+            </Badge>
+          ) : null}
         </div>
       </div>
 
