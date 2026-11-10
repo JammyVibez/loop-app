@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react"
 import { formatDistanceToNow, format } from "date-fns"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Clock } from "lucide-react"
+import { Clock } from "@/components/icons/lucide-compat"
 
 interface FreshnessTimestampProps {
   date: string | Date | number

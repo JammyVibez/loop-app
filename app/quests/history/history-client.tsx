@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Spinner } from "@/components/ui/skeletons"
-import { ArrowLeft, BadgeCheck, Check, Clock, Coins, Hourglass, Trophy, Zap } from "lucide-react"
+import { ArrowLeft, BadgeCheck, Check, Clock, Coins, Hourglass, Trophy, Zap } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 interface HistoryEntry {

@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Smile, Image as ImageIcon, Zap, Search } from "lucide-react"
+import { Smile, Image as ImageIcon, Zap, Search } from "@/components/icons/lucide-compat"
 
 interface MediaEmojiPickerProps {
   onSelectEmoji: (emoji: string) => void

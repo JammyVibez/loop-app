@@ -17,7 +17,7 @@ import {
   BarChart3,
   Eye,
   MoreHorizontal,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { AnimatedIconView, type AnimatedIconComponent } from "@/components/icons/animated-icon-view"
 import { AddLoopToCollectionItem } from "@/components/collections/add-loop-to-collection-item"

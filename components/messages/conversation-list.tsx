@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, MessageCircle, Users } from "lucide-react"
+import { Search, MessageCircle, Users } from "@/components/icons/lucide-compat"
 
 interface Conversation {
   id: string

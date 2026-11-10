@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams, useSearchParams } from "next/navigation"
-import { BookOpen, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react"
+import { BookOpen, ChevronLeft, ChevronRight, Loader2, X } from "@/components/icons/lucide-compat"
 import {
   ChannelArt,
   ChannelNotice,

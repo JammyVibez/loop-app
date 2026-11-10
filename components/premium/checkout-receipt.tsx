@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { motion, useReducedMotion } from "motion/react"
-import { CheckCircle2, Loader2, Printer, RotateCw } from "lucide-react"
+import { CheckCircle2, Loader2, Printer, RotateCw } from "@/components/icons/lucide-compat"
 
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"

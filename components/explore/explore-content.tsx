@@ -14,7 +14,7 @@ import {
   Users,
   Compass,
   Calendar,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { LoopCard } from "@/components/loop-card"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"

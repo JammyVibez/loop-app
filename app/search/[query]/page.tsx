@@ -2,7 +2,7 @@
 
 import { use, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Search } from "lucide-react"
+import { Search } from "@/components/icons/lucide-compat"
 import { Header } from "@/components/header"
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav"
 import { SearchResults } from "@/components/search/search-results"

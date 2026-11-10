@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Code, BookOpen, Database, Zap, CheckCircle, Copy, Layers, Palette, Terminal, ArrowRight, Shield, Rocket } from "lucide-react"
+import { Code, BookOpen, Database, Zap, CheckCircle, Copy, Layers, Palette, Terminal, ArrowRight, Shield, Rocket } from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 

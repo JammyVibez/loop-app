@@ -34,7 +34,7 @@ import {
   Download,
   
   X,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 import { Spinner } from "@/components/ui/skeletons"
 

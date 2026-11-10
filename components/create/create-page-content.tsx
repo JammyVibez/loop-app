@@ -5,7 +5,7 @@ import { CreateHub, type CreateTab } from "@/components/create/create-hub"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
-import { PenLine } from "lucide-react"
+import { PenLine } from "@/components/icons/lucide-compat"
 
 export function CreatePageContent({ defaultTab = "loop" }: { defaultTab?: CreateTab }) {
   const { user, loading, authResolved } = useAuth()

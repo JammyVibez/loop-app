@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Save, ShieldAlert, ShieldCheck, Gauge } from "lucide-react"
+import { Save, ShieldAlert, ShieldCheck, Gauge } from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { RATE_LIMIT_ACTIONS, RATE_LIMIT_DEFAULTS, type RateLimitSettings } from "@/lib/rate-limit-settings"

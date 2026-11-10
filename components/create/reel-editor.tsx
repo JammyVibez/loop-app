@@ -9,7 +9,7 @@ import {
   Sun, Contrast, Droplets, Frame, Mic, CircleDot, RectangleHorizontal,
   RectangleVertical, SquareIcon, Sliders, Wand2, Paintbrush,
   LayoutTemplate, Repeat, Timer, Layers
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { useLoginGate } from "@/hooks/use-login-gate"

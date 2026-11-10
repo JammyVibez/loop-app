@@ -12,7 +12,7 @@ import {
   Bell,
   BellOff,
   ExternalLink
-} from "lucide-react";
+} from "@/components/icons/lucide-compat";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";

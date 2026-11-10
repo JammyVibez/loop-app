@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "motion/react"
-import { Crown, Flame, Rocket, Heart, Trophy, Zap, Star } from "lucide-react"
+import { Crown, Flame, Rocket, Heart, Trophy, Zap, Star } from "@/components/icons/lucide-compat"
 
 export interface ActiveGiftEffect {
   id: string

@@ -14,7 +14,7 @@ import {
   Swords,
   Users,
   Vote,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 export interface QuotedLoop {

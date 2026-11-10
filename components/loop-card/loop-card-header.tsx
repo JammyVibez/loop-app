@@ -18,7 +18,7 @@ import {
   Link2,
   Link2Off,
   SlidersHorizontal,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { AvatarWithFrame } from "@/components/ui/avatar-with-frame"

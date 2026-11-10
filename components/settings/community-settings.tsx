@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/hooks/use-auth"
-import { Crown, Shield, Users, Settings, ArrowUpRight } from "lucide-react"
+import { Crown, Shield, Users, Settings, ArrowUpRight } from "@/components/icons/lucide-compat"
 
 interface CommunityRow {
   id: string | number

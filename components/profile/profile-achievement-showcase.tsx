@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Award, Flame, Gem, Medal, Star, Trophy } from "lucide-react"
+import { Award, Flame, Gem, Medal, Star, Trophy } from "@/components/icons/lucide-compat"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"

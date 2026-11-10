@@ -17,7 +17,7 @@ import {
   Radio,
   ShieldCheck,
   UserPlus,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"

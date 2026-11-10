@@ -28,7 +28,7 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { formatDistanceToNow } from "date-fns"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { Spinner } from "@/components/ui/skeletons"

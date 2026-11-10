@@ -4,7 +4,7 @@ import { FlameIcon } from "@/components/icons"
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowUpRight, CalendarDays, CircleDot, Clock3, Flame, Gift, Plus, Radio, RefreshCw, Search, Users, Zap } from "lucide-react"
+import { ArrowUpRight, CalendarDays, CircleDot, Clock3, Flame, Gift, Plus, Radio, RefreshCw, Search, Users, Zap } from "@/components/icons/lucide-compat"
 
 import { useAuth } from "@/hooks/use-auth"
 import { rustApiRequest } from "@/lib/rust-api"

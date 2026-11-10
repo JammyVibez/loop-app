@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Check, Coins, ExternalLink, Globe, Link2, Rocket, UserPlus } from "lucide-react"
+import { Check, Coins, ExternalLink, Globe, Link2, Rocket, UserPlus } from "@/components/icons/lucide-compat"
 import { MAX_CO_AUTHORS, initialsOf, type StudioParticipant } from "./studio-types"
 
 export interface StudioDialogsProps {

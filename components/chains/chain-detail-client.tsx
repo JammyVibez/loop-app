@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ProxyImg } from "@/components/ui/proxy-img"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { AddChainToCollectionButton } from "@/components/collections/add-chain-to-collection-button"
-import { ArrowLeft, ArrowUpRight, Download, GitBranch, Lock, MessageCircle, Send, Pencil, Pause, Play, CheckCircle2, Archive, Search, UserPlus, Trash2 } from "lucide-react"
+import { ArrowLeft, ArrowUpRight, Download, GitBranch, Lock, MessageCircle, Send, Pencil, Pause, Play, CheckCircle2, Archive, Search, UserPlus, Trash2 } from "@/components/icons/lucide-compat"
 import { safeResponseJson } from "@/lib/safe-response-json"
 
 type Chain = {

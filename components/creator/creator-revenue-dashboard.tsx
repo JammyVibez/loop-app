@@ -20,7 +20,7 @@ import {
   Zap,
   Award,
   Wallet,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 interface RevenueData {

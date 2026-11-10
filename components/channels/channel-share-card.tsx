@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { ArrowUpRight, Pause, Play, Volume2 } from "lucide-react"
+import { ArrowUpRight, Pause, Play, Volume2 } from "@/components/icons/lucide-compat"
 import { runtimeLabel } from "@/lib/channels-library"
 import { cn } from "@/lib/utils"
 

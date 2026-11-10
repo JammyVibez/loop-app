@@ -87,7 +87,7 @@ import {
   UserMinus,
   UserPlus,
   X,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import {
   DropdownMenu,
   DropdownMenuContent,

@@ -27,7 +27,7 @@ import {
   Trash2,
   Palette,
   GripVertical,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import type {
   CircleThemeConfig,
   ThemeColors,

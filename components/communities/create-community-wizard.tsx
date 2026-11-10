@@ -23,7 +23,7 @@ import {
   Lock,
   Wand2,
   Hash,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 const STEPS = [
   { id: 0, label: "Category" },

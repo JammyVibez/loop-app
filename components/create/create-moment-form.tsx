@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useRef, useState } from "react"
-import { Clock, ImagePlus, Send, SlidersHorizontal, Trash2, Zap } from "lucide-react"
+import { Clock, ImagePlus, Send, SlidersHorizontal, Trash2, Zap } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/hooks/use-auth"

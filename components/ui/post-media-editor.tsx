@@ -14,7 +14,7 @@ import {
   VolumeX,
   ZoomIn,
   ZoomOut,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,

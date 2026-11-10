@@ -1,6 +1,6 @@
 "use client";
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from '@/components/icons/lucide-compat';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader } from './ui/card';
 

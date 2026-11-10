@@ -15,7 +15,7 @@ import {
   X,
   Zap,
   type LucideIcon,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"

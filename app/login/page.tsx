@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/hooks/use-auth"
-import { Eye, EyeOff, ArrowRight, Zap, Users } from "lucide-react"
+import { Eye, EyeOff, ArrowRight, Zap, Users } from "@/components/icons/lucide-compat"
 import { Spinner } from "@/components/ui/skeletons"
 
 export default function LoginPage() {

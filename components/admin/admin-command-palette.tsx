@@ -34,7 +34,7 @@ import {
   ExternalLink,
   ArrowRight,
   Loader2,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 interface CommandAction {

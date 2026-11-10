@@ -41,7 +41,7 @@ import {
   Trash2,
   Unlock,
   X,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 type Author = {
   id: string

@@ -18,7 +18,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { POLICY_LABELS, POLICY_ROLES } from "@/lib/community-policy"
-import { Check, ImagePlus, Loader2, Lock, Trash2, X } from "lucide-react"
+import { Check, ImagePlus, Loader2, Lock, Trash2, X } from "@/components/icons/lucide-compat"
 
 export interface EditableCommunity {
   id: string

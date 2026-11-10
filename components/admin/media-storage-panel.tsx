@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { AlertTriangle, HardDrive, RefreshCw, Trash2, Users } from "lucide-react"
+import { AlertTriangle, HardDrive, RefreshCw, Trash2, Users } from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { confirmDialog } from "@/components/ui/confirm-dialog"

@@ -23,7 +23,7 @@ import {
   VideoOff,
   Wifi,
   WifiOff,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { Spinner } from "@/components/ui/skeletons"

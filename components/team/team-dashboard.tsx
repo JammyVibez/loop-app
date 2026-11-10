@@ -11,7 +11,7 @@ import {
   Shield, Image, Megaphone, Calendar, Headphones, BarChart3,
   Coins, Crown, Building2, Star, Radio, BadgeCheck, Trophy,
   Users, UserCog, Activity, RefreshCw, Lock, ExternalLink,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import Link from "next/link"
 
 const ICON_MAP: Record<string, React.ComponentType<any>> = {

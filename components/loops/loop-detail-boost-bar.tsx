@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Zap, Users, TrendingUp } from "lucide-react"
+import { Zap, Users, TrendingUp } from "@/components/icons/lucide-compat"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"

@@ -11,7 +11,7 @@ import {
   RefreshCw,
   Rocket,
   Server,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"

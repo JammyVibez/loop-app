@@ -7,7 +7,7 @@ import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { Code, Coins, GitFork, Star, Trophy, Wrench } from "lucide-react"
+import { Code, Coins, GitFork, Star, Trophy, Wrench } from "@/components/icons/lucide-compat"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { Spinner } from "@/components/ui/skeletons"
 

@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Award, Loader2, Plus, RefreshCw, Search, Trash2, User, X } from "lucide-react"
+import { Award, Loader2, Plus, RefreshCw, Search, Trash2, User, X } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 import { Spinner } from "@/components/ui/skeletons"
 

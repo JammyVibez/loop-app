@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { Check, Crown, Loader2, Lock, Users } from "lucide-react"
+import { Check, Crown, Loader2, Lock, Users } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"

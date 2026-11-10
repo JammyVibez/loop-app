@@ -25,7 +25,7 @@ import {
   Clock,
   Award,
   AtSign,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 

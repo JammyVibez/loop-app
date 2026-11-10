@@ -28,7 +28,7 @@ import {
   Users,
   Loader2,
   type LucideIcon,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import {
   MAX_CO_AUTHORS,
   initialsOf,

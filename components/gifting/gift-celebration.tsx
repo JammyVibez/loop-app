@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Gift, Star, X } from "lucide-react"
+import { Gift, Star, X } from "@/components/icons/lucide-compat"
 import { GiftArtwork } from "@/components/gifting/gift-art"
 import { cn } from "@/lib/utils"
 

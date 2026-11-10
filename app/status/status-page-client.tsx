@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Clock, Activity, Wifi, Database, Shield, Image, Zap } from "lucide-react"
+import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Clock, Activity, Wifi, Database, Shield, Image, Zap } from "@/components/icons/lucide-compat"
 
 interface ServiceCheck {
   name: string

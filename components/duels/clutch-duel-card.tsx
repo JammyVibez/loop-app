@@ -18,7 +18,7 @@ import {
   Flame,
   Pencil,
   Loader2,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 import { ProtectedMedia } from "@/components/media-protection"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"

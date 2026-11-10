@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback } from "react"
-import { Gift } from "lucide-react"
+import { Gift } from "@/components/icons/lucide-compat"
 import {
   Dialog,
   DialogContent,

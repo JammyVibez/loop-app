@@ -27,7 +27,7 @@ import {
   Copy,
   Volume2,
   Gift,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { CommentsSection } from "@/components/comments/comments-section"
 import {
   QuotedLoopCard,

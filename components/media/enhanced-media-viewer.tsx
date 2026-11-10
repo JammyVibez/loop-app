@@ -16,7 +16,7 @@ import {
   Pause,
   Volume2,
   VolumeX,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 

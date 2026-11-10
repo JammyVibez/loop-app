@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Hash, Search, TrendingUp, Users, X, Clock, ArrowRight, Flame, UserPlus, Zap } from "lucide-react"
+import { Hash, Search, TrendingUp, Users, X, Clock, ArrowRight, Flame, UserPlus, Zap } from "@/components/icons/lucide-compat"
 import { Header } from "@/components/header"
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav"
 import { Input } from "@/components/ui/input"

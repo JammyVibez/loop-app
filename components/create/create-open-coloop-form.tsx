@@ -18,7 +18,7 @@ import {
   Globe,
   ArrowRight,
   Lightbulb,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 interface CreateOpenCoLoopFormProps {
   onCreated?: (sessionId: string) => void

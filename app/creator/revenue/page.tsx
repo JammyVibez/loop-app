@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { CreatorRevenueDashboard } from "@/components/creator/creator-revenue-dashboard"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Coins, TrendingUp } from "lucide-react"
+import { ArrowLeft, Coins, TrendingUp } from "@/components/icons/lucide-compat"
 import { PageLoading } from "@/components/loading-states"
 
 export default function CreatorRevenuePage() {

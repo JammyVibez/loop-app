@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Lock, Mail, ShieldCheck, KeyRound, CheckCircle2, AlertCircle, ExternalLink, Trash2 } from "lucide-react"
+import { Lock, Mail, ShieldCheck, KeyRound, CheckCircle2, AlertCircle, ExternalLink, Trash2 } from "@/components/icons/lucide-compat"
 import { TwoFactorSettings } from "@/components/settings/two-factor-settings"
 import { Spinner } from "@/components/ui/skeletons"
 

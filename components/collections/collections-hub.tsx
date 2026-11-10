@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Archive, ArrowUpRight, Bookmark, Lock, Plus, Users, Globe2 } from "lucide-react"
+import { Archive, ArrowUpRight, Bookmark, Lock, Plus, Users, Globe2 } from "@/components/icons/lucide-compat"
 
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"

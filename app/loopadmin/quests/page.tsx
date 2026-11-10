@@ -6,7 +6,7 @@ import { Header } from "@/components/header"
 import { AdminQuestsPanel } from "@/components/admin/admin-quests-panel"
 import { useAuth } from "@/hooks/use-auth"
 import { PageLoading } from "@/components/loading-states"
-import { Shield } from "lucide-react"
+import { Shield } from "@/components/icons/lucide-compat"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Download, Lock, Loader2, Check, Image, Video, FileText } from "lucide-react"
+import { Download, Lock, Loader2, Check, Image, Video, FileText } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 

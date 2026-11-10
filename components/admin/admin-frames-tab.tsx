@@ -23,7 +23,7 @@ import {
   Music,
   Plus,
   X,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 interface PfpFrame {
   id: number

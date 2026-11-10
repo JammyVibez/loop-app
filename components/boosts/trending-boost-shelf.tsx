@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { Rocket, Coins, Flame } from "lucide-react"
+import { Rocket, Coins, Flame } from "@/components/icons/lucide-compat"
 import { Badge } from "@/components/ui/badge"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Button } from "@/components/ui/button"

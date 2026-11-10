@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
-import { Accessibility, Type, Eye, Gauge } from "lucide-react"
+import { Accessibility, Type, Eye, Gauge } from "@/components/icons/lucide-compat"
 
 const LS_MOTION = "loop-reduced-motion"
 const LS_TEXT_SCALE = "loop-text-scale"

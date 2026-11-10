@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { ChevronLeft, Loader2, Play, SkipBack, SkipForward } from "lucide-react"
+import { ChevronLeft, Loader2, Play, SkipBack, SkipForward } from "@/components/icons/lucide-compat"
 import { ChannelPlayer } from "@/components/channels/channel-player"
 import {
   ChannelNotice,

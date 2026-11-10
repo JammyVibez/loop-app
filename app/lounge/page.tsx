@@ -25,7 +25,7 @@ import {
   ChevronRight,
   Gift,
   Palette,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 type PerkCategory = "community" | "economic" | "cosmetic"

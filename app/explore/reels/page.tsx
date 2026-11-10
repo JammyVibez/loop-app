@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Eye, Heart, Film } from "lucide-react"
+import { ArrowLeft, Eye, Heart, Film } from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { Spinner, SkeletonBlock } from "@/components/ui/skeletons"

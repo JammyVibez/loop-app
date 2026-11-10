@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Ban, ShieldOff } from "lucide-react"
+import { Ban, ShieldOff } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,

@@ -4,7 +4,7 @@ import { ProtectedMedia } from "@/components/media-protection"
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { Hourglass, Plus, Trash2, X, Zap } from "lucide-react"
+import { Hourglass, Plus, Trash2, X, Zap } from "@/components/icons/lucide-compat"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"

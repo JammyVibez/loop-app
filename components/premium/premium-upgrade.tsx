@@ -24,7 +24,7 @@ import {
   Users,
   Video,
   Zap,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { CheckoutReceipt } from "@/components/premium/checkout-receipt"
 import { useToast } from "@/hooks/use-toast"

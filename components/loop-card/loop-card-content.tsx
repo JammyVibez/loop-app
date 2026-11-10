@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
-import { GitBranch, Zap } from "lucide-react"
+import { GitBranch, Zap } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { RichContent } from "@/components/content/rich-content"

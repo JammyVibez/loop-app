@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { GitBranch, Users, Infinity as InfinityIcon } from "lucide-react"
+import { GitBranch, Users, Infinity as InfinityIcon } from "@/components/icons/lucide-compat"
 import {
   Dialog,
   DialogContent,

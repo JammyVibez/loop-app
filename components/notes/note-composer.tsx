@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useState } from "react"
-import { Check, MessageCircle, Trash2 } from "lucide-react"
+import { Check, MessageCircle, Trash2 } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {

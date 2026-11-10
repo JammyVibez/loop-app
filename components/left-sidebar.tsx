@@ -9,7 +9,7 @@ import { AvatarWithFrame } from "@/components/ui/avatar-with-frame"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { LogOut } from "lucide-react"
+import { LogOut } from "@/components/icons/lucide-compat"
 import { AnimatedIconView, type AnimatedIconComponent } from "@/components/icons/animated-icon-view"
 
 import { UserBadges } from "@/components/user-badge"

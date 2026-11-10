@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowRight, History, X } from "lucide-react"
+import { ArrowRight, History, X } from "@/components/icons/lucide-compat"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"

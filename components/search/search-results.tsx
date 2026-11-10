@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Hash, Users, GitBranch, Search, Circle, Bookmark } from "lucide-react"
+import { Hash, Users, GitBranch, Search, Circle, Bookmark } from "@/components/icons/lucide-compat"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { UserBadges } from "@/components/user-badge"

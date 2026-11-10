@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { Check, Clock3, Inbox, UserRoundCheck, UserRoundX, Users } from "lucide-react"
+import { Check, Clock3, Inbox, UserRoundCheck, UserRoundX, Users } from "@/components/icons/lucide-compat"
 
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"

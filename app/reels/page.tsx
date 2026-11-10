@@ -4,7 +4,7 @@ import { useState } from "react"
 import { TreeReels } from "@/components/reels/tree-reels"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
-import { Clapperboard } from "lucide-react"
+import { Clapperboard } from "@/components/icons/lucide-compat"
 
 const FILTERS = [
   { id: "trending", label: "For You" },

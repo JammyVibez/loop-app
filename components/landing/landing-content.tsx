@@ -18,7 +18,7 @@ import {
   Swords,
   Trophy,
   type LucideIcon,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { AppLogo } from "@/components/brand/app-logo"

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { ChevronLeft, Loader2, Play } from "lucide-react"
+import { ChevronLeft, Loader2, Play } from "@/components/icons/lucide-compat"
 import { ChannelPlayer } from "@/components/channels/channel-player"
 import { ChannelNotice, ChannelScreen, posterStyle } from "@/components/channels/channel-ui"
 import {

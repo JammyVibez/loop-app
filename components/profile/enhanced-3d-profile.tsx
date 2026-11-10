@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Calendar, Coins, Flame, Gift, Heart, Link as LinkIcon, Lock, MapPin, MessageCircle, MoreHorizontal, Music2, Plus, Palette, Share2, Wand2, X, Zap, Trophy, Upload, Users, Package, Building2, UserPlus, } from "lucide-react"
+import { ArrowLeft, Calendar, Coins, Flame, Gift, Heart, Link as LinkIcon, Lock, MapPin, MessageCircle, MoreHorizontal, Music2, Plus, Palette, Share2, Wand2, X, Zap, Trophy, Upload, Users, Package, Building2, UserPlus, } from "@/components/icons/lucide-compat"
 import {
   DropdownMenu,
   DropdownMenuContent,

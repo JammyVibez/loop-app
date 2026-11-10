@@ -18,7 +18,7 @@ import {
   
   Clock,
   Video,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 interface CallLogEntry {
   id: string

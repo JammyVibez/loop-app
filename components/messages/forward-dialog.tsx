@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { CornerUpRight, Search, Send } from "lucide-react"
+import { CornerUpRight, Search, Send } from "@/components/icons/lucide-compat"
 import { Spinner } from "@/components/ui/skeletons"
 
 interface ForwardConversation {

@@ -39,10 +39,10 @@ import {
   Trash2,
   UserPlus,
   Zap,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 import { uploadMediaFile } from "@/lib/client-media-upload"
-import { ImagePlus, Link2, Loader2 } from "lucide-react"
+import { ImagePlus, Link2, Loader2 } from "@/components/icons/lucide-compat"
 import type { MissionStepConfig, SurveyQuestionConfig } from "@/lib/quests-v2"
 
 /* ------------------------------------------------------------------ */

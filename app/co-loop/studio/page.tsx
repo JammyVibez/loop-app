@@ -2,7 +2,6 @@
 
 import { Suspense } from "react"
 import { CoLoopStudio } from "@/components/loops/co-loop-studio"
-import { } from "lucide-react"
 import { Spinner } from "@/components/ui/skeletons"
 
 export default function CoLoopStudioPage() {

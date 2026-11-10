@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, ArrowUpRight, CalendarClock, GitBranch, ImagePlus, Loader2, RefreshCw, Send, ThumbsUp } from "lucide-react"
+import { ArrowLeft, ArrowUpRight, CalendarClock, GitBranch, ImagePlus, Loader2, RefreshCw, Send, ThumbsUp } from "@/components/icons/lucide-compat"
 
 import { useAuth } from "@/hooks/use-auth"
 import { uploadMediaFile } from "@/lib/client-media-upload"

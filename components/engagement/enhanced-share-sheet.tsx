@@ -25,7 +25,7 @@ import {
   Mail,
   Send,
   
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { shareContent, absoluteAppUrl } from "@/lib/share"
 import { Spinner } from "@/components/ui/skeletons"
 

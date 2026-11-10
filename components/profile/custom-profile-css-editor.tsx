@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { Code2, Crown, ExternalLink, Lock, RotateCcw, Save } from "lucide-react"
+import { Code2, Crown, ExternalLink, Lock, RotateCcw, Save } from "@/components/icons/lucide-compat"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/skeletons"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { Heart, MessageCircle, RefreshCw, Search, Trash2 } from "lucide-react"
+import { Heart, MessageCircle, RefreshCw, Search, Trash2 } from "@/components/icons/lucide-compat"
 
 interface AdminPost {
   id: string

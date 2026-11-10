@@ -19,7 +19,7 @@ import {
   Plus,
   Upload,
   X,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import {
   initialsOf,
   type StudioCursor,

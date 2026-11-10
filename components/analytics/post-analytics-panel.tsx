@@ -12,7 +12,7 @@ import {
   Share2,
   TrendingUp,
   Users,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { StatTile, Surface } from "@/components/ui/page-header"
 import { Spinner } from "@/components/ui/skeletons"
 import { useAuth } from "@/hooks/use-auth"

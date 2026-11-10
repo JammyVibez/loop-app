@@ -25,9 +25,6 @@
       }
     ],
     "paths": {
-      "lucide-react": [
-        "./components/icons/lucide-compat"
-      ],
       "@/*": [
         "./*"
       ]

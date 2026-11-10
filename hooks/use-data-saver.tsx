@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
-import { WifiOff, X } from "lucide-react"
+import { WifiOff, X } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 
 const STORAGE_KEY = "loop-data-saver"

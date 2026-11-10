@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowRight, Compass, GitBranch, Plus, Users } from "lucide-react"
+import { ArrowRight, Compass, GitBranch, Plus, Users } from "@/components/icons/lucide-compat"
 import { safeResponseJson } from "@/lib/safe-response-json"
 
 type Chain = {

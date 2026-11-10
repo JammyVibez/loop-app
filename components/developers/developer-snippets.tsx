@@ -38,7 +38,7 @@ import {
   Terminal,
   Trash2,
   Check,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 interface SnippetAuthor {
   id: string

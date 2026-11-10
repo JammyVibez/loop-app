@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { MessageCircle, Reply, Share2 } from "lucide-react"
+import { MessageCircle, Reply, Share2 } from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"

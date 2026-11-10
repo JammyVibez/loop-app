@@ -44,7 +44,7 @@ import {
   Building2,
   ShieldCheck,
   Users,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { useTheme } from "next-themes"
 import { AnimatedIconView, type AnimatedIconComponent } from "@/components/icons/animated-icon-view"
 import { useAuth } from "@/hooks/use-auth"

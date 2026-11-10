@@ -15,7 +15,7 @@ import {
   Trash2,
   Play,
   X,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { VideoAvatar } from "./video-avatar"
 import { VideoCover } from "./video-cover"
 import { waitForMediaReady } from "@/lib/client-media-upload"

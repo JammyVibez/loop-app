@@ -35,7 +35,7 @@ import {
   DollarSign,
   RefreshCw,
   X,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */

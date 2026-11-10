@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Award } from "lucide-react"
+import { Award } from "@/components/icons/lucide-compat"
 import {
   Tooltip,
   TooltipContent,

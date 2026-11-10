@@ -17,7 +17,7 @@ import {
   ArrowRight,
   Check,
   Zap,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 interface DiscoveryDuel {
   id: string

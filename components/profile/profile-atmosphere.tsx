@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Film, ImageIcon, LayoutGrid, List, Loader2, Music2, Newspaper, Save, Trash2, Upload } from "lucide-react"
+import { Film, ImageIcon, LayoutGrid, List, Loader2, Music2, Newspaper, Save, Trash2, Upload } from "@/components/icons/lucide-compat"
 import {
   Dialog,
   DialogContent,

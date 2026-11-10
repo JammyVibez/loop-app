@@ -49,7 +49,7 @@ import {
   Vote,
   Swords,
   Zap,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 import { CreateDuelDialog } from "@/components/duels/create-duel-dialog"
 import { CreateClutchDuelDialog } from "@/components/duels/create-clutch-duel-dialog"

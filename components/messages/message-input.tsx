@@ -19,7 +19,7 @@ import {
   X,
   Zap,
   
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 interface MessageInputProps {
   draft: string

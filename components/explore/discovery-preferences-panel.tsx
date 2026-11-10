@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { DEFAULT_DISCOVERY_PREFERENCES, type DiscoveryPreferences } from "@/lib/discovery-preferences"
-import { Plus, SlidersHorizontal, VolumeX, X } from "lucide-react"
+import { Plus, SlidersHorizontal, VolumeX, X } from "@/components/icons/lucide-compat"
 
 type TopicSuggestion = { tag: string; usage_count?: number; count?: number }
 

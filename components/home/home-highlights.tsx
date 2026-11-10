@@ -15,7 +15,7 @@ import {
   Zap,
   Star,
   X,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import {

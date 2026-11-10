@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/skeletons"
-import { Search, X } from "lucide-react"
+import { Search, X } from "@/components/icons/lucide-compat"
 
 interface GifPickerProps {
   open: boolean

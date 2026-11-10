@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { ArrowRight, Check, X } from "lucide-react"
+import { ArrowRight, Check, X } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { CoachMarkStep } from "@/lib/feature-tour"

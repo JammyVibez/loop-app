@@ -20,7 +20,7 @@ import {
   Trash2,
   UploadCloud,
   X,
-} from "lucide-react";
+} from "@/components/icons/lucide-compat";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useLoginGate } from "@/hooks/use-login-gate";

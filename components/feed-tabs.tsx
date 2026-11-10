@@ -15,7 +15,7 @@ import {
   Code2,
   SlidersHorizontal,
   Eye,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { LoopFeed } from "./loop-feed"
 import { TrendingBoostShelf } from "@/components/boosts/trending-boost-shelf"
 import { cn } from "@/lib/utils"

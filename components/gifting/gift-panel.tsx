@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
-import { Check, Clock, Coins, Gift, Info, Lock, RotateCcw, Star } from "lucide-react"
+import { Check, Clock, Coins, Gift, Info, Lock, RotateCcw, Star } from "@/components/icons/lucide-compat"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"

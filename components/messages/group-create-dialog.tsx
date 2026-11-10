@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 
 import { Spinner } from "@/components/ui/skeletons"
-import { Search, X, Users, Check } from "lucide-react"
+import { Search, X, Users, Check } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 interface UserResult {

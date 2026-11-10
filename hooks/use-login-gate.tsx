@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LogIn, Zap, UserPlus } from "lucide-react"
+import { LogIn, Zap, UserPlus } from "@/components/icons/lucide-compat"
 import {
   Dialog,
   DialogContent,

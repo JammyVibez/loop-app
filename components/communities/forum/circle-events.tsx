@@ -16,7 +16,7 @@ import {
   Trash2,
   Users,
   X,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"

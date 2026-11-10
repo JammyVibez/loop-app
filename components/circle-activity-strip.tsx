@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Badge } from "@/components/ui/badge"
-import { Users, MessageSquare, Calendar, ArrowRight, Loader2 } from "lucide-react"
+import { Users, MessageSquare, Calendar, ArrowRight, Loader2 } from "@/components/icons/lucide-compat"
 
 interface CircleActivity {
   id: string

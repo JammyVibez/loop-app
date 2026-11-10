@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { Bell, ChevronRight, Loader2, MessageSquare } from "lucide-react"
+import { Bell, ChevronRight, Loader2, MessageSquare } from "@/components/icons/lucide-compat"
 import { Header } from "@/components/header"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"

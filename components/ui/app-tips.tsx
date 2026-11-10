@@ -17,7 +17,7 @@ import {
   Palette,
   Radio,
   Heart,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 interface Tip {
   icon: any

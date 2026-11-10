@@ -23,7 +23,7 @@ import {
   Activity,
   Clock,
   Zap,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 interface CommunityItem {
   id: string | number

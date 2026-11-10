@@ -24,7 +24,7 @@ import {
   Link2,
   RefreshCw,
   X,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 interface VerifRequest {

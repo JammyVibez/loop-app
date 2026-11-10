@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { VideoAvatar } from "@/components/cosmetics/video-avatar";
-import { UserPlus, Search, Users, Code, MessageCircle, X } from "lucide-react";
+import { UserPlus, Search, Users, Code, MessageCircle, X } from "@/components/icons/lucide-compat";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { VerifiedSeal } from "@/components/ui/verified-seal"

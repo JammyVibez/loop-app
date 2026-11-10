@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { WifiOff, Wifi, Check, X } from "lucide-react"
+import { WifiOff, Wifi, Check, X } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 /**

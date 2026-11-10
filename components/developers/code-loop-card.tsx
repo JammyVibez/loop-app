@@ -25,7 +25,7 @@ import {
   Lock,
   Globe,
   TerminalSquare,
-} from "lucide-react";
+} from "@/components/icons/lucide-compat";
 import {
   DropdownMenu,
   DropdownMenuContent,

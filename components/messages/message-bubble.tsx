@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { ProxyImg } from "@/components/ui/proxy-img"
-import { CheckCheck, Check, Reply, CornerUpRight, Trash2, Pencil, MoreHorizontal, Copy, Pin } from "lucide-react"
+import { CheckCheck, Check, Reply, CornerUpRight, Trash2, Pencil, MoreHorizontal, Copy, Pin } from "@/components/icons/lucide-compat"
 import {
   DropdownMenu,
   DropdownMenuContent,

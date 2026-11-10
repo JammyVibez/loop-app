@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { confirmDialog } from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/hooks/use-auth";
-import { Edit, Palette, Plus, Trash2 } from "lucide-react";
+import { Edit, Palette, Plus, Trash2 } from "@/components/icons/lucide-compat";
 import { Spinner } from "@/components/ui/skeletons"
 
 interface Theme {

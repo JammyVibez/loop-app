@@ -16,7 +16,7 @@ import {
   MessagesSquare,
   Shield,
   UserMinus,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 type MiniData = {
   profile: {

@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { VideoAvatar } from "@/components/cosmetics/video-avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageCircle, Send, User, HeadphonesIcon, Clock, AlertCircle, ArrowLeft, Plus, CheckCircle2, Circle, Hourglass } from "lucide-react";
+import { MessageCircle, Send, User, HeadphonesIcon, Clock, AlertCircle, ArrowLeft, Plus, CheckCircle2, Circle, Hourglass } from "@/components/icons/lucide-compat";
 import { useAuth } from "@/hooks/use-auth";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { formatDistanceToNow } from "date-fns";

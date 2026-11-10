@@ -22,7 +22,7 @@ import {
   StopCircle,
   Zap,
   Globe,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { formatDistanceToNow } from "date-fns"
 import { Spinner } from "@/components/ui/skeletons"
 

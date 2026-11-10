@@ -2,7 +2,7 @@
 
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
-import { Wrench, RefreshCw } from "lucide-react"
+import { Wrench, RefreshCw } from "@/components/icons/lucide-compat"
 
 interface MaintenanceInfo {
   enabled: boolean

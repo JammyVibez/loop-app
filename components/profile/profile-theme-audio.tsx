@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Music2, Pause, VolumeX } from "lucide-react"
+import { Music2, Pause, VolumeX } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 const TARGET_VOLUME = 0.32

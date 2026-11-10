@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowUpRight, Coins } from "lucide-react"
+import { ArrowUpRight, Coins } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { Lottie } from "@/components/ui/lottie"
 import { RarityChip } from "@/components/shop/shop-item-card"

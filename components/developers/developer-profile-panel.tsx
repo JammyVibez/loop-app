@@ -22,7 +22,7 @@ import {
   Zap,
   Trash2,
   Wrench,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 interface SkillRow {
   id?: string

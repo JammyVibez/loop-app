@@ -46,7 +46,7 @@ import {
   Tag,
   Trash2,
   Users,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 type Author = {
   id: string

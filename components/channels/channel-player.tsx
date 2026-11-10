@@ -15,7 +15,7 @@ import {
   Tv,
   Volume2,
   VolumeX,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 const ACCENT = "#e50914"

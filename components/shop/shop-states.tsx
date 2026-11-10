@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import type { ReactNode } from "react"
-import { Lock, RefreshCw } from "lucide-react"
+import { Lock, RefreshCw } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { Lottie } from "@/components/ui/lottie"
 import { EMPTY_BOX, LOCK, LOADER, SPARKLES } from "@/components/shop/shop-art"

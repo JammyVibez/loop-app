@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { AlertTriangle } from "lucide-react"
+import { AlertTriangle } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 interface ConfirmDialogProps {

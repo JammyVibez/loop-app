@@ -22,7 +22,7 @@ import { AnimatedCardFrame } from "@/components/cosmetics/animated-card-frame"
 import { type CosmeticItem, type ActiveCosmetics, resolveEffectData } from "@/lib/cosmetics"
 import { useTheme3D } from "@/providers/theme-3d-provider"
 import { useAuth } from "@/hooks/use-auth"
-import { Coins, Crown, Eye, Gift, Heart, MessageCircle, Zap, Wand2 } from "lucide-react"
+import { Coins, Crown, Eye, Gift, Heart, MessageCircle, Zap, Wand2 } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 /** The catalogue row shape, defined once in `lib/shop-catalog`. */

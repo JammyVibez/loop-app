@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { WifiOff, RefreshCw, Home } from "lucide-react"
+import { WifiOff, RefreshCw, Home } from "@/components/icons/lucide-compat"
 
 export default function OfflinePage() {
   return (

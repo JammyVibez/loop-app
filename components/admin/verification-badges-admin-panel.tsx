@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { ProxyImg } from "@/components/ui/proxy-img"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, Save, Trash2, Power, Check, Star, Shield, Crown, Zap, Search, Award } from "lucide-react"
+import { Plus, Save, Trash2, Power, Check, Star, Shield, Crown, Zap, Search, Award } from "@/components/icons/lucide-compat"
 import { Spinner } from "@/components/ui/skeletons"
 
 interface BadgeRow {

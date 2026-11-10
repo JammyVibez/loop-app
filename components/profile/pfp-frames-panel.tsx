@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { Check, Crown, Frame, Lock, UserRound } from "lucide-react"
+import { Check, Crown, Frame, Lock, UserRound } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Mic } from "lucide-react"
+import { Mic } from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"

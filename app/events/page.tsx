@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
-import { Calendar, Radio, Users, Plus, Clock, ExternalLink, RefreshCw, Flame } from "lucide-react"
+import { Calendar, Radio, Users, Plus, Clock, ExternalLink, RefreshCw, Flame } from "@/components/icons/lucide-compat"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"

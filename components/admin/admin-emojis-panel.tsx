@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
 import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { formatDistanceToNow } from "date-fns"
-import { Smile, Plus, RefreshCw, Trash2, Eye, EyeOff, Search, Upload, X } from "lucide-react"
+import { Smile, Plus, RefreshCw, Trash2, Eye, EyeOff, Search, Upload, X } from "@/components/icons/lucide-compat"
 import { Spinner } from "@/components/ui/skeletons"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 

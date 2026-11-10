@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { GitBranch, Heart, Zap, ChevronRight, ExternalLink, Plus, RefreshCw, ZoomIn, ZoomOut } from "lucide-react"
+import { GitBranch, Heart, Zap, ChevronRight, ExternalLink, Plus, RefreshCw, ZoomIn, ZoomOut } from "@/components/icons/lucide-compat"
 import Link from "next/link"
 import { FreshnessTimestamp } from "@/components/ui/freshness-timestamp"
 

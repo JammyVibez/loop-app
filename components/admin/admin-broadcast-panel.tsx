@@ -32,7 +32,7 @@ import {
   Shuffle,
   TrendingUp,
   Users,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 type Scope = "all" | "random"
 

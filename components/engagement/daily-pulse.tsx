@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Coins, Flame, Gift, ShoppingBag, Zap } from "lucide-react"
+import { Coins, Flame, Gift, ShoppingBag, Zap } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"

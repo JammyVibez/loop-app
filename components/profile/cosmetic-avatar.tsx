@@ -13,7 +13,7 @@ import {
   accessoryFromItem,
 } from "@/lib/cosmetics"
 import { AccessoryIcon, BadgeStarIcon } from "@/components/cosmetics/accessory-icons"
-import { UserRound } from "lucide-react"
+import { UserRound } from "@/components/icons/lucide-compat"
 
 type Props = {
   src?: string | null

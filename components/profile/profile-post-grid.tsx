@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { AlertCircle, BarChart3, Eye, EyeOff, Heart, LayoutGrid, List, Loader2, MessageCircle, Newspaper, Pin, PinOff, Vote, Swords, Users, Play } from "lucide-react"
+import { AlertCircle, BarChart3, Eye, EyeOff, Heart, LayoutGrid, List, Loader2, MessageCircle, Newspaper, Pin, PinOff, Vote, Swords, Users, Play } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 import { PostAnalyticsDialog } from "@/components/analytics/post-analytics-dialog"
 import { LoopCard } from "@/components/loop-card"

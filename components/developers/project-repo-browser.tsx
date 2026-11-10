@@ -28,7 +28,7 @@ import {
   Play,
   Zap,
   TerminalSquare,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 interface RepoFile {
   path: string

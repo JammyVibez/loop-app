@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Send, Check, Users, Share2, Film, Zap } from "lucide-react"
+import { Search, Send, Check, Users, Share2, Film, Zap } from "@/components/icons/lucide-compat"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import {
   Dialog,

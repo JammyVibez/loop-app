@@ -7,7 +7,7 @@ import {
   AtSign, Bell, CheckCheck, CheckCircle2, Heart, MessageCircle,
   Trash2, UserPlus, XCircle, Gift, Star, Repeat2,
   Shield, Award, TrendingUp, Users, Radio, Flame, BadgeCheck, Quote
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
