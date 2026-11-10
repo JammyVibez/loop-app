@@ -190,12 +190,14 @@ export default function RootLayout({
                 try {
                   var stored = localStorage.getItem('loop-theme');
                   var theme = stored || 'system';
+                  var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
                   var isDark = false;
                   if (theme === 'system') {
-                    isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    isDark = prefersDark;
                     theme = isDark ? 'dark' : 'light';
                   } else {
-                    isDark = theme === 'dark' || theme === 'midnight';
+                    isDark = theme === 'dark' || theme === 'midnight' ||
+                      ((theme === 'sakura' || theme === 'forest') && prefersDark);
                   }
                   if (isDark) {
                     document.documentElement.classList.add('dark');

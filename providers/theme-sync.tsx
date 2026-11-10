@@ -14,7 +14,7 @@ import { useTheme } from "next-themes"
  * next-themes puts the class on.
  */
 export function ThemeSync() {
-  const { theme } = useTheme()
+  const { theme, systemTheme } = useTheme()
 
   useEffect(() => {
     const root = document.documentElement
@@ -24,13 +24,17 @@ export function ThemeSync() {
       root.setAttribute("data-theme", theme)
     }
 
-    // Sync dark class: all non-light themes need it
-    if (theme === "light" || !theme) {
-      root.classList.remove("dark")
-    } else {
-      root.classList.add("dark")
-    }
-  }, [theme])
+    // Dark is explicit for the two dark palettes; the system choice and
+    // dual-mode palettes follow the OS preference. Previously every custom
+    // palette was treated as dark, causing a light-to-dark mismatch after
+    // hydration for Sakura/Forest and for the System setting.
+    const isDark =
+      theme === "dark" ||
+      theme === "midnight" ||
+      ((theme === "system" || theme === "sakura" || theme === "forest") && systemTheme === "dark")
+
+    root.classList.toggle("dark", isDark)
+  }, [theme, systemTheme])
 
   return null
 }
