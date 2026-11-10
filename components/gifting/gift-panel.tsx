@@ -293,9 +293,9 @@ export function GiftPanel({
 
         toast({
           title: "Gifted successfully 🎁",
-          description: `${gift.name} sent to ${recipient.display_name}.${
-            data.delivery_warning ? " The collectible will finish delivering shortly." : ""
-          }`,
+          description: data.pending_acceptance
+            ? `${gift.name} is waiting for ${recipient.display_name} to open it.`
+            : `${gift.name} sent to ${recipient.display_name}.`,
         })
 
         onGiftSent?.({

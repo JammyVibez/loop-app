@@ -38,16 +38,6 @@ function isGiftable(item: any) {
   return false
 }
 
-function addPremiumDuration(base: Date, durationRaw?: string) {
-  const duration = String(durationRaw || "1 month").toLowerCase()
-  const next = new Date(base)
-  const amount = Number.parseInt(duration, 10) || 1
-  if (duration.includes("week")) next.setDate(next.getDate() + amount * 7)
-  else if (duration.includes("year")) next.setFullYear(next.getFullYear() + amount)
-  else next.setMonth(next.getMonth() + amount)
-  return next
-}
-
 type ResolvedGift = {
   canonical: CanonicalGift | null
   shopItem: any | null
@@ -177,80 +167,6 @@ function isMissingColumnError(error: any) {
     /column .* does not exist/i.test(message) ||
     /could not find the '.*' column/i.test(message)
   )
-}
-
-/**
- * Grant the recipient their collectible.
- *
- * The previous implementation used an `upsert` with
- * `onConflict: "user_id,item_id,item_type"`. Both matching indexes in the
- * database are *partial* (`WHERE item_id IS NOT NULL`), which Postgres cannot
- * infer from a plain ON CONFLICT target, so every non-coin gift threw 42P10
- * ("no unique or exclusion constraint matching the ON CONFLICT
- * specification"), refunded the sender and returned a 500. Coin gifts skip
- * this branch — hence only coins worked.
- *
- * Writes are now a read-then-insert against a minimal column set, with a
- * retry without optional columns for older schemas. Delivery is best-effort:
- * the gift record below is the receipt, so a collectible write can never turn
- * a successful charge into an error response.
- */
-async function grantInventory(
-  supabase: ReturnType<typeof createServerClient>,
-  input: {
-    userId: string
-    giftId: string
-    gift: ResolvedGift
-  },
-): Promise<{ delivered: boolean; warning?: string }> {
-  const { userId, giftId, gift } = input
-
-  try {
-    // Already owned? Then the collectible is delivered.
-    let existingQuery = supabase
-      .from("user_inventory")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("item_name", gift.name)
-      .eq("item_type", gift.subtype)
-
-    existingQuery = gift.shopItemId
-      ? existingQuery.eq("item_id", gift.shopItemId)
-      : existingQuery.is("item_id", null)
-
-    const { data: existing } = await existingQuery.limit(1).maybeSingle()
-    if (existing?.id) return { delivered: true }
-
-    const baseRow: Record<string, any> = {
-      user_id: userId,
-      item_id: gift.shopItemId,
-      item_name: gift.name,
-      item_type: gift.subtype,
-      item_data: gift.itemData,
-      is_active: false,
-      source: "gift",
-      gift_id: giftId,
-    }
-
-    const extendedRow: Record<string, any> = {
-      ...baseRow,
-      category: gift.category,
-      rarity: gift.rarity,
-      preview_data: gift.shopItem?.preview_data || {},
-      acquired_from: "gift",
-      acquired_at: new Date().toISOString(),
-    }
-
-    let { error } = await supabase.from("user_inventory").insert(extendedRow as any)
-    if (error && isMissingColumnError(error)) {
-      ;({ error } = await supabase.from("user_inventory").insert(baseRow as any))
-    }
-    if (error) throw error
-    return { delivered: true }
-  } catch (error: any) {
-    console.error("Gift inventory delivery failed:", error?.message || error)
-    return { delivered: false, warning: "Gift recorded; collectible delivery is pending." }
-  }
 }
 
 /** Re-credit the sender without trusting a stale balance snapshot. */
@@ -387,53 +303,6 @@ export async function POST(request: NextRequest) {
     const newBalance = Number(deductedRows[0].loop_coins)
     const giftType = normalizeGiftType(gift.type)
 
-    // Deliver the benefit. Only coins/premium change the profile; every other
-    // gift is a collectible, granted after the gift receipt below exists so
-    // its `gift_id` always references a real row.
-    let delivery: { delivered: boolean; warning?: string } = { delivered: true }
-    try {
-      if (giftType === "coins") {
-        const { error } = await supabase
-          .from("profiles")
-          .update({
-            loop_coins: Number(recipient.loop_coins || 0) + gift.coinAmount,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", recipientId)
-        if (error) throw error
-      } else if (giftType === "premium") {
-        const currentExpiry =
-          recipient.premium_expires_at && new Date(recipient.premium_expires_at) > new Date()
-            ? new Date(recipient.premium_expires_at)
-            : new Date()
-        const premiumExpiresAt = addPremiumDuration(currentExpiry, gift.itemData?.duration)
-        const { error } = await supabase
-          .from("profiles")
-          .update({
-            is_premium: true,
-            premium_expires_at: premiumExpiresAt.toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", recipientId)
-        if (error) throw error
-      } else {
-        delivery = {
-          delivered: false,
-          warning: "Collectible delivery is pending.",
-        }
-      }
-    } catch (deliveryError: any) {
-      console.error("Gift delivery error:", deliveryError?.message || deliveryError)
-      await refund(supabase, user.id, price)
-      return NextResponse.json(
-        {
-          success: false,
-          error: "The gift couldn't be delivered, so your coins were returned. Please try again.",
-        },
-        { status: 502 },
-      )
-    }
-
     const giftValue = {
       shop_item_id: gift.shopItemId,
       canonical_id: gift.canonical?.id || null,
@@ -445,6 +314,10 @@ export async function POST(request: NextRequest) {
       duration_ms: gift.durationMs,
       coins_amount: gift.coinAmount || null,
       is_anonymous: isAnonymous,
+      // The benefit is released only when the recipient accepts. Older gifts
+      // (without this marker) were delivered inline and remain acknowledgements
+      // rather than pending claims.
+      delivery_pending: true,
     }
 
     const loopId =
@@ -473,7 +346,6 @@ export async function POST(request: NextRequest) {
       category: gift.category,
       icon_url: gift.iconUrl,
       is_active: true,
-      delivered_at: new Date().toISOString(),
     }
 
     const coreRecord: Record<string, any> = {
@@ -488,7 +360,6 @@ export async function POST(request: NextRequest) {
       status: "sent",
       context_type: context?.type || null,
       context_id: context?.id || null,
-      delivered_at: new Date().toISOString(),
     }
 
     let giftRecord: any = null
@@ -534,15 +405,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // After the receipt exists, deliver the collectible.
-    if (giftType !== "coins" && giftType !== "premium") {
-      delivery = await grantInventory(supabase, {
-        userId: recipientId,
-        giftId: giftRecord.id,
-        gift,
-      })
-    }
-
     const { data: transaction } = await supabase
       .from("gift_transactions")
       .insert({
@@ -558,46 +420,21 @@ export async function POST(request: NextRequest) {
       .select("*")
       .maybeSingle()
 
-    await supabase.from("coin_transactions").insert([
-      {
-        user_id: user.id,
-        amount: -price,
-        transaction_type: "gift_sent",
-        description: `Sent ${gift.name} to @${recipient.username}`,
-        reference_id: giftRecord.id,
-      },
-      ...(giftType === "coins"
-        ? [
-            {
-              user_id: recipientId,
-              amount: gift.coinAmount,
-              transaction_type: "gift_received",
-              description: `Received ${gift.name} from ${isAnonymous ? "someone" : `@${sender.username}`}`,
-              reference_id: giftRecord.id,
-            },
-          ]
-        : []),
-    ])
+    await supabase.from("coin_transactions").insert({
+      user_id: user.id,
+      amount: -price,
+      transaction_type: "gift_sent",
+      description: `Sent ${gift.name} to @${recipient.username}`,
+      reference_id: giftRecord.id,
+    })
 
-    // Creator earnings + XP. Coin gifts already deposit spendable coins, so
-    // only item gifts convert their cost into withdrawable earnings.
+    // Sending earns the sender XP immediately. Recipient rewards (coins,
+    // premium, collectible, earnings and gift XP) wait for acceptance.
     try {
-      const { awardEarnings, coinsToEarnings } = await import("@/lib/earnings")
       const { awardXp } = await import("@/lib/xp")
-      if (giftType !== "coins") {
-        const earningAmount = coinsToEarnings(price)
-        if (earningAmount > 0) {
-          await awardEarnings(supabase, recipientId, earningAmount, {
-            source: "gift",
-            reference_id: giftRecord.id,
-            description: `Earnings from ${gift.name}`,
-          })
-        }
-      }
       await awardXp(supabase, user.id, "gift_sent", `Sent gift ${gift.name}`)
-      await awardXp(supabase, recipientId, "gift_received", `Received gift ${gift.name}`)
     } catch (xpEarnError) {
-      console.error("Gift XP/earnings error:", xpEarnError)
+      console.error("Gift XP error:", xpEarnError)
     }
 
     const notificationPayload = {
@@ -607,6 +444,10 @@ export async function POST(request: NextRequest) {
       gift_type: giftType,
       gift_rarity: gift.rarity,
       gift_art: gift.art,
+      gift_palette: gift.effects?.palette || null,
+      gift_duration_ms: gift.durationMs,
+      gift_cost: price,
+      delivery_pending: true,
       sender_id: isAnonymous ? null : user.id,
       sender_name: isAnonymous ? null : sender.display_name,
       message: message || null,
@@ -663,6 +504,10 @@ export async function POST(request: NextRequest) {
           gift_type: giftType,
           rarity: gift.rarity,
           art: gift.art,
+          palette: gift.effects?.palette || null,
+          duration_ms: gift.durationMs,
+          cost: price,
+          is_anonymous: isAnonymous,
           sender: isAnonymous
             ? null
             : {
@@ -673,6 +518,7 @@ export async function POST(request: NextRequest) {
               },
           message: message || null,
           context,
+          created_at: new Date().toISOString(),
         },
       })
     } catch {
@@ -691,8 +537,9 @@ export async function POST(request: NextRequest) {
       transaction_id: transaction?.id || null,
       gift_id: giftRecord.id,
       new_balance: newBalance,
-      delivered: delivery.delivered,
-      delivery_warning: delivery.warning || null,
+      delivered: false,
+      delivery_warning: null,
+      pending_acceptance: true,
       gift: {
         id: giftRecord.id,
         shop_item_id: gift.shopItemId,

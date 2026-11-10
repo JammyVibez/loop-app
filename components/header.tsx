@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { AppLogo } from "@/components/brand/app-logo"
@@ -59,90 +59,6 @@ function LogoMark() {
   )
 }
 
-type PendingHeaderTap = {
-  target: HTMLElement
-  pointerId: number
-  x: number
-  y: number
-  at: number
-  clicked: boolean
-  timer?: number
-}
-
-/**
- * Safari can swallow the click when a tap lands while momentum scrolling is
- * still settling. Keep normal clicks untouched, but if a clean tap on a header
- * control produces no click event shortly after pointerup, replay one.
- *
- * The header itself never hides on scroll, so there is no scroll-coupled
- * appear/disappear logic to fight here.
- */
-function useReliableHeaderTaps() {
-  const pendingRef = useRef<PendingHeaderTap | null>(null)
-
-  const clear = useCallback(() => {
-    const pending = pendingRef.current
-    if (pending?.timer) window.clearTimeout(pending.timer)
-    pendingRef.current = null
-  }, [])
-
-  useEffect(() => clear, [clear])
-
-  const onClickCapture = useCallback(() => {
-    if (!pendingRef.current) return
-    pendingRef.current.clicked = true
-    window.setTimeout(clear, 0)
-  }, [clear])
-
-  const onPointerDown = useCallback((event: React.PointerEvent<HTMLElement>) => {
-    if (event.pointerType === "mouse" || event.button !== 0) return
-    const target = (event.target as Element | null)?.closest<HTMLElement>(
-      'a[href], button, input:not([type="hidden"]), [role="button"]',
-    )
-    if (!target || target.hasAttribute("disabled") || target.getAttribute("aria-disabled") === "true") return
-    clear()
-    pendingRef.current = {
-      target,
-      pointerId: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-      at: Date.now(),
-      clicked: false,
-    }
-  }, [clear])
-
-  const onPointerUp = useCallback((event: React.PointerEvent<HTMLElement>) => {
-    const pending = pendingRef.current
-    if (!pending || pending.pointerId !== event.pointerId) return
-    const dx = event.clientX - pending.x
-    const dy = event.clientY - pending.y
-    if (Math.hypot(dx, dy) > 12 || Date.now() - pending.at > 700) {
-      clear()
-      return
-    }
-    if (!pending.target.isConnected) {
-      clear()
-      return
-    }
-    pending.timer = window.setTimeout(() => {
-      const current = pendingRef.current
-      if (!current || current.clicked || !current.target.isConnected) {
-        clear()
-        return
-      }
-      current.target.click()
-      clear()
-    }, 320)
-  }, [clear])
-
-  return {
-    onClickCapture,
-    onPointerDown,
-    onPointerUp,
-    onPointerCancel: clear,
-  }
-}
-
 /**
  * Bar density: the header carries only the brand, search, the coins balance and
  * notifications. Everything used less often (theme, chat) lives in the profile
@@ -163,7 +79,6 @@ export function Header() {
   const { theme, setTheme } = useTheme()
   const router = useRouter()
   const pathname = usePathname()
-  const headerTapHandlers = useReliableHeaderTaps()
 
   const handleLogoClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (pathname !== "/") return
@@ -196,10 +111,7 @@ export function Header() {
 
   if (!user) {
     return (
-      <header
-        className="sticky top-0 z-50 w-full touch-manipulation border-b border-border/70 bg-background/80 backdrop-blur-xl [&_a]:touch-manipulation [&_button]:touch-manipulation"
-        {...headerTapHandlers}
-      >
+      <header className="sticky top-0 z-50 w-full touch-manipulation border-b border-border/70 bg-background/80 backdrop-blur-xl [&_a]:touch-manipulation [&_button]:touch-manipulation">
         <div className="container mx-auto flex h-16 items-center justify-between px-3 sm:px-6">
           <Link href="/" onClick={handleLogoClick} className="group flex items-center gap-2.5">
             <LogoMark />
@@ -228,10 +140,7 @@ export function Header() {
   const isAdmin = Boolean(user.staff_role || user.is_admin || user.is_moderator)
 
   return (
-    <header
-      className="sticky top-0 z-[45] w-full touch-manipulation border-b border-border/70 bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 [&_a]:touch-manipulation [&_button]:touch-manipulation"
-      {...headerTapHandlers}
-    >
+    <header className="sticky top-0 z-[45] w-full touch-manipulation border-b border-border/70 bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 [&_a]:touch-manipulation [&_button]:touch-manipulation">
       <div
         className="container mx-auto flex h-16 items-center justify-between gap-2 px-3 sm:px-4"
         onClick={handleEmptyHeaderTap}
@@ -328,6 +237,7 @@ export function Header() {
               <button
                 type="button"
                 data-tour="nav-profile"
+                aria-label="Open profile menu"
                 className="relative flex h-10 w-10 shrink-0 flex-none touch-manipulation items-center justify-center rounded-full border border-border/70 bg-muted/50 p-0 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 <AvatarWithFrame

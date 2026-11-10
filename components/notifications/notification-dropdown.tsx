@@ -278,6 +278,7 @@ export function NotificationDropdown() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
+          aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : "Notifications"}
           className="relative flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted/60 transition-colors"
         >
           <AnimatedIconView component={FilledBellIcon} size={22} className="text-muted-foreground" />
@@ -289,10 +290,11 @@ export function NotificationDropdown() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-[360px] max-w-[calc(100vw-1.5rem)] p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-lg"
+        className="w-[min(360px,calc(100vw-1.5rem))] p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-lg"
         align="end"
+        side="bottom"
         sideOffset={8}
-        forceMount
+        collisionPadding={12}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
@@ -315,13 +317,13 @@ export function NotificationDropdown() {
                 Mark all read
               </button>
             )}
-            <Link href="/settings">
-              <button
-                type="button"
-                className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-              >
-                <Settings className="h-3.5 w-3.5" />
-              </button>
+            <Link
+              href="/settings"
+              aria-label="Notification settings"
+              onClick={() => setIsOpen(false)}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+            >
+              <Settings className="h-3.5 w-3.5" />
             </Link>
           </div>
         </div>
@@ -408,22 +410,28 @@ export function NotificationDropdown() {
                     })
 
                     return (
-                      <button
+                      <div
                         key={notification.id}
-                        type="button"
-                        className={`w-full text-left px-3 py-2.5 flex items-start gap-2.5 transition-colors hover:bg-muted/40 ${
+                        className={`group relative w-full text-left transition-colors hover:bg-muted/40 ${
                           isUnread ? "bg-muted/40" : ""
                         }`}
-                        onClick={() => {
-                          if (isUnread) void markAsRead(notification.id)
-                          // Internal targets route client-side; only genuinely
-                          // external ones need a document navigation.
-                          if (href) {
-                            if (href.startsWith("/")) router.push(href)
-                            else window.location.assign(href)
-                          }
-                        }}
                       >
+                        {/* The row action is a separate overlay so quick-reply
+                            controls are never nested inside another button. */}
+                        <button
+                          type="button"
+                          aria-label={`Open notification: ${notification.title}`}
+                          className="absolute inset-0 z-0 cursor-pointer rounded-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                          onClick={() => {
+                            setIsOpen(false)
+                            if (isUnread) void markAsRead(notification.id)
+                            if (href) {
+                              if (href.startsWith("/")) router.push(href)
+                              else window.location.assign(href)
+                            }
+                          }}
+                        />
+                        <div className="pointer-events-none relative z-10 flex w-full items-start gap-2.5 px-3 py-2.5">
                         {/* Actor avatar(s) */}
                         <div className="relative shrink-0 mt-0.5">
                           {isGrouped ? (
@@ -490,13 +498,16 @@ export function NotificationDropdown() {
                           </div>
                           {/* Quick reply for DMs and comments */}
                           {!isGrouped && (notification.type === "message" || notification.type === "comment" || notification.type === "reply") && (
-                            <NotificationQuickReply notification={notification} compact />
+                            <div className="pointer-events-auto relative z-20 mt-1">
+                              <NotificationQuickReply notification={notification} compact />
+                            </div>
                           )}
                         </div>
 
                         {/* Arrow */}
-                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 shrink-0 mt-2" />
-                      </button>
+                        <ChevronRight className="pointer-events-none h-3.5 w-3.5 text-muted-foreground/30 shrink-0 mt-2" />
+                        </div>
+                      </div>
                     )
                   })}
                 </div>
@@ -507,13 +518,12 @@ export function NotificationDropdown() {
 
         {/* Footer */}
         <div className="border-t border-border/40 px-2 py-1.5">
-          <Link href="/notifications" className="block" onClick={() => setIsOpen(false)}>
-            <button
-              type="button"
-              className="w-full rounded-lg py-1.5 text-center text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
-            >
-              See all notifications
-            </button>
+          <Link
+            href="/notifications"
+            className="block w-full rounded-lg py-1.5 text-center text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+            onClick={() => setIsOpen(false)}
+          >
+            See all notifications
           </Link>
         </div>
       </DropdownMenuContent>

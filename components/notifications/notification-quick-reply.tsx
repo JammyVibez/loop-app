@@ -87,6 +87,9 @@ export function NotificationQuickReply({ notification, compact }: { notification
             rows={1}
             className="max-h-24 min-h-[34px] flex-1 resize-none rounded-xl text-xs"
             onKeyDown={(e) => {
+              // The composer lives inside a dropdown menu; keep its typeahead
+              // keyboard handling from swallowing normal typing.
+              e.stopPropagation()
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault()
                 void send()
