@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { AnimatedEmoji } from "@/components/emoji/animated-emoji"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -211,7 +212,7 @@ export function CoLoopActivityRail({
                                 }}
                                 className="px-0.5 text-sm transition-transform hover:scale-125"
                               >
-                                {emoji}
+                                <AnimatedEmoji emoji={emoji} size={14} />
                               </button>
                             ))}
                           </div>
@@ -235,7 +236,7 @@ export function CoLoopActivityRail({
                                       : "bg-muted text-muted-foreground ring-border/60"
                                   }`}
                                 >
-                                  {emoji} {users.length}
+                                  <AnimatedEmoji emoji={emoji} size={12} /> {users.length}
                                 </button>
                               )
                             })}

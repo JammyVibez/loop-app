@@ -1,6 +1,7 @@
 "use client"
 
 import { ProtectedMedia, SpoilerMedia } from "@/components/media-protection"
+import { AnimatedEmoji } from "@/components/emoji/animated-emoji"
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
@@ -1098,7 +1099,7 @@ export function LoopDetailClient({ loopId }: { loopId: string }) {
                     : "border-border/60 bg-muted/40 hover:border-border hover:bg-muted"
                 )}
               >
-                <span>{emoji}</span>
+                <AnimatedEmoji emoji={emoji} size={16} />
                 {reactions[emoji] ? (
                   <span className="text-[10px] font-bold text-primary">{formatCompact(reactions[emoji])}</span>
                 ) : null}

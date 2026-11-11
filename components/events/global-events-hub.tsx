@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { AnimatedEmoji } from "@/components/emoji/animated-emoji"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -380,7 +381,7 @@ export function GlobalEventsHub() {
                       className="absolute bottom-16 text-3xl animate-bounce transition-all duration-1000"
                       style={{ left: `${rx.x}%` }}
                     >
-                      {rx.emoji}
+                      <AnimatedEmoji emoji={rx.emoji} size={30} />
                     </div>
                   ))}
                 </div>
@@ -422,7 +423,7 @@ export function GlobalEventsHub() {
                         onClick={() => handleSendReaction(emoji)}
                         className="rounded-full bg-white/10 hover:bg-white/20 p-2 text-lg transition active:scale-125"
                       >
-                        {emoji}
+                        <AnimatedEmoji emoji={emoji} size={18} />
                       </button>
                     ))}
                   </div>

@@ -1,6 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState, type TouchEvent as ReactTouchEvent } from "react"
+import { AnimatedEmoji } from "@/components/emoji/animated-emoji"
+import { MediaEmojiPicker } from "@/components/content/media-emoji-picker"
+import { EmojiPicker } from "@/components/emoji/emoji-picker"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
@@ -30,6 +33,7 @@ import {
   Eye,
   Hash,
   ImagePlus,
+  Plus,
   Loader2,
   Lock,
   MoreHorizontal,
@@ -186,6 +190,7 @@ function MessageRow({
   onJump: (parentId: string) => void
 }) {
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [fullPickerOpen, setFullPickerOpen] = useState(false)
   const [dragX, setDragX] = useState(0)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(reply.content)
@@ -376,7 +381,7 @@ function MessageRow({
                         : "bg-muted text-muted-foreground hover:bg-muted/70 hover:text-foreground",
                     )}
                   >
-                    <span className="leading-none">{rx.emoji}</span>
+                    <AnimatedEmoji emoji={rx.emoji} size={14} className="leading-none" />
                     <span className="text-[11px] font-bold tabular-nums leading-none">{rx.count}</span>
                   </button>
                 ))}
@@ -430,6 +435,19 @@ function MessageRow({
           </div>
         )}
 
+        {pickerOpen && fullPickerOpen && canInteract && (
+          <div className="absolute right-1 top-full z-20 mt-1 w-72 rounded-2xl border border-border bg-card p-2 shadow-xl">
+            <EmojiPicker
+              onSelect={(emoji) => {
+                onReact(reply, emoji)
+                setFullPickerOpen(false)
+                setPickerOpen(false)
+              }}
+              maxHeightClassName="max-h-40"
+            />
+          </div>
+        )}
+
         {pickerOpen && canInteract && (
           <div className="absolute -top-9 right-1 z-10 flex items-center gap-0.5 rounded-full border border-border bg-card px-1.5 py-1 shadow-lg">
             {QUICK_EMOJIS.map((emoji) => (
@@ -440,16 +458,29 @@ function MessageRow({
                 onClick={() => {
                   onReact(reply, emoji)
                   setPickerOpen(false)
+                  setFullPickerOpen(false)
                 }}
                 className="rounded-full px-1 text-base leading-none transition-transform hover:scale-125"
               >
-                {emoji}
+                <AnimatedEmoji emoji={emoji} size={16} />
               </button>
             ))}
             <button
               type="button"
+              aria-label="More reactions"
+              title="More reactions"
+              onClick={() => setFullPickerOpen((value) => !value)}
+              className="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
               aria-label="Close"
-              onClick={() => setPickerOpen(false)}
+              onClick={() => {
+                setPickerOpen(false)
+                setFullPickerOpen(false)
+              }}
               className="ml-0.5 rounded-full p-1 text-muted-foreground hover:bg-muted"
             >
               <X className="h-3 w-3" />
@@ -1081,6 +1112,7 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
                   }}
                 />
               </label>
+              <MediaEmojiPicker onSelectEmoji={(emoji) => setReplyText((prev) => prev + emoji)} />
               <Textarea
                 ref={inputRef}
                 value={replyText}

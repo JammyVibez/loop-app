@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { MediaEmojiPicker } from "@/components/content/media-emoji-picker"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
@@ -1078,6 +1079,7 @@ function NewThreadSheet({
                 }}
               />
             </label>
+            <MediaEmojiPicker onSelectEmoji={(emoji) => setContent((prev) => prev + emoji)} />
             {media && (
               <button
                 type="button"

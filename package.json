@@ -15,6 +15,7 @@
     "db:setup:production": "node scripts/run-production-setup.mjs",
     "db:setup:production:seed": "node scripts/run-production-setup.mjs --with-seed",
     "db:apply:pending": "node scripts/apply-pending-schema.mjs",
+    "emoji:mirror": "node scripts/mirror-animated-emojis.mjs",
     "check:og": "node scripts/check-og.mjs",
     "test:responsive": "node scripts/responsive-browser-smoke.mjs"
   },

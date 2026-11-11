@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { UrlPreviewCard } from "./url-preview-card"
 import { MarkdownContent } from "./markdown-content"
 import { openInAppBrowser } from "@/components/in-app-browser/in-app-browser"
+import { EmojiText } from "@/components/emoji/animated-emoji"
 
 const HASHTAG_RE = /#([a-zA-Z0-9_]{1,50})\b/g
 const URL_RE = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/g
@@ -225,7 +226,7 @@ export function RichContent({
             return <MarkdownContent key={`${i}-${part}`} content={part} />
           }
 
-          return <span key={`${i}-${part}`}>{part}</span>
+          return <EmojiText key={`${i}-${part}`} text={part} />
         })}
       </Tag>
 

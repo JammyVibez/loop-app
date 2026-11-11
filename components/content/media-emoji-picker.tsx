@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Smile, Image as ImageIcon, Zap, Search } from "@/components/icons/lucide-compat"
+import { EmojiPicker } from "@/components/emoji/emoji-picker"
 
 interface MediaEmojiPickerProps {
   onSelectEmoji: (emoji: string) => void
@@ -14,25 +15,6 @@ interface MediaEmojiPickerProps {
   triggerClassName?: string
   isPro?: boolean
 }
-
-const EMOJI_CATEGORIES = [
-  {
-    name: "Popular",
-    emojis: ["😀", "😂", "😍", "🔥", "🚀", "✨", "❤️", "👍", "🙌", "💯", "🎉", "😎", "🥳", "⚡"],
-  },
-  {
-    name: "Reactions",
-    emojis: ["👏", "🤔", "🤯", "😭", "😴", "👀", "🙈", "💀", "💩", "🤮", "🤩", "💖", "🙏", "💪"],
-  },
-  {
-    name: "Objects & Tech",
-    emojis: ["💻", "📱", "🎮", "🪙", "🎨", "🎵", "🏆", "💎", "⭐", "🔮", "💡", "🛠️", "🚀", "🌐"],
-  },
-  {
-    name: "Nature & Animals",
-    emojis: ["🐱", "🐶", "🦊", "🦁", "🦄", "🌈", "🌸", "🍕", "🍔", "☕", "🍩", "🍷", "🍀", "🌿"],
-  },
-]
 
 const SAMPLE_GIFS = [
   { title: "Mind Blown", url: "https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif" },
@@ -75,7 +57,7 @@ export function MediaEmojiPicker({
 }: MediaEmojiPickerProps) {
   const [open, setOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("emojis")
-  const [search, setSearch] = useState("")
+
   const [gifSearch, setGifSearch] = useState("")
   const [gifsList, setGifsList] = useState<any[]>(SAMPLE_GIFS)
   const [loadingGifs, setLoadingGifs] = useState(false)
@@ -202,43 +184,14 @@ export function MediaEmojiPicker({
             </TabsList>
           </div>
 
-          {/* Emojis Tab */}
-          <TabsContent value="emojis" className="p-3 m-0 space-y-3">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                placeholder="Search emojis..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-8 h-8 text-xs bg-muted border-border text-foreground placeholder:text-muted-foreground rounded-lg"
-              />
-            </div>
-            <div className="max-h-56 overflow-y-auto space-y-3 pr-1">
-              {EMOJI_CATEGORIES.map((cat) => {
-                const filtered = cat.emojis.filter((e) => !search || e.includes(search))
-                if (filtered.length === 0) return null
-                return (
-                  <div key={cat.name}>
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{cat.name}</p>
-                    <div className="grid grid-cols-7 gap-1">
-                      {filtered.map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => {
-                            onSelectEmoji(emoji)
-                            setOpen(false)
-                          }}
-                          className="h-8 w-8 rounded-lg hover:bg-muted text-lg flex items-center justify-center transition-transform hover:scale-110"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+          {/* Emojis Tab — animated Telegram emoji + standard emoji */}
+          <TabsContent value="emojis" className="p-3 m-0">
+            <EmojiPicker
+              onSelect={(emoji) => {
+                onSelectEmoji(emoji)
+                setOpen(false)
+              }}
+            />
           </TabsContent>
 
           {/* GIFs Tab */}
@@ -339,7 +292,7 @@ export function MediaEmojiPicker({
               </div>
             ) : (
               <div className="grid grid-cols-5 gap-2 max-h-60 overflow-y-auto pr-1">
-                {curatedEmojis.filter(e => !search || e.shortcode.toLowerCase().includes(search.toLowerCase())).map((emoji) => (
+                {curatedEmojis.map((emoji) => (
                   <button
                     key={emoji.shortcode}
                     type="button"

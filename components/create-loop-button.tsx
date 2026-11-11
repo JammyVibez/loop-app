@@ -1,6 +1,7 @@
 "use client"
 
 import { ArrowRightIcon as ArrowNarrowRightIcon } from "@/components/icons"
+import { MediaEmojiPicker } from "@/components/content/media-emoji-picker"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -789,6 +790,7 @@ export function CreateLoopButton({ onLoopCreated, defaultOpen = false, isFab = f
                     >
                       &mdash;
                     </button>
+                    <MediaEmojiPicker onSelectEmoji={(emoji) => setContent((prev) => prev + emoji)} />
                   </div>
                   <span
                     className={cn(

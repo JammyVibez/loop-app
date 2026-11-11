@@ -1,6 +1,8 @@
 "use client"
 
 import { ProtectedMedia } from "@/components/media-protection"
+import { AnimatedEmoji } from "@/components/emoji/animated-emoji"
+import { EmojiPicker } from "@/components/emoji/emoji-picker"
 
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
@@ -2468,7 +2470,7 @@ export function MessagesWorkspace() {
                             : "bg-background/80 text-foreground ring-border/50 hover:bg-muted",
                         )}
                       >
-                        <span className="text-[13px] leading-none">{r.emoji}</span>
+                        <AnimatedEmoji emoji={r.emoji} size={15} className="leading-none" />
                         <span className="tabular-nums">{r.count}</span>
                       </button>
                     ))}
@@ -2500,9 +2502,30 @@ export function MessagesWorkspace() {
                           setActiveActionsId(null)
                         }}
                       >
-                        {emoji}
+                        <AnimatedEmoji emoji={emoji} size={15} />
                       </button>
                     ))}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="More reactions"
+                          title="More reactions"
+                          className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/[0.08] hover:text-foreground"
+                        >
+                          <Smile className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align={mine ? "end" : "start"} side="top" className="w-72 p-2">
+                        <EmojiPicker
+                          onSelect={(emoji) => {
+                            void toggleReaction(message, emoji)
+                            setActiveActionsId(null)
+                          }}
+                          maxHeightClassName="max-h-40"
+                        />
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <span className="mx-0.5 h-4 w-px bg-border/70" />
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
