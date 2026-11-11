@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
+import { getIntegrationCredential } from "@/lib/server-settings"
 
 // Merged GIF search endpoint — queries Tenor and Giphy (when API keys are
 // available) plus the admin-curated library stored in Supabase. Curated GIFs
@@ -53,8 +54,10 @@ export async function GET(req: NextRequest) {
       console.error("Curated GIF fetch error:", err)
     }
 
-    const TENOR_KEY = process.env.TENOR_API_KEY || null
-    const GIPHY_KEY = process.env.GIPHY_API_KEY || null
+    // Environment first, then admin_settings — lets the key be rotated from
+    // the database without a redeploy.
+    const TENOR_KEY = await getIntegrationCredential("TENOR_API_KEY", "tenor_api_key")
+    const GIPHY_KEY = await getIntegrationCredential("GIPHY_API_KEY", "giphy_api_key")
 
     // No query means the picker's Trending section, so ask the providers for
     // their featured/trending feed instead of only returning curated GIFs.
