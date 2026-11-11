@@ -113,6 +113,8 @@ export function CommunityShareCard({ communityId, className }: { communityId: st
               }
             : current,
         )
+        // Force the next mount to re-read membership from the server.
+        summaryCache.delete(communityId)
         toast({
           title: pending ? "Request sent" : "Welcome in",
           description: pending ? "A moderator will review your request." : `You joined ${data?.community.name || "this community"}.`,
