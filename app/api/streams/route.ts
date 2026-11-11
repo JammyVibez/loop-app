@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
 import { getUserFromRequest } from "@/lib/server-auth";
+import { generateSnowflakeIdString } from "@/lib/snowflake-id"
 
 export async function GET(request: NextRequest) {
   try {
@@ -105,31 +106,30 @@ export async function POST(request: NextRequest) {
     // configured; never store fabricated placeholder URLs that look like
     // working OBS/HLS endpoints but go nowhere.
     const streamKey = crypto.randomUUID()
-    const streamId = crypto.randomUUID()
     const rtmpUrl = process.env.RTMP_SERVER_URL ? `${process.env.RTMP_SERVER_URL.replace(/\/$/, "")}/${streamKey}` : null
     const hlsUrl = process.env.HLS_SERVER_URL
       ? `${process.env.HLS_SERVER_URL.replace(/\/$/, "")}/${streamKey}/index.m3u8`
       : null
-
-    const { data: stream, error } = await supabase
+    const payload = {
+      streamer_id: user.id,
+      title: title.trim(),
+      description: description?.trim(),
+      category: category || 'general',
+      tags: tags || [],
+      is_premium_only: is_premium_only || false,
+      thumbnail_url,
+      stream_key: streamKey,
+      rtmp_url: rtmpUrl,
+      hls_url: hlsUrl,
+      status: 'preparing',
+      stream_type: 'audio',
+      chat_enabled: true,
+      gifts_enabled: true,
+    }
+    let streamId = generateSnowflakeIdString()
+    const selectStream = () => supabase
       .from('live_streams')
-      .insert({
-        id: streamId,
-        streamer_id: user.id,
-        title: title.trim(),
-        description: description?.trim(),
-        category: category || 'general',
-        tags: tags || [],
-        is_premium_only: is_premium_only || false,
-        thumbnail_url,
-        stream_key: streamKey,
-        rtmp_url: rtmpUrl,
-        hls_url: hlsUrl,
-        status: 'preparing',
-        stream_type: 'audio',
-        chat_enabled: true,
-        gifts_enabled: true
-      })
+      .insert({ id: streamId, ...payload })
       .select(`
         *,
         streamer:profiles!streamer_id (
@@ -142,13 +142,38 @@ export async function POST(request: NextRequest) {
       `)
       .single()
 
+    let { data: stream, error } = await selectStream()
+
+    // Older installations still use UUID primary keys. Retry with their native
+    // ID format only when Postgres specifically rejects the bigint Snowflake.
+    if (error && /invalid input syntax for type uuid/i.test(error.message || "")) {
+      streamId = crypto.randomUUID()
+      const legacy = await supabase
+        .from('live_streams')
+        .insert({ id: streamId, ...payload })
+        .select(`
+          *,
+          streamer:profiles!streamer_id (
+            id,
+            username,
+            display_name,
+            avatar_url, video_avatar_url,
+            is_verified
+          )
+        `)
+        .single()
+      stream = legacy.data
+      error = legacy.error
+    }
+
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     return NextResponse.json({
       success: true,
-      data: { stream }
+      // Keep 64-bit Snowflake IDs as strings; JSON numbers lose precision above 2^53.
+      data: { stream: { ...stream, id: streamId } }
     })
 
   } catch (error) {

@@ -64,9 +64,14 @@ export async function GET(request: NextRequest) {
       .eq("message_id", messageId)
 
     if (!error) {
-      const grouped = groupRows(rows || []).map((reaction) => ({
+      const grouped = (rows?.length
+        ? groupRows(rows)
+        : Array.isArray(message.reactions)
+          ? message.reactions as GroupedReaction[]
+          : []
+      ).map((reaction) => ({
         ...reaction,
-        reacted: reaction.users.includes(user.id),
+        reacted: reaction.users?.includes(user.id) || false,
       }))
       return NextResponse.json({ success: true, reactions: grouped })
     }
@@ -114,43 +119,32 @@ export async function POST(request: NextRequest) {
     if (membershipError) return NextResponse.json({ error: "Could not verify conversation access" }, { status: 500 })
     if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-    let reactions: GroupedReaction[] | null = null
+    let reactions: GroupedReaction[]
 
-    // Try dedicated table first
-    if (action === "add") {
-      const { error } = await supabase.from("message_reactions").upsert(
-        {
-          message_id: messageId,
-          user_id: user.id,
-          emoji,
-          created_at: new Date().toISOString(),
-        },
-        { onConflict: "message_id,user_id,emoji" },
-      )
-      if (error) console.warn("message_reactions insert:", error.message)
-    } else {
-      const { error } = await supabase
-        .from("message_reactions")
-        .delete()
-        .eq("message_id", messageId)
-        .eq("user_id", user.id)
-        .eq("emoji", emoji)
-      if (error) console.warn("message_reactions delete:", error.message)
-    }
+    // Try the normalized table first. If its schema is unavailable, use the
+    // JSONB column as a real persistence fallback rather than returning a
+    // success after a failed write.
+    const write = action === "add"
+      ? await supabase.from("message_reactions").upsert(
+          {
+            message_id: messageId,
+            user_id: user.id,
+            emoji,
+            created_at: new Date().toISOString(),
+          },
+          { onConflict: "message_id,user_id,emoji" },
+        )
+      : await supabase
+          .from("message_reactions")
+          .delete()
+          .eq("message_id", messageId)
+          .eq("user_id", user.id)
+          .eq("emoji", emoji)
 
-    // Re-read the table so the response (and the mirror) is the real state,
-    // not an optimistic guess.
-    const { data: rows, error: readError } = await supabase
-      .from("message_reactions")
-      .select("emoji, user_id")
-      .eq("message_id", messageId)
-
-    if (!readError) {
-      reactions = groupRows(rows || [])
-    } else {
-      // JSONB fallback on messages.reactions
+    if (write.error) {
+      console.warn("message_reactions write; using JSONB fallback:", write.error.message)
       const current: GroupedReaction[] = Array.isArray(message.reactions) ? [...message.reactions] : []
-      const idx = current.findIndex((r: any) => r.emoji === emoji)
+      const idx = current.findIndex((reaction: any) => reaction.emoji === emoji)
       if (action === "add") {
         if (idx >= 0) {
           const users = Array.from(new Set<string>([...(current[idx].users || []), user.id]))
@@ -163,12 +157,34 @@ export async function POST(request: NextRequest) {
         if (users.length) current[idx] = { emoji, count: users.length, users }
         else current.splice(idx, 1)
       }
-      reactions = current
-    }
 
-    // Mirror the grouped counts so readers using the legacy column agree.
-    const mirror = await supabase.from("messages").update({ reactions }).eq("id", messageId)
-    if (mirror.error) console.warn("message reaction mirror:", mirror.error.message)
+      const fallback = await supabase
+        .from("messages")
+        .update({ reactions: current })
+        .eq("id", messageId)
+        .select("id")
+        .maybeSingle()
+      if (fallback.error || !fallback.data) {
+        console.error("Message reaction fallback failed:", fallback.error?.message || "message not found")
+        return NextResponse.json({ error: "Could not save that reaction" }, { status: 500 })
+      }
+      reactions = current
+    } else {
+      // Re-read the table so the response is the real persisted state.
+      const { data: rows, error: readError } = await supabase
+        .from("message_reactions")
+        .select("emoji, user_id")
+        .eq("message_id", messageId)
+      if (readError) {
+        console.error("Message reactions could not be confirmed:", readError.message)
+        return NextResponse.json({ error: "Could not confirm that reaction" }, { status: 500 })
+      }
+      reactions = groupRows(rows || [])
+
+      // Mirror the grouped counts so older message readers remain compatible.
+      const mirror = await supabase.from("messages").update({ reactions }).eq("id", messageId)
+      if (mirror.error) console.warn("message reaction mirror:", mirror.error.message)
+    }
 
     await broadcastRealtime(`conversation:${message.conversation_id}`, "reaction", {
       message_id: messageId,

@@ -51,7 +51,7 @@ async function attachReactions(
 
   return rows.map((row) => {
     const perEmoji = grouped.get(String(row.id))
-    if (!perEmoji) return { ...row, reactions: [] }
+    if (!perEmoji) return { ...row, reactions: Array.isArray(row.reactions) ? row.reactions : [] }
     const reactions: GroupedReaction[] = Array.from(perEmoji.entries()).map(([emoji, users]) => ({
       emoji,
       count: users.length,

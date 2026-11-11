@@ -76,7 +76,6 @@ import {
   Send,
   Smile,
   Zap,
-  Sticker,
   Film,
   Trash2,
   Video,
@@ -295,6 +294,9 @@ export function MessagesWorkspace() {
   /** Message whose action bar / quick reactions are revealed (mobile long-press). */
   const [activeActionsId, setActiveActionsId] = useState<string | null>(null)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // A long-press also emits a click on touchend; remember it so the row's click
+  // handler does not immediately close the toolbar it just opened.
+  const longPressFired = useRef<string | null>(null)
   const cancelLongPress = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current)
@@ -403,6 +405,23 @@ export function MessagesWorkspace() {
     if (!q) return messages
     return messages.filter((m) => m.content?.toLowerCase().includes(q))
   }, [messages, chatSearch])
+
+  // The inbox search both filters existing chats and is the seed for starting a
+  // new one. Without the filter, typing a name looked like the list was broken.
+  const visibleConversations = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return conversations
+    return conversations.filter((conversation) => {
+      const name = conversation.is_group
+        ? conversation.name || ""
+        : conversation.other_user?.display_name || conversation.other_user?.username || ""
+      return (
+        name.toLowerCase().includes(q) ||
+        (conversation.other_user?.username || "").toLowerCase().includes(q) ||
+        (conversation.last_message?.content || "").toLowerCase().includes(q)
+      )
+    })
+  }, [conversations, search])
 
   const loadConversations = async (silent = false) => {
     if (!user) return
@@ -1636,38 +1655,52 @@ export function MessagesWorkspace() {
 
   const inbox = (
     <aside className="flex h-full min-h-0 flex-col bg-background text-foreground">
-      <div className="space-y-0 border-b border-border">
-        <div className="flex items-center justify-between px-4 pt-3 pb-2">
-          <h1 className="text-xl font-semibold">Messages</h1>
-          <div className="flex items-center gap-1">
+      <div className="shrink-0 space-y-2.5 border-b border-border/60 px-3 pb-2.5 pt-3">
+        <div className="flex items-center justify-between gap-2 px-1">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-600 dark:text-sky-400">Direct messages</p>
+            <h1 className="truncate text-[22px] font-bold leading-tight tracking-tight">Messages</h1>
+          </div>
+          <div className="flex shrink-0 items-center gap-0.5">
             <Button
               variant="ghost"
               size="icon"
-              className="text-muted-foreground"
+              className="h-9 w-9 rounded-full text-muted-foreground hover:bg-sky-500/10 hover:text-sky-600"
+              title="New group"
+              aria-label="New group"
+              onClick={() => setShowGroupCreate(true)}
+            >
+              <UserPlus className="h-[18px] w-[18px]" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-full text-muted-foreground hover:bg-sky-500/10 hover:text-sky-600"
               title={pushEnabled ? "Notifications on for this device — tap to mute" : "Turn on notifications for chats"}
+              aria-label="Chat notifications"
               onClick={() => void togglePush()}
               disabled={pushToggling}
             >
               {pushToggling ? (
                 <Spinner className="h-4 w-4" />
               ) : pushEnabled ? (
-                <Bell className="h-4 w-4 text-emerald-500" />
+                <Bell className="h-[18px] w-[18px] text-sky-600 dark:text-sky-400" />
               ) : (
-                <BellOff className="h-4 w-4" />
+                <BellOff className="h-[18px] w-[18px]" />
               )}
             </Button>
           </div>
         </div>
         {/* Tabs: Chats | Calls */}
-        <div className="flex px-4">
+        <div className="flex rounded-xl bg-muted/70 p-1">
           <button
             type="button"
             onClick={() => setInboxTab("chats")}
             className={cn(
-              "flex-1 py-2.5 text-sm font-medium transition-colors border-b-2",
+              "flex-1 rounded-lg py-2 text-sm font-semibold transition-colors",
               inboxTab === "chats"
-                ? "border-violet-500 text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             <MessageCircle className="mr-1.5 inline h-4 w-4" />
@@ -1677,82 +1710,101 @@ export function MessagesWorkspace() {
             type="button"
             onClick={() => setInboxTab("calls")}
             className={cn(
-              "flex-1 py-2.5 text-sm font-medium transition-colors border-b-2",
+              "flex-1 rounded-lg py-2 text-sm font-semibold transition-colors",
               inboxTab === "calls"
-                ? "border-violet-500 text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             <Phone className="mr-1.5 inline h-4 w-4" />
             Calls
           </button>
         </div>
-          {pushBanner && pushEnabled === false && (
-          <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
-            <p className="flex items-center gap-1.5 text-xs text-foreground">
-              <Bell className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-              Get notified about new messages
-            </p>
-            <Button
-              size="sm"
-              className="h-7 rounded-full bg-emerald-600 px-3 text-xs hover:bg-emerald-500"
-              onClick={() => void togglePush()}
-              disabled={pushToggling}
-            >
-              Enable
-            </Button>
-          </div>
+        {pushBanner && pushEnabled === false && (
+          <button
+            type="button"
+            onClick={() => void togglePush()}
+            disabled={pushToggling}
+            className="flex w-full items-center gap-2 rounded-xl border border-sky-500/20 bg-sky-500/[0.06] px-2.5 py-1.5 text-left text-[11px] text-muted-foreground transition-colors hover:bg-sky-500/10 disabled:opacity-60"
+          >
+            <Bell className="h-3.5 w-3.5 shrink-0 text-sky-500" />
+            <span className="flex-1 truncate">Get notifications for new messages</span>
+            <span className="shrink-0 font-semibold text-sky-600 dark:text-sky-400">
+              {pushToggling ? "Enabling…" : "Enable"}
+            </span>
+          </button>
         )}
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search or start new chat"
-              className="rounded-full border-border bg-muted pl-9 text-foreground placeholder:text-muted-foreground"
-              onKeyDown={(e) => e.key === "Enter" && void startChat()}
-            />
-          </div>
-          <Button
-            onClick={() => void startChat()}
-            disabled={starting || !search.trim()}
-            className="rounded-full bg-emerald-600 px-3 hover:bg-emerald-500"
-            size="icon"
-            title="Start new chat"
-          >
-            {starting ? <Spinner className="h-4 w-4" /> : <Search className="h-4 w-4" />}
-          </Button>
+        {inboxTab === "chats" && (
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search a username to start a chat"
+            className="h-10 rounded-xl border-border/60 bg-muted/45 pl-9 pr-10 text-sm text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-sky-500/30"
+            onKeyDown={(e) => e.key === "Enter" && void startChat()}
+          />
+          {search.trim() && (
+            <button
+              type="button"
+              onClick={() => void startChat()}
+              disabled={starting}
+              aria-label="Start chat"
+              title="Start chat"
+              className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg bg-sky-600 text-white transition hover:bg-sky-500 disabled:opacity-60"
+            >
+              {starting ? <Spinner className="h-3.5 w-3.5" /> : <Plus className="h-4 w-4" />}
+            </button>
+          )}
         </div>
-        {/* New group button */}
-        <div className="px-4">
-          <Button
-            onClick={() => setShowGroupCreate(true)}
-            variant="outline"
-            className="w-full rounded-full h-8 text-xs font-semibold border-dashed"
-            size="sm"
-          >
-            <Plus className="h-3.5 w-3.5 mr-1.5" /> New group
-          </Button>
-        </div>
+        )}
       </div>
       {inboxTab === "calls" ? (
         <CallLogs
           onCallBack={(conversationId) => openConversation(conversationId)}
         />
       ) : (
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {loading ? (
           <div className="flex items-center justify-center py-10 text-muted-foreground">
             <Spinner className="mr-2 h-4 w-4" /> Loading…
           </div>
-        ) : conversations.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 p-8 text-center text-sm text-muted-foreground">
-            <span className="text-4xl">💬</span>
-            <p>No chats yet. Search a username to message someone.</p>
+        ) : visibleConversations.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 px-8 py-14 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-600 dark:text-sky-400">
+              {search.trim() ? <Search className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+            </div>
+            <p className="mt-1 text-sm font-semibold text-foreground">
+              {search.trim() ? "No matching chats" : "No chats yet"}
+            </p>
+            <p className="max-w-[240px] text-xs text-muted-foreground">
+              {search.trim()
+                ? `Start a new conversation with “${search.trim()}”.`
+                : "Search a username above to start your first conversation."}
+            </p>
+            {search.trim() ? (
+              <Button
+                size="sm"
+                className="mt-2 h-8 rounded-lg bg-sky-600 text-xs text-white hover:bg-sky-500"
+                onClick={() => void startChat()}
+                disabled={starting}
+              >
+                {starting ? <Spinner className="mr-1.5 h-3.5 w-3.5" /> : <Plus className="mr-1.5 h-3.5 w-3.5" />}
+                Start chat
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2 h-8 rounded-lg text-xs"
+                onClick={() => setShowGroupCreate(true)}
+              >
+                Start a group
+              </Button>
+            )}
           </div>
         ) : (
-          conversations.map((conversation) => {
+          visibleConversations.map((conversation) => {
             const displayName = conversation.is_group
               ? conversation.name || "Group"
               : conversation.other_user?.display_name || `@${conversation.other_user?.username || "user"}`
@@ -1782,12 +1834,12 @@ export function MessagesWorkspace() {
                 type="button"
                 onClick={() => openConversation(conversation.id)}
                 className={cn(
-                  "relative flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50",
-                  String(selectedId) === String(conversation.id) && "bg-gradient-to-r from-violet-500/10 via-muted/40 to-transparent",
+                  "relative flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-sky-500/[0.05]",
+                  String(selectedId) === String(conversation.id) && "bg-sky-500/[0.08]",
                 )}
               >
                 {String(selectedId) === String(conversation.id) && (
-                  <span className="absolute left-0 top-1/2 h-9 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b from-violet-500 to-cyan-400 shadow shadow-violet-500/40" />
+                  <span className="absolute left-0 top-1/2 h-10 w-1 -translate-y-1/2 rounded-r-full bg-sky-500" />
                 )}
                 <div className="relative shrink-0">
                   <CosmeticAvatar
@@ -1800,7 +1852,7 @@ export function MessagesWorkspace() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="flex min-w-0 items-center gap-1 truncate text-[15px] font-medium text-foreground">
+                    <p className="flex min-w-0 items-center gap-1 truncate text-[14px] font-semibold text-foreground">
                       <span className="truncate">{displayName}</span>
                       {!conversation.is_group && conversation.other_user?.is_verified && (
                         <VerifiedSeal size={15} title="Verified Creator" />
@@ -1823,11 +1875,11 @@ export function MessagesWorkspace() {
                       {conversation.is_group && lastSenderName && !lastMine && (
                         <span className="font-semibold text-foreground">{lastSenderName}: </span>
                       )}
-                      {lastMine && <span className="text-violet-500 dark:text-violet-400">You: </span>}
+                      {lastMine && <span className="text-muted-foreground">You: </span>}
                       {preview}
                     </p>
                     {unread > 0 && (
-                      <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-1.5 text-[11px] font-semibold text-white shadow-sm shadow-violet-600/30">
+                      <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-sky-600 px-1.5 text-[11px] font-semibold text-white shadow-sm shadow-sky-600/25">
                         {unread > 99 ? "99+" : unread}
                       </span>
                     )}
@@ -1849,11 +1901,11 @@ export function MessagesWorkspace() {
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,hsl(var(--primary)/0.10),transparent_55%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,hsl(var(--primary)/0.06),transparent_55%)]" />
-      <div className="flex items-center gap-2 border-b border-border/40 bg-background/70 px-1.5 py-2 backdrop-blur-xl sm:px-3">
+      <div className="relative z-[1] flex shrink-0 items-center gap-2 border-b border-border/60 bg-background/85 px-1.5 py-2 backdrop-blur-xl sm:px-3">
         <Button variant="ghost" size="icon" className="text-foreground lg:hidden" onClick={backToInbox}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="relative shrink-0 rounded-full ring-2 ring-primary/40">
+        <div className="relative shrink-0 rounded-full ring-2 ring-sky-500/25 ring-offset-2 ring-offset-background">
           {selected.is_group ? (
             <div className="relative h-10 w-10">
               {(selected as any).participants?.slice(0, 3).map((p: any, i: number) => (
@@ -1893,10 +1945,10 @@ export function MessagesWorkspace() {
         </div>
         <div className="min-w-0 flex-1">
           <p
-            className={`flex items-center gap-1 truncate text-sm font-semibold text-foreground ${selected.is_group ? "cursor-pointer hover:underline" : ""}`}
+            className={`flex min-w-0 items-center gap-1 truncate text-[15px] font-semibold leading-tight text-foreground ${selected.is_group ? "cursor-pointer hover:underline" : ""}`}
             onClick={() => { if (selected.is_group) setShowGroupInfo(true) }}
           >
-            {selected.other_user?.display_name || selected.name || "Conversation"}
+            <span className="truncate">{selected.other_user?.display_name || selected.name || "Conversation"}</span>
             {!selected.is_group && selected.other_user?.is_verified && (
               <VerifiedSeal size={15} title="Verified Creator" />
             )}
@@ -1904,22 +1956,25 @@ export function MessagesWorkspace() {
               <UserBadges badge={verificationBadges[selected.other_user.badge_id]} size="sm" />
             )}
           </p>
-          <p className="truncate text-[11px]">
+          <p className="mt-0.5 flex min-w-0 items-center gap-1 truncate text-[11px] leading-tight">
             {typingPeer ? (
-              <span className="text-emerald-600 dark:text-emerald-400">typing…</span>
+              <span className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" /> typing…
+              </span>
             ) : peerOnline ? (
-              <span className="text-emerald-600 dark:text-emerald-400">online</span>
-            ) : selected.other_user?.username ? (
-              <span className="text-muted-foreground">last seen recently</span>
-            ) : (
-              <span className="text-muted-foreground">
+              <span className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" /> online
+              </span>
+            ) : selected.is_group ? (
+              <span className="truncate text-muted-foreground">
                 {((selected as any).participants?.length || 0) > 0
                   ? `${(selected as any).participants.length} members`
-                  : "group chat"}
+                  : "Group chat"}
               </span>
-            )}
-            {!typingPeer && !selected.is_group && selected.other_user?.display_name && (
-              <span className="ml-1.5 text-muted-foreground/70">· 🔒 Only you and {selected.other_user.display_name} can see this conversation</span>
+            ) : (
+              <span className="truncate text-muted-foreground">
+                {selected.other_user?.username ? `@${selected.other_user.username}` : "Private conversation"}
+              </span>
             )}
           </p>
         </div>
@@ -1974,7 +2029,7 @@ export function MessagesWorkspace() {
               onClick={() => void startCall("video")}
               disabled={Boolean(startingCall) || Boolean(outgoingCall)}
             >
-              <Video className="mr-2 h-4 w-4 text-violet-500" />
+              <Video className="mr-2 h-4 w-4 text-sky-500" />
               Video call
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -1987,7 +2042,7 @@ export function MessagesWorkspace() {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => setWallpaperPickerOpen(true)}>
-              <Wallpaper className="mr-2 h-4 w-4 text-violet-500" />
+              <Wallpaper className="mr-2 h-4 w-4 text-sky-500" />
               Chat wallpaper
               {wallpaperSaving && <Spinner className="ml-auto h-3.5 w-3.5 text-muted-foreground" />}
             </DropdownMenuItem>
@@ -2044,7 +2099,7 @@ export function MessagesWorkspace() {
               value={chatSearch}
               onChange={(e) => setChatSearch(e.target.value)}
               placeholder="Search this chat…"
-              className="border-border bg-muted pl-9 pr-24 text-foreground"
+              className="h-9 rounded-lg border-border/60 bg-muted/50 pl-9 pr-24 text-sm text-foreground shadow-none"
             />
             {chatSearch.trim() && (
               <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-2">
@@ -2132,7 +2187,7 @@ export function MessagesWorkspace() {
           )}
         </div>
       )}
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-3 py-2.5 sm:px-5">
+      <div className="chat-workspace min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-2.5 pb-3 pt-7 sm:px-5">
         {messagesLoading && messages.length === 0 ? (
           <div className="flex justify-center py-10 text-muted-foreground">
             <Spinner className="h-5 w-5" />
@@ -2224,7 +2279,13 @@ export function MessagesWorkspace() {
                   showDate ? "mt-1" : isFirstOfGroup ? "mt-2" : "mt-1",
                   isFresh && "message-appear",
                 )}
-                onClick={() => setActiveActionsId(null)}
+                onClick={() => {
+                  if (longPressFired.current === message.id) {
+                    longPressFired.current = null
+                    return
+                  }
+                  setActiveActionsId(null)
+                }}
                 onContextMenu={(e) => {
                   // On touch devices a long-press reveals the message actions
                   // instead of the native menu; desktop keeps right-click so
@@ -2237,10 +2298,10 @@ export function MessagesWorkspace() {
                 onTouchStart={(e) => {
                   cancelLongPress()
                   beginSwipe(message, e)
-                  longPressTimer.current = setTimeout(
-                    () => setActiveActionsId(message.id),
-                    LONG_PRESS_MS,
-                  )
+                  longPressTimer.current = setTimeout(() => {
+                    longPressFired.current = message.id
+                    setActiveActionsId(message.id)
+                  }, LONG_PRESS_MS)
                 }}
                 onTouchEnd={() => {
                   cancelLongPress()
@@ -2261,7 +2322,7 @@ export function MessagesWorkspace() {
                   <span
                     aria-hidden
                     className={cn(
-                      "pointer-events-none absolute top-1/2 z-0 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-cyan-500/15 text-cyan-500",
+                      "pointer-events-none absolute top-1/2 z-0 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-sky-500/15 text-sky-500",
                       swipe.dx > 0 ? "left-1" : "right-1",
                     )}
                     style={{ opacity: Math.min(1, Math.abs(swipe.dx) / SWIPE_THRESHOLD) }}
@@ -2274,7 +2335,7 @@ export function MessagesWorkspace() {
                     // Bubble width is capped as a % of the chat pane AND of the
                     // viewport, so long unbroken text / embeds can never push a
                     // bubble past the screen edge on narrow phones.
-                    "min-w-0 max-w-[min(85%,calc(100vw-3rem))] sm:max-w-[min(70%,calc(100vw-4rem))]",
+                    "relative min-w-0 max-w-[min(85%,calc(100vw-3rem))] sm:max-w-[min(70%,calc(100vw-4rem))]",
                   )}
                   style={
                     swipe?.id === message.id
@@ -2291,7 +2352,7 @@ export function MessagesWorkspace() {
                     "chat-bubble min-w-0 max-w-full break-words [overflow-wrap:anywhere] relative px-3.5 py-2 text-[15px] leading-[1.45]",
                     mine
                       ? cn(
-                          "chat-bubble-mine bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-sm shadow-violet-950/20",
+                          "chat-bubble-mine bg-sky-600 text-white shadow-sm shadow-sky-950/15 dark:bg-sky-600",
                           isLastOfGroup ? "rounded-[18px] rounded-br-[6px]" : "rounded-[18px]",
                         )
                       : cn(
@@ -2310,7 +2371,7 @@ export function MessagesWorkspace() {
                         <p
                           className={cn(
                             "mb-0.5 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide",
-                            mine ? "text-cyan-100/90" : "text-muted-foreground",
+                            mine ? "text-white/80" : "text-muted-foreground",
                           )}
                         >
                           <CornerUpRight className="h-3 w-3" />
@@ -2320,11 +2381,11 @@ export function MessagesWorkspace() {
                       {message.reply_to && (
                         <div
                           className={cn(
-                            "mb-1.5 rounded-lg border-l-2 border-cyan-400/70 px-2 py-1 text-[11px]",
-                            mine ? "bg-white/10" : "bg-muted/70",
+                            "mb-1.5 rounded-lg border-l-2 px-2 py-1 text-[11px]",
+                            mine ? "border-white/40 bg-white/10" : "border-sky-400/70 bg-muted/70",
                           )}
                         >
-                          <p className="truncate font-semibold text-violet-600 dark:text-violet-300">
+                          <p className={cn("truncate font-semibold", mine ? "text-sky-50" : "text-sky-700 dark:text-sky-300")}>
                             {message.reply_to.sender?.display_name ||
                               (message.reply_to.author_id === user.id
                                 ? "You"
@@ -2372,7 +2433,7 @@ export function MessagesWorkspace() {
                           {message.edited_at && <span className="italic opacity-80">Edited</span>}
                           {mine &&
                             (read ? (
-                              <CheckCheck className="h-3.5 w-3.5 text-cyan-100" aria-label="Seen" />
+                              <CheckCheck className="h-3.5 w-3.5 text-white/85" aria-label="Seen" />
                             ) : (
                               <Check className="h-3.5 w-3.5 text-white/80" aria-label="Sent" />
                             ))}
@@ -2389,96 +2450,90 @@ export function MessagesWorkspace() {
                         key={r.emoji}
                         type="button"
                         onClick={() => void toggleReaction(message, r.emoji)}
-                        className="rounded-full bg-foreground/[0.06] px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ring-border/40 transition-transform active:scale-95"
+                        aria-pressed={Boolean(r.users?.includes(user.id))}
+                        title={r.users?.includes(user.id) ? "Remove your reaction" : "Add your reaction"}
+                        className={cn(
+                          "flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset transition-all active:scale-95",
+                          r.users?.includes(user.id)
+                            ? "bg-sky-500/15 text-sky-700 ring-sky-500/40 dark:text-sky-300"
+                            : "bg-background/80 text-foreground ring-border/50 hover:bg-muted",
+                        )}
                       >
-                        {r.emoji} {r.count}
+                        <span className="text-[13px] leading-none">{r.emoji}</span>
+                        <span className="tabular-nums">{r.count}</span>
                       </button>
                     ))}
                   </div>
                 )}
 
-                <div
-                  className={cn(
-                    "mt-1 flex flex-wrap items-center gap-0.5 transition-opacity duration-150 sm:gap-1",
-                    actionsOpen
-                      ? "opacity-100"
-                      : "pointer-events-none opacity-0 sm:pointer-events-auto sm:group-hover:opacity-100",
-                    mine ? "justify-end" : "justify-start",
-                  )}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {!message.is_deleted && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-1.5 text-muted-foreground sm:px-2"
-                        onClick={() => setReplyTo(message)}
-                        title="Reply"
+                {/* Hover / long-press toolbar — floats over the bubble edge so it
+                    never reserves dead height under every message. */}
+                {!message.is_deleted && (
+                  <div
+                    className={cn(
+                      "absolute -top-4 z-30 flex items-center gap-0.5 rounded-full border border-border/70 bg-popover/95 p-0.5 shadow-lg shadow-black/10 backdrop-blur transition-opacity duration-150",
+                      actionsOpen
+                        ? "pointer-events-auto opacity-100"
+                        : "pointer-events-none opacity-0 focus-within:pointer-events-auto focus-within:opacity-100 sm:pointer-events-auto sm:group-hover:pointer-events-auto sm:group-hover:opacity-100",
+                      mine ? "right-1.5" : "left-1.5",
+                    )}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {QUICK_REACTIONS.slice(0, 3).map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        aria-label={`React with ${emoji}`}
+                        title={`React with ${emoji}`}
+                        className="flex h-7 w-7 items-center justify-center rounded-full text-[15px] leading-none transition-transform hover:scale-110 hover:bg-sky-500/10 active:scale-95"
+                        onClick={() => {
+                          void toggleReaction(message, emoji)
+                          setActiveActionsId(null)
+                        }}
                       >
-                        <Reply className="mr-0 h-3.5 w-3.5 sm:mr-1" />
-                        <span className="hidden sm:inline">Reply</span>
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-1.5 text-muted-foreground sm:px-2"
-                        onClick={() => void copyMessage(message)}
-                        title="Copy"
-                      >
-                        <Copy className="mr-0 h-3.5 w-3.5 sm:mr-1" />
-                        <span className="hidden sm:inline">Copy</span>
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-1.5 text-muted-foreground sm:px-2"
-                        onClick={() => forwardMessage(message)}
-                        title="Forward"
-                      >
-                        <CornerUpRight className="mr-0 h-3.5 w-3.5 sm:mr-1" />
-                        <span className="hidden sm:inline">Forward</span>
-                      </Button>
-                      {mine && (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 px-1.5 text-muted-foreground sm:px-2"
-                            onClick={() => startEdit(message)}
-                            title="Edit"
-                          >
-                            <Pencil className="mr-0 h-3.5 w-3.5 sm:mr-1" />
-                            <span className="hidden sm:inline">Edit</span>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 px-1.5 text-muted-foreground hover:text-destructive sm:px-2"
-                            onClick={() => requestDelete(message)}
-                            title="Delete"
-                          >
-                            <Trash2 className="mr-0 h-3.5 w-3.5 sm:mr-1" />
-                            <span className="hidden sm:inline">Delete</span>
-                          </Button>
-                        </>
-                      )}
-                    </>
-                  )}
-                  {QUICK_REACTIONS.slice(0, 3).map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      className="rounded-full px-1.5 text-sm transition-transform hover:scale-110 hover:bg-foreground/[0.08] active:scale-95"
-                      onClick={() => {
-                        void toggleReaction(message, emoji)
-                        setActiveActionsId(null)
-                      }}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
+                        {emoji}
+                      </button>
+                    ))}
+                    <span className="mx-0.5 h-4 w-px bg-border/70" />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Message actions"
+                          title="Message actions"
+                          className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/[0.08] hover:text-foreground"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align={mine ? "end" : "start"} side="top" className="w-48">
+                        <DropdownMenuItem onClick={() => setReplyTo(message)}>
+                          <Reply className="mr-2 h-4 w-4" /> Reply
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => void copyMessage(message)}>
+                          <Copy className="mr-2 h-4 w-4" /> Copy text
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => forwardMessage(message)}>
+                          <CornerUpRight className="mr-2 h-4 w-4" /> Forward
+                        </DropdownMenuItem>
+                        {mine && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => startEdit(message)}>
+                              <Pencil className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => requestDelete(message)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete for everyone
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                )}
               </div>
             </div>
             </Fragment>
@@ -2538,10 +2593,10 @@ export function MessagesWorkspace() {
       </div>
 
       {replyTo && (
-        <div className="mx-2 mb-1 flex items-center gap-2 rounded-2xl border-l-2 border-violet-500 bg-foreground/[0.05] px-3 py-2 text-sm text-foreground backdrop-blur-xl sm:mx-3">
-          <Reply className="h-3.5 w-3.5 shrink-0 text-violet-500" />
+        <div className="mx-2 mb-1 flex items-center gap-2 rounded-2xl border-l-2 border-sky-500 bg-sky-500/[0.07] px-3 py-2 text-sm text-foreground backdrop-blur-xl sm:mx-3">
+          <Reply className="h-3.5 w-3.5 shrink-0 text-sky-500" />
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold text-violet-500">Replying to message</p>
+            <p className="text-[11px] font-semibold text-sky-600 dark:text-sky-400">Replying to message</p>
             <p className="truncate text-xs text-muted-foreground">{replyTo.content || "Media"}</p>
           </div>
           <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground" onClick={() => setReplyTo(null)}>
@@ -2551,9 +2606,9 @@ export function MessagesWorkspace() {
       )}
 
       {editingMessage && (
-        <div className="mx-2 mb-1 rounded-2xl border-l-2 border-violet-500 bg-foreground/[0.05] px-3 py-2 text-sm text-foreground backdrop-blur-xl sm:mx-3">
+        <div className="mx-2 mb-1 rounded-2xl border-l-2 border-sky-500 bg-sky-500/[0.07] px-3 py-2 text-sm text-foreground backdrop-blur-xl sm:mx-3">
           <div className="mb-1.5 flex items-center justify-between gap-2">
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400">
               <Pencil className="h-3.5 w-3.5" />
               Editing message
             </p>
@@ -2579,7 +2634,7 @@ export function MessagesWorkspace() {
               size="sm"
               onClick={() => void saveEdit()}
               disabled={savingEdit || !editDraft.trim()}
-              className="shrink-0 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400"
+              className="shrink-0 bg-sky-600 text-white hover:bg-sky-500"
             >
               {savingEdit ? <Spinner className="mr-1.5 h-3.5 w-3.5" /> : <Check className="mr-1.5 h-3.5 w-3.5" />}
               Save
@@ -2603,7 +2658,7 @@ export function MessagesWorkspace() {
         </div>
       )}
 
-      <div className="relative border-t border-border/40 bg-background/60 px-2 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-2xl sm:px-3">
+      <div className="relative z-[1] shrink-0 border-t border-border/60 bg-background/90 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-2xl sm:px-3">
         {showEmojiPicker && (
           <>
             <button
@@ -2684,7 +2739,7 @@ export function MessagesWorkspace() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" side="top" className="w-52">
               <DropdownMenuItem disabled={uploading} onClick={() => fileRef.current?.click()}>
-                <ImagePlus className="mr-2 h-4 w-4 text-violet-500" />
+                <ImagePlus className="mr-2 h-4 w-4 text-sky-500" />
                 Photo or video
               </DropdownMenuItem>
               <DropdownMenuItem disabled={uploading} onClick={() => cameraFileRef.current?.click()}>
@@ -2726,13 +2781,13 @@ export function MessagesWorkspace() {
           </DropdownMenu>
 
           {/* Pill input — placeholder + sticker / camera / mic icons inside. */}
-          <div className="relative min-w-0 flex-1 rounded-full border border-border/50 bg-foreground/[0.05] shadow-sm backdrop-blur transition-colors focus-within:border-violet-500/40 focus-within:bg-foreground/[0.07]">
+          <div className="relative min-w-0 flex-1 rounded-[22px] border border-border/60 bg-background shadow-sm backdrop-blur transition-colors focus-within:border-sky-500/50 focus-within:ring-2 focus-within:ring-sky-500/10">
             <MentionTextarea
               value={draft}
               onChange={onDraftChange}
               rows={1}
               placeholder="Message"
-              className="min-h-[40px] resize-none rounded-full border-0 bg-transparent py-2.5 pl-4 pr-32 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
+              className="min-h-[40px] resize-none rounded-[22px] border-0 bg-transparent py-2.5 pl-4 pr-24 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault()
@@ -2778,41 +2833,32 @@ export function MessagesWorkspace() {
                 onClick={() => void sendMessage()}
                 disabled={sending}
                 title="Send"
-                className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg shadow-violet-600/25 transition hover:from-violet-500 hover:to-cyan-400 disabled:opacity-60"
+                className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-sky-600 text-white shadow-md shadow-sky-600/20 transition hover:bg-sky-500 disabled:opacity-60"
               >
                 {sending ? <Spinner className="h-4 w-4" /> : <Send className="h-4 w-4" />}
               </button>
             ) : (
-              <div className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+              <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
                 <button
                   type="button"
-                  title="GIFs & stickers"
+                  title="Emoji"
+                  aria-label="Emoji"
                   className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-full text-foreground/70 transition hover:bg-foreground/10 hover:text-foreground",
-                    showGifPicker && "bg-foreground/10 text-violet-600",
+                    "flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-foreground/[0.08] hover:text-foreground",
+                    showEmojiPicker && "bg-sky-500/10 text-sky-600 dark:text-sky-400",
                   )}
                   onClick={() => {
-                    setShowGifPicker((v) => {
-                      if (!v) void loadGifs("")
-                      return !v
-                    })
-                    setShowEmojiPicker(false)
+                    setShowEmojiPicker((v) => !v)
+                    setShowGifPicker(false)
                   }}
                 >
-                  <Sticker className="h-[19px] w-[19px]" />
-                </button>
-                <button
-                  type="button"
-                  title="Take a photo"
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/70 transition hover:bg-foreground/10 hover:text-foreground"
-                  onClick={() => cameraFileRef.current?.click()}
-                >
-                  <Camera className="h-[19px] w-[19px]" />
+                  <Smile className="h-[19px] w-[19px]" />
                 </button>
                 <button
                   type="button"
                   title="Voice message"
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/70 transition hover:bg-foreground/10 hover:text-foreground"
+                  aria-label="Voice message"
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-sky-500/10 hover:text-sky-600"
                   onClick={() => void startVoice()}
                 >
                   <Mic className="h-[19px] w-[19px]" />
@@ -2865,32 +2911,37 @@ export function MessagesWorkspace() {
       )}
     </section>
   ) : (
-    <section className="hidden h-full flex-col items-center justify-center bg-background text-muted-foreground lg:flex">
-      <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-violet-500/15 to-cyan-500/10 ring-1 ring-violet-500/20">
-        <MessageCircle className="h-8 w-8 text-violet-500/70" />
+    <section className="relative hidden h-full flex-col items-center justify-center overflow-hidden bg-background px-8 text-center text-muted-foreground lg:flex">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(var(--primary)/0.07),transparent_62%)]" />
+      <div className="relative mb-4 flex h-20 w-20 items-center justify-center rounded-[26px] bg-sky-500/10 ring-1 ring-sky-500/20">
+        <MessageCircle className="h-9 w-9 text-sky-600/80 dark:text-sky-400/80" />
       </div>
-      <p className="text-lg font-medium text-foreground">Loop Chat</p>
-      <p className="mt-1 max-w-sm text-center text-sm">
-        Pick a conversation — or start a Co-Loop and publish a post together from the chat.
+      <p className="relative text-xl font-semibold tracking-tight text-foreground">Your messages</p>
+      <p className="relative mt-1.5 max-w-[320px] text-sm leading-relaxed text-muted-foreground">
+        Choose a chat to keep talking, or start a Co-Loop and publish something together.
       </p>
+      <div className="relative mt-5 flex flex-wrap items-center justify-center gap-2 text-[11px] text-muted-foreground">
+        <span className="rounded-full border border-border/60 px-2.5 py-1">🔒 Just the two of you</span>
+        <span className="rounded-full border border-border/60 px-2.5 py-1">⚡ Live delivery</span>
+      </div>
     </section>
   )
 
   return (
     <div
       className={cn(
-        "grid h-full w-full min-h-0 min-w-0 overflow-hidden border border-border bg-background lg:grid-cols-[340px_minmax(0,1fr)] lg:rounded-2xl",
+        "relative grid h-full w-full min-h-0 min-w-0 grid-rows-1 overflow-hidden bg-background lg:grid-cols-[minmax(300px,340px)_minmax(0,1fr)] lg:rounded-2xl lg:border lg:border-border/70 lg:shadow-xl lg:shadow-black/[0.04]",
       )}
     >
-      <div className={cn("min-h-0 min-w-0", mobileShowChat ? "hidden lg:block" : "block")}>{inbox}</div>
-      <div className={cn("min-h-0 min-w-0", mobileShowChat ? "block" : "hidden lg:block")}>{chatPane}</div>
+      <div className={cn("h-full min-h-0 min-w-0 overflow-hidden lg:border-r lg:border-border/60", mobileShowChat ? "hidden lg:block" : "block")}>{inbox}</div>
+      <div className={cn("relative h-full min-h-0 min-w-0 overflow-hidden", mobileShowChat ? "block" : "hidden lg:block")}>{chatPane}</div>
       {/* Incoming call banner */}
       {incomingCall && (
         <div className="fixed left-1/2 top-4 z-[115] w-[min(94vw,430px)] -translate-x-1/2">
           <div className="flex items-center gap-3 rounded-2xl border border-border bg-card/95 p-3 shadow-2xl backdrop-blur-xl">
             <Avatar className="h-11 w-11 ring-2 ring-emerald-500/50">
               <AvatarImage src={incomingCall.avatarUrl} />
-              <AvatarFallback className="bg-gradient-to-br from-violet-600 to-cyan-500 text-sm font-bold">
+              <AvatarFallback className="bg-gradient-to-br from-sky-600 to-cyan-500 text-sm font-bold">
                 {incomingCall.fromName?.charAt(0) || "?"}
               </AvatarFallback>
             </Avatar>
@@ -2955,7 +3006,7 @@ export function MessagesWorkspace() {
 
       {/* Group info panel */}
       {showGroupInfo && selected ? (
-        <div className="absolute inset-0 z-40 bg-background flex flex-col lg:w-80 lg:right-0 lg:left-auto lg:inset-auto">
+        <div className="absolute inset-0 z-40 flex flex-col bg-background shadow-xl lg:inset-y-0 lg:left-auto lg:right-0 lg:w-80 lg:border-l lg:border-border/60">
           <GroupInfoPanel
             conversationId={String(selected.id)}
             onClose={() => setShowGroupInfo(false)}
