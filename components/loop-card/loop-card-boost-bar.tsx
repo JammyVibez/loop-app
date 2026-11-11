@@ -1,6 +1,6 @@
 "use client"
 
-import { Rocket, Coins } from "lucide-react"
+import { Rocket, Coins } from "@/components/icons/lucide-compat"
 
 interface LoopCardBoostBarProps {
   boostCoinsCurrent: number

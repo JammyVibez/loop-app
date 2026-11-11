@@ -10,7 +10,7 @@ import { PWAInstallPrompt } from "@/components/pwa/pwa-install-prompt"
 import { AppDownloadBadges } from "@/components/app-download-badges"
 import { FeedTour } from "@/components/tour/feed-tour"
 import { Button } from "@/components/ui/button"
-import { LogIn, Smartphone, ArrowRight, Download, CheckCircle } from "lucide-react"
+import { LogIn, Smartphone, ArrowRight, Download, CheckCircle } from "@/components/icons/lucide-compat"
 import { useEffect, useState, useCallback } from "react"
 
 export function HomePageClient() {

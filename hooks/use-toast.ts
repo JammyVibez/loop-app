@@ -7,7 +7,7 @@ import type {
   ToastActionElement,
   ToastProps,
 } from "@/components/ui/toast";
-import type { LucideIcon } from "lucide-react";
+import type { LucideIcon } from "@/components/icons/lucide-compat";
 
 /**
  * Three notices can stack; a fourth pushes the oldest out. One at a time hid

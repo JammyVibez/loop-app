@@ -18,7 +18,7 @@ import {
   Palette,
   RotateCcw,
   Save,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {

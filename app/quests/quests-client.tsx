@@ -28,7 +28,7 @@ import {
   Trophy,
   Users,
   Zap,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 import {
   formatTimeRemaining,

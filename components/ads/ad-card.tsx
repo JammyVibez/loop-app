@@ -3,7 +3,7 @@
 import { ProtectedMedia } from "@/components/media-protection"
 
 import { useEffect, useRef, useState } from "react"
-import { ArrowRight, BadgeCheck, Megaphone } from "lucide-react"
+import { ArrowRight, BadgeCheck, Megaphone } from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 

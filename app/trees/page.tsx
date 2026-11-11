@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { TreeReels } from "@/components/reels/tree-reels"
 import { useAuth } from "@/hooks/use-auth"
-import { Compass, Clapperboard } from "lucide-react"
+import { Compass, Clapperboard } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 const FILTERS = [

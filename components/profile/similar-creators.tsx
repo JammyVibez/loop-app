@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
-import { Users, Check, ArrowRight } from "lucide-react"
+import { Users, Check, ArrowRight } from "@/components/icons/lucide-compat"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 interface SimilarCreatorsProps {

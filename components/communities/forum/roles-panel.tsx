@@ -39,8 +39,8 @@ import {
   Star,
   Trash2,
   X,
-} from "lucide-react"
-import type { LucideIcon } from "lucide-react"
+} from "@/components/icons/lucide-compat"
+import type { LucideIcon } from "@/components/icons/lucide-compat"
 
 interface CircleOwnershipCandidate {
   user_id: string

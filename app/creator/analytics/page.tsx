@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft } from "@/components/icons/lucide-compat"
 import Link from "next/link"
 import { CreatorAnalytics } from "@/components/creator/creator-analytics"
 

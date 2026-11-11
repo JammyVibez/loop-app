@@ -1,6 +1,6 @@
 "use client"
 
-import { Inbox } from "lucide-react"
+import { Inbox } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import Link from "next/link"

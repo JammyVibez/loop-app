@@ -27,7 +27,7 @@ import {
   ArrowLeft,
   Server,
   Code2,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 const CATEGORY_META: Record<string, { label: string; color: string; chip: string }> = {
   moderation: { label: "Moderation", color: "text-rose-500", chip: "bg-rose-500/10 border-rose-500/25" },

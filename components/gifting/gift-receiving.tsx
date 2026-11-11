@@ -11,7 +11,7 @@ import {
   MessageCircle,
   Send,
   Star,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {

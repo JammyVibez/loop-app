@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
-import { Trash2, Search, AlertTriangle, UserX, Calendar, MessageSquare, Users, Coins, Shield, TrendingUp } from "lucide-react"
+import { Trash2, Search, AlertTriangle, UserX, Calendar, MessageSquare, Users, Coins, Shield, TrendingUp } from "@/components/icons/lucide-compat"
 
 interface UserResult {
   id: string

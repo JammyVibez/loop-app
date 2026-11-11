@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { VideoAvatar } from "@/components/cosmetics/video-avatar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Flag, CheckCircle, XCircle, Eye, User, Calendar, Filter } from "lucide-react";
+import { Flag, CheckCircle, XCircle, Eye, User, Calendar, Filter } from "@/components/icons/lucide-compat";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 

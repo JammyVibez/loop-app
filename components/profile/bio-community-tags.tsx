@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Users } from "lucide-react"
+import { Users } from "@/components/icons/lucide-compat"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import type { TaggedCircle } from "@/lib/circle-limits"

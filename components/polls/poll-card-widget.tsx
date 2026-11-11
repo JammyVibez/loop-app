@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Vote, CheckCircle2, Clock, Zap, Pencil, Plus, X } from "lucide-react"
+import { Vote, CheckCircle2, Clock, Zap, Pencil, Plus, X } from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase"

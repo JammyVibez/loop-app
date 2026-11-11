@@ -18,7 +18,7 @@ import {
   ExternalLink,
   MessageCircle,
   Compass,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 const APP_VERSION = "0.1.0"
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState } from "react"
-import { Upload, Video, X } from "lucide-react"
+import { Upload, Video, X } from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { useLoginGate } from "@/hooks/use-login-gate"

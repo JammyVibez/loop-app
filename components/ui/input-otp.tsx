@@ -2,7 +2,7 @@
 
 import React, { useContext } from 'react';
 import { OTPInput, OTPInputContext } from "input-otp";
-import { Dot } from "lucide-react";
+import { Dot } from "@/components/icons/lucide-compat";
 
 import { cn } from "@/lib/utils";
 

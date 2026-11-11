@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { Spinner } from "@/components/ui/skeletons"
-import { Wallpaper, ImagePlus } from "lucide-react"
+import { Wallpaper, ImagePlus } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 import {
   CHAT_WALLPAPER_PRESETS,

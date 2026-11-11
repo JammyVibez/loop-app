@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { VideoAvatar } from "@/components/cosmetics/video-avatar";
-import { GitBranch, Type, ImageIcon, Video, Music, FileText, Upload, X, CheckCircle2, ArrowUpRight } from "lucide-react";
+import { GitBranch, Type, ImageIcon, Video, Music, FileText, Upload, X, CheckCircle2, ArrowUpRight } from "@/components/icons/lucide-compat";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";

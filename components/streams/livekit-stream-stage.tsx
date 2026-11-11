@@ -2,7 +2,6 @@
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react"
 import { Room, RoomEvent, Track, type LocalParticipant, type Participant, type TrackPublication } from "livekit-client"
-import { } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { playRemoteAudio, unlockAudio } from "@/lib/audio-unlock"
 import { Spinner } from "@/components/ui/skeletons"

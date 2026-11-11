@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
-import { MessageSquare } from "lucide-react"
+import { MessageSquare } from "@/components/icons/lucide-compat"
 import { Spinner } from "@/components/ui/skeletons"
 
 interface ProLoungeSetting {

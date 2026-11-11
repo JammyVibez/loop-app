@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
-import { Users, RefreshCw, Save, ChevronDown, ChevronUp } from "lucide-react"
+import { Users, RefreshCw, Save, ChevronDown, ChevronUp } from "@/components/icons/lucide-compat"
 
 interface TeamMember {
   id: string

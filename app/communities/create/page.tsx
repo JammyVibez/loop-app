@@ -1,6 +1,6 @@
 import { Header } from "@/components/header"
 import { CreateCommunityWizard } from "@/components/communities/create-community-wizard"
-import { Layers, Users } from "lucide-react"
+import { Layers, Users } from "@/components/icons/lucide-compat"
 
 export const dynamic = "force-dynamic"
 

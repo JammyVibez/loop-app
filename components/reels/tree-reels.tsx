@@ -19,7 +19,7 @@ import {
   Trash2,
   Clock3,
   Send,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Button } from "@/components/ui/button"

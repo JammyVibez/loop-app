@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Phone, Video, MoreHorizontal, Wallpaper, Search, Bell, BellOff } from "lucide-react"
+import { ArrowLeft, Phone, Video, MoreHorizontal, Wallpaper, Search, Bell, BellOff } from "@/components/icons/lucide-compat"
 import {
   DropdownMenu,
   DropdownMenuContent,

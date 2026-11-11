@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
-import { Reply, Send, MessageCircle, X } from "lucide-react"
+import { Reply, Send, MessageCircle, X } from "@/components/icons/lucide-compat"
 import { Spinner } from "@/components/ui/skeletons"
 
 type QuickReplyTarget = { kind: "dm" | "comment"; key: string }

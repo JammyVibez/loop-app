@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { Download, Crown, Wallet, ShoppingBag, Loader2, User } from "lucide-react"
+import { Download, Crown, Wallet, ShoppingBag, Loader2, User } from "@/components/icons/lucide-compat"
 
 export function AccountSettings() {
   const { user, getAuthHeader } = useAuth()

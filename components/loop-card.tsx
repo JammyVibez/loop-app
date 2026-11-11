@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, memo } from "react"
 import { useRouter } from "next/navigation"
-import { Heart } from "lucide-react"
+import { Heart } from "@/components/icons/lucide-compat"
 import { Card, CardContent } from "./ui/card"
 import { AnimatedCardFrame } from "@/components/cosmetics/animated-card-frame"
 import { cardEffectStyle } from "@/lib/cosmetics"

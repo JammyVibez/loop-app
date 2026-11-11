@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, ExternalLink, Maximize2, Minimize2, RotateCcw, Lock, Database, AlertTriangle } from "lucide-react"
+import { ArrowLeft, ExternalLink, Maximize2, Minimize2, RotateCcw, Lock, Database, AlertTriangle } from "@/components/icons/lucide-compat"
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
 import { Spinner } from "@/components/ui/skeletons"

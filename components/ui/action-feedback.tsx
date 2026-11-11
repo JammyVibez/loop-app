@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
-import { RefreshCw } from "lucide-react"
+import { RefreshCw } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 /**

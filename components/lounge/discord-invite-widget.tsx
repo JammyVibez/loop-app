@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
-import { MessageSquare, ExternalLink } from "lucide-react"
+import { MessageSquare, ExternalLink } from "@/components/icons/lucide-compat"
 import { Spinner } from "@/components/ui/skeletons"
 
 export function DiscordInviteWidget() {

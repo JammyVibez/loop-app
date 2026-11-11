@@ -3,7 +3,7 @@ import { Header } from "@/components/header"
 import { ExploreContent, type ExploreTab } from "@/components/explore/explore-content"
 import { PageHeader } from "@/components/ui/page-header"
 import { Button } from "@/components/ui/button"
-import { Film, GitBranch } from "lucide-react"
+import { Film, GitBranch } from "@/components/icons/lucide-compat"
 
 export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const params = await searchParams

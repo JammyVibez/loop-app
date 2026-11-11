@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/components/ui/use-toast"
-import { Zap, Users, UserPlus, LogIn, Coins, CheckCircle2, ShieldCheck, ArrowRight, Rocket, Eye, EyeOff } from "lucide-react"
+import { Zap, Users, UserPlus, LogIn, Coins, CheckCircle2, ShieldCheck, ArrowRight, Rocket, Eye, EyeOff } from "@/components/icons/lucide-compat"
 import { Spinner } from "@/components/ui/skeletons"
 
 interface CoLoopJoinLandingProps {

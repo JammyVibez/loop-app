@@ -13,7 +13,7 @@ import {
   Apple,
   Share2,
   Plus,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { APK_DIRECT_URL, APK_CHECKSUM, APK_VERSION } from "@/lib/store-links"
 

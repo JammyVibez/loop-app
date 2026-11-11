@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Ban, CheckCircle2, RefreshCw, ShieldAlert, XCircle } from "lucide-react"
+import { Ban, CheckCircle2, RefreshCw, ShieldAlert, XCircle } from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"

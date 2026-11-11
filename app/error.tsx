@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { RefreshCw } from "lucide-react"
+import { RefreshCw } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { isChunkLoadError, reloadOnceForChunkError } from "@/lib/chunk-reload"
 

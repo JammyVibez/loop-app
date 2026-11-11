@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
-import { Store, Save } from "lucide-react"
+import { Store, Save } from "@/components/icons/lucide-compat"
 import { Spinner } from "@/components/ui/skeletons"
 
 export function ShopControl() {

@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus } from "@/components/icons/lucide-compat";
 import { Button } from "@/components/ui/button";
 import { LoopCard } from "@/components/loop-card";
 import { CreateBranchDialog } from "@/components/create-branch-dialog";

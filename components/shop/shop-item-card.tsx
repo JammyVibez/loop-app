@@ -2,7 +2,7 @@
 
 import { useMemo } from "react"
 import Link from "next/link"
-import { ArrowUpRight, Check, Coins, CreditCard, Crown, Lock, ShoppingBag } from "lucide-react"
+import { ArrowUpRight, Check, Coins, CreditCard, Crown, Lock, ShoppingBag } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { ShopItemMiniPreview, type ShopPreviewItem } from "@/components/shop/shop-item-preview"

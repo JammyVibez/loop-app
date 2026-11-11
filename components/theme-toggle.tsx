@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Moon, Sun, Circle, Flower2, TreePine, Palette } from "lucide-react"
+import { Moon, Sun, Circle, Flower2, TreePine, Palette } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 const themes = [

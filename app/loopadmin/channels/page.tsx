@@ -3,7 +3,7 @@
 import { useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Shield } from "lucide-react"
+import { Shield } from "@/components/icons/lucide-compat"
 import { Header } from "@/components/header"
 import { PageHeader } from "@/components/ui/page-header"
 import { PageLoading } from "@/components/loading-states"

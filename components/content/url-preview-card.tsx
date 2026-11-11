@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { ExternalLink, Globe } from "lucide-react"
+import { ExternalLink, Globe } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 import { openInAppBrowser } from "@/components/in-app-browser/in-app-browser"
 

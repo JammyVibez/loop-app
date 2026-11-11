@@ -20,7 +20,7 @@ import {
   Eye,
   Heart,
   MessageCircle,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 interface EarningsData {
   balance: {

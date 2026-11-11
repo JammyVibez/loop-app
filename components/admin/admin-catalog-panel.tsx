@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { ImageIcon, Palette, Plus, RefreshCw, Zap } from "lucide-react"
+import { ImageIcon, Palette, Plus, RefreshCw, Zap } from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"

@@ -24,7 +24,7 @@ import {
   ImageIcon,
   Users,
   CheckCircle2,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 export interface CoLoopVersion {
   id: string

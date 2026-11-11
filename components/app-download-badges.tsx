@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Apple, Play } from "lucide-react"
+import { Apple, Play } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 import { APP_STORE_URL, PLAY_STORE_URL } from "@/lib/store-links"
 

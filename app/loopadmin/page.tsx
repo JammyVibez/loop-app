@@ -8,7 +8,7 @@ import { AdminDashboard } from "@/components/admin/admin-dashboard"
 import { useAuth } from "@/hooks/use-auth"
 import { PageLoading } from "@/components/loading-states"
 import { Spinner } from "@/components/ui/skeletons"
-import { Film, Shield } from "lucide-react"
+import { Film, Shield } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/ui/page-header"
 

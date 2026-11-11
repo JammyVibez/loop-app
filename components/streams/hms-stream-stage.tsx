@@ -13,7 +13,7 @@ import {
   selectIsLocalVideoEnabled,
   selectDominantSpeaker,
 } from "@100mslive/react-sdk"
-import { Mic } from "lucide-react"
+import { Mic } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 import { unlockAudio } from "@/lib/audio-unlock"
 import { Spinner } from "@/components/ui/skeletons"

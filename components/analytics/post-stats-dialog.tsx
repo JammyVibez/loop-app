@@ -1,6 +1,6 @@
 "use client"
 
-import { Bookmark, Eye, GitBranch, Heart, MessageCircle, Share2, TrendingUp } from "lucide-react"
+import { Bookmark, Eye, GitBranch, Heart, MessageCircle, Share2, TrendingUp } from "@/components/icons/lucide-compat"
 import {
   Dialog,
   DialogContent,

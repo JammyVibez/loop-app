@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Coins, Save, ShoppingBag } from "lucide-react"
+import { Coins, Save, ShoppingBag } from "@/components/icons/lucide-compat"
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"

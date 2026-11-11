@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Rocket, Coins, Zap, TrendingUp, CheckCircle2 } from "lucide-react"
+import { Rocket, Coins, Zap, TrendingUp, CheckCircle2 } from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 

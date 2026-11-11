@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowRight, Check, FileText, LockKeyhole, ShieldCheck } from "lucide-react"
+import { ArrowRight, Check, FileText, LockKeyhole, ShieldCheck } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/skeletons"
 import { useAuth } from "@/hooks/use-auth"

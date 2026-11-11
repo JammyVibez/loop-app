@@ -23,7 +23,7 @@ import {
   CheckCircle2,
   Circle,
   Hourglass,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 interface SupportMessage {
   id: string

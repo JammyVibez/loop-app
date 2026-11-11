@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ShieldAlert, Clock, ArrowLeft, RefreshCw } from "lucide-react"
+import { ShieldAlert, Clock, ArrowLeft, RefreshCw } from "@/components/icons/lucide-compat"
 
 export default function RateLimitPage() {
   const router = useRouter()

@@ -40,7 +40,7 @@ import {
   Target,
   Trophy,
   X,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 interface Quest {
   id: string

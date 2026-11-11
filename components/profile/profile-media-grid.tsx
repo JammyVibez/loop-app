@@ -14,7 +14,7 @@ import {
   Eye,
   Heart,
   X,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 interface MediaItem {

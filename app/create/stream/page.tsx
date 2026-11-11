@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Radio } from "lucide-react"
+import { ArrowLeft, Radio } from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import { CreateStreamForm } from "@/components/create/create-stream-form"

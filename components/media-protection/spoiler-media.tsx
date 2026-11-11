@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, type ReactNode } from "react"
-import { EyeOff } from "lucide-react"
+import { EyeOff } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 interface SpoilerMediaProps {

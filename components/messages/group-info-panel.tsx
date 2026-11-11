@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils"
 import {
   Users, Shield, Crown, Settings, Pin, Link2, Lock, LockOpen,
   ChevronLeft, UserMinus, Copy, Check, X, ChevronDown, ChevronUp, Bell, BellOff,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 const ROLE_LABELS: Record<string, { label: string; color: string; icon: typeof Shield }> = {
   owner: { label: "Admin", color: "bg-amber-500/10 text-amber-600 border-amber-500/30", icon: Crown },

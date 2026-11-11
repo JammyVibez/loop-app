@@ -42,7 +42,7 @@ import {
   Wallet,
   Wrench,
   Zap,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"

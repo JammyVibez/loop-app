@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { RefreshCw, Save, Search, ShieldCheck, Users } from "lucide-react"
+import { RefreshCw, Save, Search, ShieldCheck, Users } from "@/components/icons/lucide-compat"
 
 type StaffRole = "developer" | "admin" | "moderator" | "user"
 interface AccessUser {

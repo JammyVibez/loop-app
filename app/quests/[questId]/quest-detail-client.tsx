@@ -29,7 +29,7 @@ import {
   Package,
   Target,
   Zap,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 import { estimateLabel, formatTimeRemaining, type MissionStepConfig, type SurveyQuestionConfig } from "@/lib/quests-v2"
 

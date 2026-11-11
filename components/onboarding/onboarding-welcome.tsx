@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { TreePine, Camera, ArrowRight, Star, Zap, Palette, Music, Gamepad2, Camera as CameraIcon, Rocket } from "lucide-react"
+import { TreePine, Camera, ArrowRight, Star, Zap, Palette, Music, Gamepad2, Camera as CameraIcon, Rocket } from "@/components/icons/lucide-compat"
 import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { getDiceBearUrl } from "@/lib/dicebear"
 import { useAuth } from "@/hooks/use-auth"

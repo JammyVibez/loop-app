@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { BadgeCheck, Check, Copy, ExternalLink, Link2, QrCode, Share2, UserPlus } from "lucide-react"
+import { BadgeCheck, Check, Copy, ExternalLink, Link2, QrCode, Share2, UserPlus } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"

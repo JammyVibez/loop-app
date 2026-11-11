@@ -41,7 +41,7 @@ import {
   MessageCircle,
   Search,
   Users,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 interface Suggestion {
   id: string

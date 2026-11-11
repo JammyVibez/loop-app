@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Zap, X } from "lucide-react"
+import { Zap, X } from "@/components/icons/lucide-compat"
 import Link from "next/link"
 
 const CHANGELOG_KEY = "loop-changelog-seen-v2026-07-28"

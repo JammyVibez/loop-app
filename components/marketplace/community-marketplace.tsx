@@ -12,7 +12,7 @@ import {
   ShoppingBag,
   Zap,
   Wand2,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"

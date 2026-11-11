@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useCallback, useEffect, useState, type ReactNode, type Ref } from "react"
-import { Play, Pause, Volume2, VolumeX, Volume1 } from "lucide-react"
+import { Play, Pause, Volume2, VolumeX, Volume1 } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 type ProtectedMediaProps = {

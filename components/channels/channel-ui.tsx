@@ -2,7 +2,7 @@
 
 import { useState, type CSSProperties, type ReactNode } from "react"
 import Link from "next/link"
-import { ArrowLeft, Info } from "lucide-react"
+import { ArrowLeft, Info } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 /**

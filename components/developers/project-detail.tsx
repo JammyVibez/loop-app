@@ -29,7 +29,7 @@ import {
   UserPlus,
   Users,
   Wrench,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { CodeLoopCard } from "@/components/developers/code-loop-card"
 import { ProjectRepoBrowser } from "@/components/developers/project-repo-browser"
 import { Spinner } from "@/components/ui/skeletons"

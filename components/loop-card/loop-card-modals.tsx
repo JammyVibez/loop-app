@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Zap, Users, ChevronLeft, ChevronRight, Volume2 } from "lucide-react"
+import { Zap, Users, ChevronLeft, ChevronRight, Volume2 } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AvatarWithFrame } from "@/components/ui/avatar-with-frame"

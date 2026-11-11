@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowUpRight, Bookmark, GitBranch, MessageCircle } from "lucide-react"
+import { ArrowUpRight, Bookmark, GitBranch, MessageCircle } from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { rustApiRequest } from "@/lib/rust-api"
 import { Card, CardContent } from "@/components/ui/card"

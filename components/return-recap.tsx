@@ -12,7 +12,7 @@ import {
   Handshake,
   Zap,
   X,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 
 type RecapItem = {
   kind: "comment" | "duel" | "circle" | "follow" | "co_loop"

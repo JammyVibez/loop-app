@@ -47,7 +47,7 @@ import {
   Accessibility,
   UserCog,
   BadgeCheck,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { OrganizationSettings } from "@/components/settings/organization-settings"
 import { ReferralsSettings } from "@/components/settings/referrals-settings"
 import { SecuritySettings } from "@/components/settings/security-settings"

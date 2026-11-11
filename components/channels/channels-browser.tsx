@@ -11,7 +11,7 @@ import {
   Play,
   Plus,
   Search,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import {
   CHANNEL_TABS,
   type ChannelTab,

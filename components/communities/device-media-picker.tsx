@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { ImagePlus, X, ChevronLeft, ChevronRight, Film } from "lucide-react"
+import { ImagePlus, X, ChevronLeft, ChevronRight, Film } from "@/components/icons/lucide-compat"
 import { Spinner } from "@/components/ui/skeletons"
 
 export type PickedMedia = {

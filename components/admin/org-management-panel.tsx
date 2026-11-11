@@ -15,7 +15,7 @@ import {
   AlertCircle,
   Image as ImageIcon,
   Check
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"

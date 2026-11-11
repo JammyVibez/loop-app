@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { DollarSign, RefreshCw, Check, X, CircleDollarSign } from "lucide-react"
+import { DollarSign, RefreshCw, Check, X, CircleDollarSign } from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"

@@ -12,7 +12,7 @@ import {
   PenLine,
   Users,
   Wand2,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/hooks/use-auth"

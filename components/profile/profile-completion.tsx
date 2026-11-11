@@ -14,7 +14,7 @@ import {
   LinkIcon,
   Users,
   Award,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 interface ProfileCompletionProps {

@@ -1,15 +1,11 @@
 "use client"
 
+import { HomeIcon, SearchIcon as MagnifierIcon, PenToolIcon as PenIcon, UsersIcon, MessageCircleIcon } from "@/components/icons"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { AnimatedIconView } from "@/components/icons/animated/animated-icon-view"
-import type { AnimatedIconComponent } from "@/components/icons/animated/animated-icon-view"
-import HomeIcon from "@/components/icons/animated/home-icon"
-import MagnifierIcon from "@/components/icons/animated/magnifier-icon"
-import PenIcon from "@/components/icons/animated/pen-icon"
-import UsersIcon from "@/components/icons/animated/users-icon"
-import MessageCircleIcon from "@/components/icons/animated/message-circle-icon"
+import { AnimatedIconView, type AnimatedIconComponent } from "@/components/icons/animated-icon-view"
+
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { useLoginGate } from "@/hooks/use-login-gate"

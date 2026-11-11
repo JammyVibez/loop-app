@@ -11,7 +11,7 @@ import {
   Play,
   Share2,
   Star,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { ChannelPlayer } from "@/components/channels/channel-player"
 import { ChannelArt, ChannelNotice, ChannelScreen, posterStyle } from "@/components/channels/channel-ui"
 import { runtimeLabel, type ChannelTitle, type ChannelTitleDetails } from "@/lib/channels-library"

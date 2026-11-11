@@ -13,7 +13,7 @@ import { ProfileFramesPanel } from "@/components/profile/pfp-frames-panel"
 import { RarityChip, RARITY_STYLE } from "@/components/shop/shop-item-card"
 import { Lottie } from "@/components/ui/lottie"
 import { artForItem, LOCK, LOADER, EMPTY_BOX } from "@/components/shop/shop-art"
-import { Coins, Palette, ShoppingBag, Shield, Check, Eye, X, Crown, Star, Zap, Layers } from "lucide-react"
+import { Coins, Palette, ShoppingBag, Shield, Check, Eye, X, Crown, Star, Zap, Layers } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 /* ── Inventory item shape from the API ──────────────────────────────────── */

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useCallback } from "react"
-import { Heart, Volume2, Crown, ChevronLeft, ChevronRight } from "lucide-react"
+import { Heart, Volume2, Crown, ChevronLeft, ChevronRight } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useTheme3D } from "../../providers/theme-3d-provider"

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Zap, X, Gift, Coins } from "lucide-react"
+import { Zap, X, Gift, Coins } from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 
 export function WelcomeBanner() {

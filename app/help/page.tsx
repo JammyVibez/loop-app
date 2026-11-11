@@ -29,7 +29,7 @@ import {
   
   MessagesSquare,
   ArrowRight,
-} from "lucide-react";
+} from "@/components/icons/lucide-compat";
 
 interface FAQ {
   id: string

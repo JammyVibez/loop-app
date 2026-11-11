@@ -6,7 +6,7 @@ import Link from "next/link"
 import { Header } from "@/components/header"
 import { ProjectDetail } from "@/components/developers/project-detail"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft } from "@/components/icons/lucide-compat"
 import { Spinner } from "@/components/ui/skeletons"
 
 function normalizeProject(row: any) {

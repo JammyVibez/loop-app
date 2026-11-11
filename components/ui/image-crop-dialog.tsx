@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Crop, RotateCcw, RotateCw, ZoomIn, ZoomOut } from "lucide-react"
+import { Crop, RotateCcw, RotateCw, ZoomIn, ZoomOut } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,

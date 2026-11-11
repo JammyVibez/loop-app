@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, Coins, Package } from "lucide-react"
+import { ArrowRight, Coins, Package } from "@/components/icons/lucide-compat"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Lottie } from "@/components/ui/lottie"

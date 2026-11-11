@@ -11,7 +11,7 @@ import {
   X,
   XCircle,
   type LucideIcon,
-} from "lucide-react";
+} from "@/components/icons/lucide-compat";
 
 import { cn } from "@/lib/utils";
 

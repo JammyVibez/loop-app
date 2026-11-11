@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Bot, Check, KeyRound, Loader2, PlugZap, Trash2 } from "lucide-react"
+import { Bot, Check, KeyRound, Loader2, PlugZap, Trash2 } from "@/components/icons/lucide-compat"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"

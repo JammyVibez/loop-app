@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { BadgeCheck, CheckCircle, Clock, Shield, Star, XCircle } from "lucide-react";
+import { BadgeCheck, CheckCircle, Clock, Shield, Star, XCircle } from "@/components/icons/lucide-compat";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 

@@ -31,7 +31,7 @@ import {
   Check,
   RefreshCw,
   Crown,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { useToast } from "@/hooks/use-toast"
 import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { VerifiedSeal } from "@/components/ui/verified-seal"

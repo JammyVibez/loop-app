@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from "react"
 import { useToast } from "@/components/ui/use-toast"
-import { Camera, Share2 } from "lucide-react"
+import { Camera, Share2 } from "@/components/icons/lucide-compat"
 
 type ScreenshotDetectorProps = {
   /** Whether to show toast notification on screenshot */

@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { MessageCircle } from "lucide-react"
+import { MessageCircle } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 import { type ProfileNote, noteExpiryLabel } from "@/lib/profile-note"
 import { noteThemeStyle } from "./note-theme-styles"

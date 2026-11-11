@@ -12,7 +12,7 @@ import {
   Search,
   Trash2,
   Users,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"

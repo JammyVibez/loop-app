@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Trash2, RefreshCw, Radio, Users, Globe, CheckCircle2, XCircle } from "lucide-react"
+import { Trash2, RefreshCw, Radio, Users, Globe, CheckCircle2, XCircle } from "@/components/icons/lucide-compat"
 import { Spinner } from "@/components/ui/skeletons"
 
 interface CoLoopSession {

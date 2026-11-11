@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { HardDrive, Save, ShieldCheck } from "lucide-react"
+import { HardDrive, Save, ShieldCheck } from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { MEDIA_POLICY_FIELDS, type MediaPolicy } from "@/lib/media/policy"

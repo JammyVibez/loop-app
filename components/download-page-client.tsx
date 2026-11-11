@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowLeft, Smartphone } from "lucide-react"
+import { ArrowLeft, Smartphone } from "@/components/icons/lucide-compat"
 import {
   AndroidDirectInstall,
   IosComingSoon,

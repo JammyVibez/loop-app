@@ -27,7 +27,7 @@ import {
   Unlock,
   UserPlus,
   WifiOff,
-} from "lucide-react"
+} from "@/components/icons/lucide-compat"
 import { initialsOf, type StudioConnectionState, type StudioParticipant } from "./studio-types"
 
 function ConnectionPill({ state }: { state: StudioConnectionState }) {

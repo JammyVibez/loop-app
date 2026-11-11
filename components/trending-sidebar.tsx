@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Hash, Code2, Star, ArrowRight } from "lucide-react";
+import { TrendingUp, Hash, Code2, Star, ArrowRight } from "@/components/icons/lucide-compat";
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
 import { VerifiedSeal } from "@/components/ui/verified-seal"

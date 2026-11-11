@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
 import Link from "next/link";
-import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, GitBranch, Volume2, Zap } from "lucide-react";
+import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, GitBranch, Volume2, Zap } from "@/components/icons/lucide-compat";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardHeader } from "@/components/ui/card";
 import { VideoAvatar } from "@/components/cosmetics/video-avatar";

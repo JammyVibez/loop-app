@@ -1,7 +1,7 @@
 "use client"
 
 import { VerifiedSeal } from "@/components/ui/verified-seal"
-import { ShieldCheck, Zap, Crown, Building2, Star, Shield } from "lucide-react"
+import { ShieldCheck, Zap, Crown, Building2, Star, Shield } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 export interface VerificationBadgeData {

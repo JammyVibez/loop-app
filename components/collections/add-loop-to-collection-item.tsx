@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { BookmarkPlus, Check, FolderPlus } from "lucide-react"
+import { BookmarkPlus, Check, FolderPlus } from "@/components/icons/lucide-compat"
 
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"

@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { BadgeCheck, CheckCircle2, Clock, Loader2, Send, XCircle } from "lucide-react"
+import { BadgeCheck, CheckCircle2, Clock, Loader2, Send, XCircle } from "@/components/icons/lucide-compat"
 import { cn } from "@/lib/utils"
 
 interface VerifRequest {

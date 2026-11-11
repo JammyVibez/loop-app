@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
-import { ArrowUpRight, Bookmark, CalendarDays, GitBranch, Hash, Search, Users } from "lucide-react"
+import { ArrowUpRight, Bookmark, CalendarDays, GitBranch, Hash, Search, Users } from "@/components/icons/lucide-compat"
 import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
-import { Download, Share2, BadgeCheck, Moon, Sun, RotateCcw } from "lucide-react"
+import { Download, Share2, BadgeCheck, Moon, Sun, RotateCcw } from "@/components/icons/lucide-compat"
 import { getDiceBearUrl } from "@/lib/dicebear"
 import { Spinner } from "@/components/ui/skeletons"
 import { useVerificationBadges } from "@/hooks/use-verification-badges"
