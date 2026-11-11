@@ -7,6 +7,18 @@ import { readFileSync, existsSync } from "node:fs"
 import { resolve } from "node:path"
 import pg from "pg"
 
+// Load .env.local / .env exactly like the app does. On the VPS the database URL
+// lives in .env.local, but `npm run` does not read it, so the deploy step used
+// to fail with "DATABASE_URL is required" and silently skip every migration.
+try {
+  const nextEnv = await import("@next/env")
+  // Depending on Node's CJS interop the helper is named or on `default`.
+  const loadEnv = nextEnv.loadEnvConfig || nextEnv.default?.loadEnvConfig
+  if (typeof loadEnv === "function") loadEnv(process.cwd(), false)
+} catch {
+  // The caller may already export the URL (CI, systemd); keep going.
+}
+
 const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL
 
 if (!databaseUrl) {
