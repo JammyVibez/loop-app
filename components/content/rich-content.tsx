@@ -8,12 +8,14 @@ import { UrlPreviewCard } from "./url-preview-card"
 import { MarkdownContent } from "./markdown-content"
 import { openInAppBrowser } from "@/components/in-app-browser/in-app-browser"
 import { EmojiText } from "@/components/emoji/animated-emoji"
+import { CommunityShareCard } from "@/components/communities/community-share-card"
 
 const HASHTAG_RE = /#([a-zA-Z0-9_]{1,50})\b/g
 const URL_RE = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/g
 const MARKDOWN_IMG_RE = /^!\[([^\]]*)\]\((https?:\/\/[^\s<]+|\/[^\s<]+)\)$/i
 const CIRCLE_TOKEN_RE = /^\[\[c:([a-zA-Z0-9_-]{1,64})(?:\|([^\]]{1,80}))?\]\]$/i
-const COMBINED_RE = /(\[\[c:[a-zA-Z0-9_-]{1,64}(?:\|[^\]]{1,80})?\]\]|!\[[^\]]*\]\((?:https?:\/\/[^\s<]+|\/[^\s<]+)\)|@[a-zA-Z0-9_]{3,30}\b|#[a-zA-Z0-9_]{1,50}\b|https?:\/\/[^\s<]+|www\.[^\s<]+)/g
+const COMMUNITY_CARD_TOKEN_RE = /^\[\[cc:([a-zA-Z0-9_-]{1,64})\]\]$/i
+const COMBINED_RE = /(\[\[cc:[a-zA-Z0-9_-]{1,64}\]\]|\[\[c:[a-zA-Z0-9_-]{1,64}(?:\|[^\]]{1,80})?\]\]|!\[[^\]]*\]\((?:https?:\/\/[^\s<]+|\/[^\s<]+)\)|@[a-zA-Z0-9_]{3,30}\b|#[a-zA-Z0-9_]{1,50}\b|https?:\/\/[^\s<]+|www\.[^\s<]+)/g
 
 type Props = {
   text: string
@@ -66,9 +68,17 @@ export function RichContent({
   const parts = bodyText.split(COMBINED_RE)
   const detectedUrls: string[] = []
 
+  // GIF hosts serve their own optimized CDN assets; proxying them would break
+  // caching and stream every animation through our server.
+  const isCdnGif = (src: string) =>
+    /(^|\/\/)([a-z0-9-]+\.)*(giphy\.com|tenor\.com)\//i.test(src) || /\.gif($|\?)/i.test(src)
+
   // Route remote images through the image-proxy so browsers don't fetch unknown hosts directly.
-  const proxied = (src?: string | null): string | undefined =>
-    src && src.startsWith("http") ? `/api/image-proxy?url=${encodeURIComponent(src)}` : src || undefined
+  const proxied = (src?: string | null): string | undefined => {
+    if (!src) return undefined
+    if (!src.startsWith("http")) return src
+    return isCdnGif(src) ? src : `/api/image-proxy?url=${encodeURIComponent(src)}`
+  }
 
   return (
     <div className="space-y-1 min-w-0">
@@ -76,7 +86,13 @@ export function RichContent({
         {parts.map((part, i) => {
           if (!part) return null
 
-          // 0. Community tags in bio/posts: [[c:uuid|Name]]
+          // 0. Shared community card: [[cc:uuid]]
+          const cardToken = part.match(COMMUNITY_CARD_TOKEN_RE)
+          if (cardToken) {
+            return <CommunityShareCard key={`${i}-${part}`} communityId={cardToken[1]} />
+          }
+
+          // 0b. Community tags in bio/posts: [[c:uuid|Name]]
           const circleToken = part.match(CIRCLE_TOKEN_RE)
           if (circleToken) {
             const circleId = circleToken[1]

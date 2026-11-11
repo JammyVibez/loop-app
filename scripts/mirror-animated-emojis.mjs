@@ -1,13 +1,14 @@
 /**
- * Mirror the most-used Telegram animated emojis into our own public folder.
+ * Mirror the Telegram animated emoji collection into our public folder.
  *
  * Source: Tarikul-Islam-Anik/Telegram-Animated-Emojis (animated WebP).
  * The telemoji repo is the canonical reference for codepoint naming, but its
- * WebP files are Git LFS pointers (132 bytes), so it cannot be served directly.
+ * WebP files are Git LFS pointers (132 bytes), so they cannot be served.
  *
- * Each file is resized to 96px and re-encoded as an animated WebP (~10-40KB),
- * then written as `U+1F600.webp` so the Unicode → file mapping stays canonical.
- * A manifest maps the emoji character to its local file and CDN fallback.
+ * Collection files are named after the emoji ("Grinning Face.webp"), so each
+ * one is matched to its character through the CLDR names in unicode-emoji-json.
+ * Files are resized to 48px / 20 frames (~14KB) and written as
+ * `U+1F600.webp`, keeping the Unicode → file mapping canonical.
  *
  * Usage:
  *   node scripts/mirror-animated-emojis.mjs --dry-run
@@ -36,105 +37,23 @@ const CATEGORIES = [
   "Activity",
 ]
 
-/** [emoji, Telegram asset name, use Lottie for large renders] */
-const CURATED = [
-  ["😀", "Grinning Face", true],
-  ["😃", "Grinning Face With Big Eyes"],
-  ["😄", "Grinning Face With Smiling Eyes"],
-  ["😁", "Beaming Face With Smiling Eyes"],
-  ["😂", "Face With Tears Of Joy", true],
-  ["😊", "Smiling Face With Smiling Eyes"],
-  ["🥰", "Smiling Face With Hearts"],
-  ["😎", "Smiling Face With Sunglasses"],
-  ["🤔", "Thinking Face"],
-  ["😭", "Loudly Crying Face"],
-  ["😡", "Pouting Face"],
-  ["🥳", "Partying Face"],
-  ["🤩", "Star-Struck"],
-  ["😴", "Sleeping Face"],
-  ["🤯", "Exploding Head"],
-  ["😅", "Grinning Face With Sweat"],
-  ["😇", "Smiling Face With Halo"],
-  ["🤗", "Hugging Face"],
-  ["😱", "Face Screaming In Fear"],
-  ["🙃", "Upside-Down Face"],
-  ["😘", "Face Blowing A Kiss"],
-  ["😢", "Crying Face"],
-  ["😤", "Face With Steam From Nose"],
-  ["🥺", "Pleading Face"],
-  ["😬", "Grimacing Face"],
-  ["😉", "Winking Face"],
-  ["😮", "Face With Open Mouth"],
-  ["😲", "Astonished Face"],
-  ["🤢", "Nauseated Face"],
-  ["🤮", "Face Vomiting"],
-  ["💀", "Skull"],
-  ["👻", "Ghost"],
-  ["💩", "Pile Of Poo"],
-  ["🤡", "Clown Face"],
-  ["👽", "Alien"],
-  ["🤖", "Robot"],
-  ["👋", "Waving Hand"],
-  ["👍", "Thumbs Up"],
-  ["👎", "Thumbs Down"],
-  ["👏", "Clapping Hands"],
-  ["🙌", "Raising Hands"],
-  ["🙏", "Folded Hands"],
-  ["💪", "Flexed Biceps"],
-  ["🤝", "Handshake"],
-  ["👀", "Eyes"],
-  ["🤞", "Crossed Fingers"],
-  ["✌️", "Victory Hand"],
-  ["🫶", "Heart Hands"],
-  ["🐱", "Cat Face"],
-  ["🐶", "Dog Face"],
-  ["🦊", "Fox"],
-  ["🦁", "Lion"],
-  ["🦄", "Unicorn"],
-  ["🐼", "Panda"],
-  ["🐸", "Frog"],
-  ["🌈", "Rainbow"],
-  ["🌸", "Cherry Blossom"],
-  ["🍀", "Four Leaf Clover"],
-  ["🌹", "Rose"],
-  ["🌙", "Crescent Moon"],
-  ["☀️", "Sun"],
-  ["⭐", "Star"],
-  ["✨", "Sparkles"],
-  ["🔥", "Fire", true],
-  ["🍕", "Pizza"],
-  ["🍔", "Hamburger"],
-  ["☕", "Hot Beverage"],
-  ["🍩", "Doughnut"],
-  ["🍷", "Wine Glass"],
-  ["🍓", "Strawberry"],
-  ["🎂", "Birthday Cake"],
-  ["🎉", "Party Popper"],
-  ["🎊", "Confetti Ball"],
-  ["🏆", "Trophy"],
-  ["🚀", "Rocket"],
-  ["⚡", "High Voltage"],
-  ["💎", "Gem Stone"],
-  ["💰", "Money Bag"],
-  ["🪙", "Coin"],
-  ["❤️", "Red Heart", true],
-  ["🧡", "Orange Heart"],
-  ["💛", "Yellow Heart"],
-  ["💚", "Green Heart"],
-  ["💙", "Blue Heart"],
-  ["💜", "Purple Heart"],
-  ["🖤", "Black Heart"],
-  ["🤍", "White Heart"],
-  ["💖", "Sparkling Heart"],
-  ["💔", "Broken Heart"],
-  ["💯", "Hundred Points"],
-  ["🔮", "Crystal Ball"],
-  ["✅", "Check Mark Button"],
-  ["❌", "Cross Mark"],
-  ["💡", "Light Bulb"],
-  ["👑", "Crown"],
-  ["🎵", "Musical Note"],
+/** Emoji that also get a Lottie version for large renders / previews. */
+const LOTTIE_HEROES = new Set(["😀", "😂", "🔥", "❤️"])
+
+/** Group order used for the picker. */
+const GROUP_ORDER = [
+  "Smileys & Emotion",
+  "People & Body",
+  "Animals & Nature",
+  "Food & Drink",
+  "Activities",
+  "Travel & Places",
+  "Objects",
+  "Symbols",
+  "Flags",
 ]
+
+const dryRun = process.argv.includes("--dry-run")
 
 function normalize(value) {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "")
@@ -148,9 +67,18 @@ export function emojiToCodePoints(emoji) {
     .map((cp) => `U+${cp.toString(16).toUpperCase()}`)
 }
 
-const dryRun = process.argv.includes("--dry-run")
+const cldr = JSON.parse(
+  await fs.readFile(path.join(process.cwd(), "node_modules", "unicode-emoji-json", "data-by-emoji.json"), "utf8"),
+)
 
-const listings = new Map()
+const byName = new Map()
+for (const [emoji, meta] of Object.entries(cldr)) {
+  const key = normalize(meta.name)
+  if (!byName.has(key)) byName.set(key, emoji)
+}
+
+// Collect every collection file once.
+const files = []
 for (const category of CATEGORIES) {
   const res = await fetch(`https://api.github.com/repos/${REPO}/contents/${encodeURIComponent(category)}`, {
     headers: { "user-agent": "loop-emoji-mirror" },
@@ -159,11 +87,39 @@ for (const category of CATEGORIES) {
     console.error(`listing failed for ${category}: ${res.status}`)
     continue
   }
-  const files = await res.json()
-  for (const file of files) {
+  const entries = await res.json()
+  for (const file of entries) {
     if (!file?.name?.endsWith(".webp")) continue
-    listings.set(`${category}/${file.name.replace(/\.webp$/i, "")}`, file)
+    files.push({
+      category,
+      name: file.name.replace(/\.webp$/i, ""),
+      downloadUrl: file.download_url,
+      fileName: file.name,
+    })
   }
+}
+
+// Match files → emoji, keeping one file per character.
+const matches = []
+const seen = new Set()
+for (const file of files) {
+  const emoji = byName.get(normalize(file.name))
+  if (!emoji || seen.has(emoji)) continue
+  seen.add(emoji)
+  matches.push({ ...file, emoji, group: cldr[emoji]?.group || "Symbols" })
+}
+matches.sort((a, b) => {
+  const ga = GROUP_ORDER.indexOf(a.group)
+  const gb = GROUP_ORDER.indexOf(b.group)
+  if (ga !== gb) return ga - gb
+  return a.name.localeCompare(b.name)
+})
+
+console.log(`collection files: ${files.length}, matched emoji: ${matches.length}`)
+if (dryRun) {
+  const bytes = 0
+  console.log(`dry run: would mirror ${matches.length} emoji (${bytes} bytes)`)
+  process.exit(0)
 }
 
 await fs.mkdir(OUT_DIR, { recursive: true })
@@ -171,64 +127,56 @@ await fs.mkdir(LOTTIE_DIR, { recursive: true })
 await fs.mkdir(path.dirname(MANIFEST), { recursive: true })
 
 const manifest = {}
-const missing = []
+let totalBytes = 0
+let cursor = 0
 
-for (const [emoji, name, preferLottie = false] of CURATED) {
-  const wanted = normalize(name)
-  let match = [...listings.entries()].find(([key]) => normalize(path.basename(key)) === wanted)
-  if (!match) {
-    match = [...listings.entries()].find(([key]) => normalize(path.basename(key)).startsWith(wanted))
-  }
-  if (!match) {
-    match = [...listings.entries()].find(([key]) => normalize(path.basename(key)).includes(wanted))
-  }
-  if (!match) {
-    missing.push(`${emoji} ${name}`)
-    continue
-  }
-
-  const [key, file] = match
-  const filename = `${emojiToCodePoints(emoji).join("_")}.webp`
+async function mirrorOne(match) {
+  const filename = `${emojiToCodePoints(match.emoji).join("_")}.webp`
   const target = path.join(OUT_DIR, filename)
 
-  if (dryRun) {
-    manifest[emoji] = { file: filename, name, cdn: `${RAW}/${key.split("/")[0]}.webp` }
-    continue
+  // Re-runs skip work already done, so an interrupted mirror can resume.
+  const existing = await fs.stat(target).catch(() => null)
+  if (existing?.size) {
+    totalBytes += existing.size
+    manifest[match.emoji] = {
+      file: filename,
+      name: cldr[match.emoji]?.name || match.name,
+      group: match.group,
+      cdn: `${RAW}/${match.category.replace(/ /g, "%20")}/${encodeURIComponent(match.fileName)}`,
+    }
+    return
   }
 
-  const download = await fetch(file.download_url)
+  const download = await fetch(match.downloadUrl)
   if (!download.ok) {
-    missing.push(`${emoji} ${name} (download ${download.status})`)
-    continue
+    console.error(`download failed ${match.name}: ${download.status}`)
+    return
   }
   const input = Buffer.from(await download.arrayBuffer())
-  // Some Telegram emoji have fewer than 32 frames; asking for more pages than
-  // the file holds makes libwebp reject the decode.
   const meta = await sharp(input, { animated: true }).metadata()
-  const pages = meta.pages ? Math.min(32, meta.pages) : undefined
+  const pages = meta.pages ? Math.min(20, meta.pages) : undefined
   const output = await sharp(input, pages ? { animated: true, pages } : { animated: true })
     .resize({
-      width: 64,
-      height: 64,
+      width: 48,
+      height: 48,
       fit: "contain",
       background: { r: 0, g: 0, b: 0, alpha: 0 },
     })
-    // 32 frames keeps a ~1s loop while cutting each file to ~30KB.
-    .webp({ quality: 36, alphaQuality: 45, effort: 6, loop: 0 })
+    .webp({ quality: 32, alphaQuality: 40, effort: 6, loop: 0 })
     .toBuffer()
   await fs.writeFile(target, output)
+  totalBytes += output.byteLength
 
   const entry = {
     file: filename,
-    name,
-    cdn: `${RAW}/${key.split("/")[0].replace(/ /g, "%20")}/${encodeURIComponent(file.name)}`,
-    bytes: output.byteLength,
+    name: cldr[match.emoji]?.name || match.name,
+    group: match.group,
+    cdn: `${RAW}/${match.category.replace(/ /g, "%20")}/${encodeURIComponent(match.fileName)}`,
   }
 
-  // A handful of hero emoji also get a Lottie version for large renders.
-  if (preferLottie) {
+  if (LOTTIE_HEROES.has(match.emoji)) {
     try {
-      const lottieName = `${emojiToCodePoints(emoji).join("_")}_1.json`
+      const lottieName = `${emojiToCodePoints(match.emoji).join("_")}_1.json`
       const res = await fetch(`${TELEMOJI_LOTTIE}/${encodeURIComponent(lottieName)}`)
       if (res.ok) {
         let buf = Buffer.from(await res.arrayBuffer())
@@ -236,8 +184,8 @@ for (const [emoji, name, preferLottie = false] of CURATED) {
         if (buf[0] === 0x1f && buf[1] === 0x8b) buf = gunzipSync(buf)
         const json = JSON.parse(buf.toString("utf8"))
         if (json && Array.isArray(json.layers)) {
-          await fs.writeFile(path.join(LOTTIE_DIR, `${emojiToCodePoints(emoji).join("_")}.json`), JSON.stringify(json))
-          entry.lottie = `${emojiToCodePoints(emoji).join("_")}.json`
+          await fs.writeFile(path.join(LOTTIE_DIR, `${emojiToCodePoints(match.emoji).join("_")}.json`), JSON.stringify(json))
+          entry.lottie = `${emojiToCodePoints(match.emoji).join("_")}.json`
         }
       }
     } catch {
@@ -245,15 +193,24 @@ for (const [emoji, name, preferLottie = false] of CURATED) {
     }
   }
 
-  manifest[emoji] = entry
-  console.log(`${emoji} ${name} -> ${filename} (${(output.byteLength / 1024).toFixed(1)}KB)`)
+  manifest[match.emoji] = entry
 }
 
-if (dryRun) {
-  console.log(`dry run: matched ${Object.keys(manifest).length}/${CURATED.length}`)
-  if (missing.length) console.log(`missing:\n  ${missing.join("\n  ")}`)
-  process.exit(0)
+const CONCURRENCY = 10
+async function worker() {
+  while (cursor < matches.length) {
+    const index = cursor++
+    const match = matches[index]
+    try {
+      await mirrorOne(match)
+    } catch (err) {
+      console.error(`failed ${match.name}:`, err?.message || err)
+    }
+    if ((index + 1) % 50 === 0) console.log(`mirrored ${index + 1}/${matches.length}`)
+  }
 }
+
+await Promise.all(Array.from({ length: CONCURRENCY }, worker))
 
 await fs.writeFile(
   MANIFEST,
@@ -268,5 +225,5 @@ await fs.writeFile(
   )}\n`,
 )
 
-console.log(`\nmirrored ${Object.keys(manifest).length}/${CURATED.length} emoji`)
-if (missing.length) console.log(`missing:\n  ${missing.join("\n  ")}`)
+const mirrored = Object.keys(manifest).length
+console.log(`\nmirrored ${mirrored}/${matches.length} emoji, ${(totalBytes / 1024 / 1024).toFixed(1)}MB total`)

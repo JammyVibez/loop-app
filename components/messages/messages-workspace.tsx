@@ -2518,6 +2518,7 @@ export function MessagesWorkspace() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align={mine ? "end" : "start"} side="top" className="w-72 p-2">
                         <EmojiPicker
+                          mode="animated"
                           onSelect={(emoji) => {
                             void toggleReaction(message, emoji)
                             setActiveActionsId(null)

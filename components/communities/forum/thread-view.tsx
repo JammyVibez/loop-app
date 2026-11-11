@@ -438,6 +438,7 @@ function MessageRow({
         {pickerOpen && fullPickerOpen && canInteract && (
           <div className="absolute right-1 top-full z-20 mt-1 w-72 rounded-2xl border border-border bg-card p-2 shadow-xl">
             <EmojiPicker
+              mode="animated"
               onSelect={(emoji) => {
                 onReact(reply, emoji)
                 setFullPickerOpen(false)

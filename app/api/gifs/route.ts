@@ -53,12 +53,62 @@ export async function GET(req: NextRequest) {
       console.error("Curated GIF fetch error:", err)
     }
 
-    if (!q) {
-      return NextResponse.json({ success: true, results: results.slice(0, limit) })
-    }
-
     const TENOR_KEY = process.env.TENOR_API_KEY || null
     const GIPHY_KEY = process.env.GIPHY_API_KEY || null
+
+    // No query means the picker's Trending section, so ask the providers for
+    // their featured/trending feed instead of only returning curated GIFs.
+    if (!q) {
+      if ((source === "all" || source === "tenor") && TENOR_KEY) {
+        try {
+          const tRes = await fetch(
+            `https://tenor.googleapis.com/v2/featured?key=${encodeURIComponent(TENOR_KEY)}&limit=${Math.min(limit, 24)}&media_filter=tinygif,gif`,
+          )
+          if (tRes.ok) {
+            const data = await tRes.json()
+            for (const it of data.results || []) {
+              pushIfNew({
+                id: it.id,
+                title: it.content_description || it.title || "Trending GIF",
+                preview_url: it.media_formats?.tinygif?.url || it.media_formats?.gif?.url || null,
+                gif_url: it.media_formats?.gif?.url || null,
+                width: it.media_formats?.gif?.dims?.[0] || null,
+                height: it.media_formats?.gif?.dims?.[1] || null,
+                source: "tenor",
+              })
+            }
+          }
+        } catch (err) {
+          console.error("Tenor trending error:", err)
+        }
+      }
+
+      if ((source === "all" || source === "giphy") && GIPHY_KEY) {
+        try {
+          const gRes = await fetch(
+            `https://api.giphy.com/v1/gifs/trending?api_key=${encodeURIComponent(GIPHY_KEY)}&limit=${Math.min(limit, 24)}&rating=pg-13`,
+          )
+          if (gRes.ok) {
+            const data = await gRes.json()
+            for (const it of data.data || []) {
+              pushIfNew({
+                id: it.id,
+                title: it.title || "Trending GIF",
+                preview_url: it.images?.fixed_width_small?.url || it.images?.preview_gif?.url || it.images?.original?.url,
+                gif_url: it.images?.original?.url || it.url || null,
+                width: it.images?.original?.width || null,
+                height: it.images?.original?.height || null,
+                source: "giphy",
+              })
+            }
+          }
+        } catch (err) {
+          console.error("Giphy trending error:", err)
+        }
+      }
+
+      return NextResponse.json({ success: true, results: results.slice(0, limit) })
+    }
 
     // Query Tenor if allowed
     if ((source === "all" || source === "tenor") && TENOR_KEY) {

@@ -12,6 +12,8 @@ import manifest from "./animated-emoji-assets.json"
 export type AnimatedEmojiAsset = {
   /** Local file under /emojis/animated, when mirrored. */
   file?: string
+  /** CLDR group name, used to build picker categories. */
+  group?: string
   /** Local Lottie JSON under /emojis/lottie, for large renders. */
   lottie?: string
   /** Human name, also used for search. */
@@ -60,49 +62,36 @@ export type AnimatedEmojiCategory = {
   emojis: string[]
 }
 
-/** Picker categories, limited to emoji that actually have an animated asset. */
-export const ANIMATED_EMOJI_CATEGORIES: AnimatedEmojiCategory[] = [
-  {
-    id: "smileys",
-    label: "Smileys",
-    emojis: [
-      "😀", "😃", "😄", "😁", "😂", "😊", "🥰", "😎", "🤔", "😭", "😡", "🥳",
-      "🤩", "😴", "🤯", "😅", "😇", "🤗", "😱", "🙃", "😘", "😢", "😤", "🥺",
-      "😬", "😉", "😮", "😲", "🤢", "🤮", "💀", "👻", "💩", "🤡", "👽", "🤖",
-    ],
-  },
-  {
-    id: "gestures",
-    label: "Gestures",
-    emojis: ["👋", "👍", "👎", "👏", "🙌", "🙏", "💪", "🤝", "👀", "🤞", "✌️", "🫶"],
-  },
-  {
-    id: "hearts",
-    label: "Hearts",
-    emojis: ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "💖", "💔", "💯"],
-  },
-  {
-    id: "nature",
-    label: "Nature",
-    emojis: ["🐱", "🐶", "🦊", "🦁", "🦄", "🐼", "🐸", "🌈", "🌸", "🍀", "🌹", "🌙", "☀️", "⭐", "✨", "🔥"],
-  },
-  {
-    id: "food",
-    label: "Food",
-    emojis: ["🍕", "🍔", "☕", "🍩", "🍷", "🍓", "🎂"],
-  },
-  {
-    id: "objects",
-    label: "Objects",
-    emojis: ["🎉", "🎊", "🏆", "🚀", "⚡", "💎", "💰", "🪙", "🔮", "✅", "❌", "💡", "👑", "🎵"],
-  },
-].map((category) => ({
-  ...category,
-  // Only advertise emoji we can actually play; the rest still render natively.
-  emojis: category.emojis.filter((emoji) => Boolean(assets[emoji])),
-}))
+const GROUP_LABELS: Record<string, string> = {
+  "Smileys & Emotion": "Smileys",
+  "People & Body": "People",
+  "Animals & Nature": "Nature",
+  "Food & Drink": "Food",
+  Activities: "Activity",
+  "Travel & Places": "Travel",
+  Objects: "Objects",
+  Symbols: "Symbols",
+  Flags: "Flags",
+}
 
-/** Flat list of mirrored emoji, in picker order. */
+const buckets = new Map<string, string[]>()
+for (const [emoji, asset] of Object.entries(assets)) {
+  const label = GROUP_LABELS[asset.group || "Symbols"] || "Symbols"
+  const list = buckets.get(label) || []
+  list.push(emoji)
+  buckets.set(label, list)
+}
+
+/** Picker categories built from the mirrored manifest, in display order. */
+export const ANIMATED_EMOJI_CATEGORIES: AnimatedEmojiCategory[] = Object.values(GROUP_LABELS)
+  .map((label) => ({
+    id: label.toLowerCase(),
+    label,
+    emojis: buckets.get(label) || [],
+  }))
+  .filter((category) => category.emojis.length > 0)
+
+/** Every mirrored emoji, in picker order. */
 export const ANIMATED_EMOJI_LIST: string[] = ANIMATED_EMOJI_CATEGORIES.flatMap((category) => category.emojis)
 
 /** Search by display name ("fire") or by the character itself. */
@@ -111,6 +100,6 @@ export function searchAnimatedEmoji(query: string): string[] {
   if (!term) return ANIMATED_EMOJI_LIST
   return ANIMATED_EMOJI_LIST.filter((emoji) => {
     const asset = assets[emoji]
-    return emoji.includes(term) || Boolean(asset?.name.toLowerCase().includes(term))
+    return emoji.includes(term) || Boolean(asset?.name.includes(term))
   })
 }

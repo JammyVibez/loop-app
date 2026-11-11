@@ -172,6 +172,7 @@ export function ForumHome({ communityId }: { communityId: string }) {
   const [query, setQuery] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
   const [joining, setJoining] = useState(false)
+  const [sharing, setSharing] = useState(false)
   const [composerOpen, setComposerOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [membersOpen, setMembersOpen] = useState(false)
@@ -274,6 +275,40 @@ export function ForumHome({ communityId }: { communityId: string }) {
       toast({ title: "Could not join", description: e.message, variant: "destructive" })
     } finally {
       setJoining(false)
+    }
+  }
+
+  const shareToFeed = async () => {
+    if (!user) {
+      router.push(`/auth?returnTo=/communities/${communityId}`)
+      return
+    }
+    if (community.is_private) {
+      toast({
+        title: "Private community",
+        description: "Only public communities can be shared to the feed.",
+        variant: "destructive",
+      })
+      return
+    }
+    setSharing(true)
+    try {
+      const res = await fetch("/api/loops", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeader() },
+        body: JSON.stringify({
+          content: `[[cc:${communityId}]]`,
+          content_type: "text",
+          visibility: "public",
+        }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error || "Could not share this community")
+      toast({ title: "Shared to feed", description: "Your community card is live in the feed." })
+    } catch (e: any) {
+      toast({ title: "Could not share", description: e.message, variant: "destructive" })
+    } finally {
+      setSharing(false)
     }
   }
 
@@ -399,6 +434,10 @@ export function ForumHome({ communityId }: { communityId: string }) {
                   New thread
                 </Button>
               )}
+              <Button onClick={shareToFeed} disabled={sharing} size="lg" variant="outline" className="rounded-full px-5">
+                {sharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Share2 className="mr-2 h-4 w-4" />}
+                Share to feed
+              </Button>
               {viewer?.can_manage && (
                 <div className="flex items-center gap-1 rounded-full border border-border bg-background/60 p-1">
                   <Button
