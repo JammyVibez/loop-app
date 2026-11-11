@@ -56,8 +56,10 @@ const defaultSettings = {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const limit = Number.parseInt(searchParams.get("limit") || "24")
-    const offset = Number.parseInt(searchParams.get("offset") || "0")
+    const requestedLimit = Number.parseInt(searchParams.get("limit") || "24")
+    const requestedOffset = Number.parseInt(searchParams.get("offset") || "0")
+    const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(100, requestedLimit)) : 24
+    const offset = Number.isFinite(requestedOffset) ? Math.max(0, requestedOffset) : 0
     const category = searchParams.get("category")
     const search = searchParams.get("search")
     const mine = searchParams.get("mine") === "true"

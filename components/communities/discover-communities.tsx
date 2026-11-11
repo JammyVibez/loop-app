@@ -86,19 +86,19 @@ export function DiscoverCommunities() {
     setLoading(true)
     setError("")
     try {
-      const params = new URLSearchParams({ sort, limit: "48" })
+      const params = new URLSearchParams({ sort, limit: "48", discover: "true" })
       if (category !== "all") params.set("category", category)
       if (search.trim()) params.set("search", search.trim())
-      const res = await fetch(`/api/communities?${params}`)
+      const res = await fetch(`/api/communities?${params}`, { headers: { ...getAuthHeader() }, cache: "no-store" })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to load")
-      setCommunities(data.communities || [])
+      setCommunities((data.communities || []).filter((circle: CommunityItem) => !circle.is_member && circle.membership_status !== "active" && circle.membership_status !== "approved"))
     } catch (e: any) {
       setError(e.message || "Failed to load communities")
     } finally {
       setLoading(false)
     }
-  }, [sort, category, search, user?.id])
+  }, [sort, category, search, getAuthHeader])
 
   useEffect(() => {
     load()
@@ -125,9 +125,12 @@ export function DiscoverCommunities() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to join")
       if (data.status !== "active" && data.status !== "pending") throw new Error("Unknown Circle membership state")
-      setCommunities((prev) => prev.map((c) => String(c.id) === String(id)
-        ? { ...c, is_member: data.status === "active", membership_status: data.status }
-        : c))
+      setCommunities((prev) => data.status === "active"
+        ? prev.filter((c) => String(c.id) !== String(id))
+        : prev.map((c) => String(c.id) === String(id)
+          ? { ...c, is_member: false, membership_status: "pending" }
+          : c))
+      window.dispatchEvent(new Event("loop:circles-changed"))
       router.refresh()
     } catch (e: any) {
       setError(e.message || "Could not join Circle")
@@ -147,6 +150,7 @@ export function DiscoverCommunities() {
       setCommunities((prev) => prev.map((c) => String(c.id) === String(id)
         ? { ...c, is_member: false, membership_status: null }
         : c))
+      window.dispatchEvent(new Event("loop:circles-changed"))
       router.refresh()
     } catch (e: any) {
       setError(e.message || "Could not cancel request")
@@ -159,6 +163,10 @@ export function DiscoverCommunities() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-card/50 px-4 py-3 sm:hidden">
+        <span className="text-sm text-muted-foreground">Already joined a Circle?</span>
+        <Link href="/communities" className="text-sm font-semibold text-amber-500">My Circles</Link>
+      </div>
       {/* Search + filters */}
       <div className="space-y-4">
         <div className="relative">

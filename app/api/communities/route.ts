@@ -11,9 +11,12 @@ export async function GET(request: NextRequest) {
     const sort = searchParams.get("sort") || "trending"
     const category = searchParams.get("category") || undefined
     const search = searchParams.get("search") || undefined
-    const limit = Number.parseInt(searchParams.get("limit") || "24")
-    const offset = Number.parseInt(searchParams.get("offset") || "0")
+    const requestedLimit = Number.parseInt(searchParams.get("limit") || "24")
+    const requestedOffset = Number.parseInt(searchParams.get("offset") || "0")
+    const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(50, requestedLimit)) : 24
+    const offset = Number.isFinite(requestedOffset) ? Math.max(0, requestedOffset) : 0
     const viewer = await getUserFromRequest(request)
+    const discoverOnly = searchParams.get("discover") === "true"
     const sb = communityClient()
 
     const { communities, error } = await listCommunitiesForDiscovery(sb, {
@@ -21,7 +24,8 @@ export async function GET(request: NextRequest) {
       category,
       search,
       viewerId: viewer?.id || null,
-      limit: Math.min(limit, 50),
+      excludeJoinedFrom: discoverOnly ? viewer?.id || null : null,
+      limit,
       offset,
     })
     if (error) {

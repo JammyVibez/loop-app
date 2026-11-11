@@ -1006,8 +1006,8 @@ export async function getWorldBundle(sb: SB, circleId: number | string, viewerId
 // ---------------------------------------------------------------------------
 // Discovery ranking helpers
 // ---------------------------------------------------------------------------
-export async function listCommunitiesForDiscovery(sb: SB, opts: { sort?: string; category?: string; search?: string; viewerId?: string | null; limit?: number; offset?: number; excludePrivateFrom?: string | null }) {
-  const { sort = "trending", category, search, viewerId = null, limit = 24, offset = 0 } = opts
+export async function listCommunitiesForDiscovery(sb: SB, opts: { sort?: string; category?: string; search?: string; viewerId?: string | null; limit?: number; offset?: number; excludePrivateFrom?: string | null; excludeJoinedFrom?: string | null }) {
+  const { sort = "trending", category, search, viewerId = null, limit = 24, offset = 0, excludeJoinedFrom = null } = opts
 
   let query = sb
     .from("circles")
@@ -1018,13 +1018,26 @@ export async function listCommunitiesForDiscovery(sb: SB, opts: { sort?: string;
     `)
     .eq("is_active", true)
     .order("created_at", { ascending: false })
-    .range(offset, offset + limit - 1)
 
   if (category) query = query.eq("category", category)
   if (search) {
     query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%,handle.ilike.%${search}%`)
   }
 
+  // Discover must only return circles the viewer has not already joined.
+  // Apply this before pagination so joined circles cannot consume result slots.
+  if (excludeJoinedFrom) {
+    const { data: memberships, error: membershipError } = await sb
+      .from("circle_members")
+      .select("circle_id")
+      .eq("user_id", excludeJoinedFrom)
+      .in("status", ["active", "approved"])
+    if (membershipError) return { communities: [], error: membershipError }
+    const joinedIds = (memberships || []).map((row: any) => String(row.circle_id)).filter(Boolean)
+    if (joinedIds.length) query = query.not("id", "in", `(${joinedIds.join(",")})`)
+  }
+
+  query = query.range(offset, offset + limit - 1)
   const { data, error } = await query
   if (error) return { communities: [], error }
 
