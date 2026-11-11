@@ -211,7 +211,10 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const body = await request.json()
-    const messageId = typeof body.message_id === "string" ? body.message_id : ""
+    // `messages.id` is a bigint, so the browser sends a JSON number for some
+    // conversations. Accepting only strings rejected every such reaction with
+    // “Message ID and emoji are required” before it reached the database.
+    const messageId = body.message_id == null ? "" : String(body.message_id).trim()
     const emoji = String(body.emoji || "").trim().slice(0, 8)
     const action = body.action === "remove" ? "remove" : "add"
 

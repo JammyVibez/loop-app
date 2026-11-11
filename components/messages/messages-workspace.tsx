@@ -1207,7 +1207,9 @@ export function MessagesWorkspace() {
       const response = await fetch("/api/messages/reactions", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
-        body: JSON.stringify({ message_id: message.id, emoji, action: reacted ? "remove" : "add" }),
+        // Coerce: message ids are bigints on older conversations and the API
+        // expects a stable string either way.
+        body: JSON.stringify({ message_id: String(message.id), emoji, action: reacted ? "remove" : "add" }),
       })
       const data = await response.json().catch(() => null)
       if (!response.ok) throw new Error(data?.error || "Reaction failed")

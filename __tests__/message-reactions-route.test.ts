@@ -129,6 +129,15 @@ describe("DM message reactions", () => {
     expect(state.inserts.some((entry) => entry.table === "message_reactions" && entry.row.emoji === "🔥")).toBe(true)
   })
 
+  it("accepts a numeric message id (bigint messages.id) instead of 400ing", async () => {
+    const response = await POST(request({ message_id: 12345, emoji: "❤️", action: "add" }))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.success).toBe(true)
+    expect(state.inserts.some((entry) => entry.table === "message_reactions" && String(entry.row.message_id) === "12345")).toBe(true)
+  })
+
   it("rejects a reaction from someone outside the conversation", async () => {
     state.user.mockResolvedValue({ id: "intruder" })
     state.from.mockImplementation((table: string) => {
