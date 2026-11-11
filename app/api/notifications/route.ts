@@ -22,20 +22,31 @@ export async function GET(request: NextRequest) {
     const offset = Number.parseInt(searchParams.get("offset") || "0")
     const unreadOnly = searchParams.get("unread_only") === "true"
     const type = searchParams.get("type")
+    const filter = searchParams.get("filter")
+    const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(100, limit)) : 20
+    const safeOffset = Number.isFinite(offset) ? Math.max(0, offset) : 0
+    const mentionsFilter = filter === "mentions" || type === "mention"
+    const verifiedFilter = filter === "verified"
+    const { data: profilePreferences } = await supabase
+      .from("profiles")
+      .select("notification_settings")
+      .eq("id", user.id)
+      .maybeSingle()
+    const notificationSettings = profilePreferences?.notification_settings as Record<string, unknown> | null
+    const mutedTypes = new Set(Array.isArray(notificationSettings?.muted_types)
+      ? notificationSettings.muted_types.filter((value): value is string => typeof value === "string")
+      : [])
 
     let query = supabase
       .from("notifications")
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1)
+      .range(safeOffset, safeOffset + safeLimit - 1)
 
-    if (unreadOnly) {
-      query = query.eq("is_read", false)
-    }
-    if (type) {
-      query = query.eq("type", type)
-    }
+    if (unreadOnly || filter === "unread") query = query.eq("is_read", false)
+    if (type && type !== "mention") query = query.eq("type", type)
+    if (mentionsFilter) query = query.in("type", ["mention", "reply", "comment_reply"])
 
     const { data: notifications, error } = await query
 
@@ -88,6 +99,18 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // Apply user-selected type groups before grouping.
+    const unmuted = enriched.filter((notification) => {
+      const type = String(notification.type || "")
+      if (mutedTypes.has(type)) return false
+      if (mutedTypes.has("likes") && ["like", "circle_post_like"].includes(type)) return false
+      if (mutedTypes.has("follows") && ["follow", "follow_accepted", "follow_request"].includes(type)) return false
+      if (mutedTypes.has("replies") && ["mention", "reply", "comment", "comment_reply", "circle_post_comment"].includes(type)) return false
+      if (mutedTypes.has("circles") && (type.startsWith("circle_") || type.startsWith("community_") || type.startsWith("coloop_"))) return false
+      if (mutedTypes.has("system") && ["system", "announcement", "broadcast", "admin_action"].includes(type)) return false
+      return true
+    })
+
     // ── Grouped notifications (X/Facebook style) ──
     // Group same-type notifications targeting the same content within a 24h window.
     // High-priority types (dm, mention, reply, coloop_invite, coloop_join, duel_result) are never grouped.
@@ -97,10 +120,10 @@ export async function GET(request: NextRequest) {
     const GROUP_WINDOW_MS = 24 * 60 * 60 * 1000 // 24 hours
 
     const grouped: typeof enriched = []
-    const groupMap = new Map<string, typeof enriched[0] & { actor_ids: string[]; count: number; actors: any[] }>()
+    const groupMap = new Map<string, typeof enriched[0] & { actor_ids: string[]; grouped_ids: string[]; unread_count: number; count: number; actors: any[] }>()
     const now = Date.now()
 
-    for (const n of enriched) {
+    for (const n of unmuted) {
       const d = n.data || {}
       const targetId = d.loop_id || d.post_id || d.circle_id || ""
       const groupKey = NEVER_GROUP_TYPES.has(n.type) ? n.id : `${n.type}:${targetId}`
@@ -114,7 +137,10 @@ export async function GET(request: NextRequest) {
       const existing = groupMap.get(groupKey)
       if (existing) {
         existing.count += 1
-        existing.updated_at = n.created_at // bump to newest
+        existing.grouped_ids.push(n.id)
+        existing.unread_count += n.is_read ? 0 : 1
+        existing.is_read = existing.unread_count === 0
+        existing.updated_at = n.created_at
         const actorId = n.actor_id || d.user_id || d.sender_id || d.actor_id
         if (actorId && !existing.actor_ids.includes(actorId)) {
           existing.actor_ids.push(actorId)
@@ -138,6 +164,8 @@ export async function GET(request: NextRequest) {
         groupMap.set(groupKey, {
           ...n,
           actor_ids: actorId ? [actorId] : [],
+          grouped_ids: [n.id],
+          unread_count: n.is_read ? 0 : 1,
           count: 1,
           actors: actor ? [actor] : [],
         })
@@ -149,13 +177,22 @@ export async function GET(request: NextRequest) {
       grouped.push(g)
     }
 
-    // Sort by updated_at descending
+    // Sort by updated_at descending and apply verified filter using the enriched
+    // actor profile (not a schema-dependent notification column).
     grouped.sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime())
+    const filtered = verifiedFilter ? grouped.filter((n: any) => n.actor?.is_verified === true || n.actors?.some((actor: any) => actor.is_verified === true)) : grouped
+    const { count: unreadCount } = await supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("is_read", false)
 
     return NextResponse.json({
       success: true,
-      notifications: grouped,
-      hasMore: notifications?.length === limit,
+      notifications: filtered,
+      unread_count: unreadCount ?? null,
+      muted_types: [...mutedTypes],
+      hasMore: notifications?.length === safeLimit,
     })
   } catch (error) {
     console.error("Error fetching notifications:", error)
@@ -172,7 +209,26 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const { notification_ids, mark_all_read } = await request.json()
+    const { notification_ids, notification_id, mark_all_read, muted_types } = await request.json()
+
+    if (Array.isArray(muted_types)) {
+      const normalized = [...new Set(muted_types.filter((value): value is string => typeof value === "string").map((value) => value.trim()).filter(Boolean))].slice(0, 50)
+      const { data: profile, error: readError } = await supabase
+        .from("profiles")
+        .select("notification_settings")
+        .eq("id", user.id)
+        .maybeSingle()
+      if (readError) return NextResponse.json({ error: "Could not load notification preferences" }, { status: 500 })
+      const existing = profile?.notification_settings && typeof profile.notification_settings === "object"
+        ? profile.notification_settings as Record<string, unknown>
+        : {}
+      const { error } = await supabase
+        .from("profiles")
+        .update({ notification_settings: { ...existing, muted_types: normalized } })
+        .eq("id", user.id)
+      if (error) return NextResponse.json({ error: "Could not save notification preferences" }, { status: 500 })
+      return NextResponse.json({ success: true, muted_types: normalized })
+    }
 
     if (mark_all_read) {
       // Mark all notifications as read
@@ -193,13 +249,14 @@ export async function PATCH(request: NextRequest) {
       })
     }
 
-    if (notification_ids && Array.isArray(notification_ids)) {
+    const ids = Array.isArray(notification_ids) ? notification_ids : typeof notification_id === "string" ? [notification_id] : null
+    if (ids) {
       // Mark specific notifications as read
       const { error } = await supabase
         .from("notifications")
         .update({ is_read: true })
         .eq("user_id", user.id)
-        .in("id", notification_ids)
+        .in("id", ids)
 
       if (error) {
         console.error("Database error:", error)

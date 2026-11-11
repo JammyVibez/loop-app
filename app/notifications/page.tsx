@@ -22,6 +22,7 @@ import { NotificationQuickReply } from "@/components/notifications/notification-
 import { AdSlot } from "@/components/ads/ad-slot"
 import { Spinner } from "@/components/ui/skeletons"
 import { getNotificationCopy, maskAdminCopy, SYSTEM_SENDER } from "@/lib/notification-copy"
+import { supabase } from "@/lib/supabase"
 
 type Notification = {
   id: string
@@ -31,6 +32,9 @@ type Notification = {
   data?: any
   is_read: boolean
   created_at: string
+  grouped_ids?: string[]
+  unread_count?: number
+  count?: number
   actor?: {
     id: string
     username: string
@@ -141,6 +145,7 @@ function linkForNotification(n: Notification) {
   // `action_url` is the destination the writer chose — for a quote it points at
   // the new quote post, while `loop_id` stays the quoted original.
   if (d.action_url) return d.action_url
+  if ((n as any).action_url) return (n as any).action_url
   if (d.url) return d.url
   return mentionHref({
     source: d.source || "loop",
@@ -169,28 +174,33 @@ export default function NotificationsPage() {
 }
 
 function NotificationsContent() {
-  const { user, getAuthHeader } = useAuth()
+  const { user, getAuthHeader, applyServerProfile } = useAuth()
   const searchParams = useSearchParams()
-  const initialTab = searchParams.get("type") === "mention" || searchParams.get("tab") === "tagged"
-    ? searchParams.get("tab") === "tagged"
-      ? "tagged"
-      : "mentions"
-    : "all"
+  const requestedTab = searchParams.get("filter") || searchParams.get("type")
+  const initialTab = searchParams.get("tab") === "tagged"
+    ? "tagged"
+    : requestedTab === "mention" || requestedTab === "mentions"
+      ? "mentions"
+      : requestedTab === "verified" || requestedTab === "unread"
+        ? requestedTab
+        : "all"
   const [tab, setTab] = useState(initialTab)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [mentions, setMentions] = useState<MentionRow[]>([])
   const [followRequests, setFollowRequests] = useState<FollowRequest[]>([])
   const [processingRequest, setProcessingRequest] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [mutedTypes, setMutedTypes] = useState<string[]>([])
   const { toast } = useToast()
 
   const load = useCallback(async () => {
-    if (!user) return
+    if (!user?.id) return
     setLoading(true)
     try {
-      const typeQuery = tab === "mentions" ? "&type=mention" : ""
+      const filterQuery = ["mentions", "verified", "unread"].includes(tab) ? `&filter=${tab}` : ""
       const [notifRes, mentionRes, followRes] = await Promise.all([
-        fetch(`/api/notifications?limit=40${typeQuery}`, {
+        fetch(`/api/notifications?limit=40${filterQuery}`, {
           headers: { ...getAuthHeader() },
           cache: "no-store",
         }),
@@ -206,7 +216,11 @@ function NotificationsContent() {
       const notifData = await notifRes.json()
       const mentionData = await mentionRes.json()
       const followData = await followRes.json().catch(() => ({}))
-      if (notifRes.ok) setNotifications(notifData.notifications || [])
+      if (notifRes.ok) {
+        setNotifications(notifData.notifications || [])
+        setUnreadCount(typeof notifData.unread_count === "number" ? notifData.unread_count : 0)
+        setMutedTypes(Array.isArray(notifData.muted_types) ? notifData.muted_types : [])
+      }
       if (mentionRes.ok) setMentions(mentionData.mentions || [])
       if (followRes.ok) setFollowRequests(followData.incoming || [])
     } catch {
@@ -214,7 +228,7 @@ function NotificationsContent() {
     } finally {
       setLoading(false)
     }
-  }, [user, tab, getAuthHeader])
+  }, [user?.id, tab, getAuthHeader])
 
   const handleFollowRequest = async (requestId: string, action: "accept" | "decline") => {
     if (!user || processingRequest) return
@@ -247,12 +261,65 @@ function NotificationsContent() {
     void load()
   }, [load])
 
+  useEffect(() => {
+    if (!user?.id) return
+    const channel = supabase
+      .channel(`notifications-page:${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` }, () => void load())
+      .subscribe()
+    const poll = window.setInterval(() => {
+      if (document.visibilityState === "visible") void load()
+    }, 45_000)
+    return () => {
+      window.clearInterval(poll)
+      void supabase.removeChannel(channel)
+    }
+  }, [user?.id, load])
+
+  const markRead = async (id: string) => {
+    const notification = notifications.find((item) => item.id === id)
+    if (!notification || notification.is_read) return
+    const groupedIds = notification.grouped_ids || [id]
+    const newlyReadCount = notification.unread_count ?? groupedIds.length
+    const response = await fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...getAuthHeader() },
+      body: JSON.stringify({ notification_ids: groupedIds }),
+    })
+    if (!response.ok) return
+    setNotifications((items) => items.map((item) => groupedIds.includes(item.id) || item.id === id ? { ...item, is_read: true } : item))
+    setUnreadCount((count) => Math.max(0, count - newlyReadCount))
+    window.dispatchEvent(new Event("loop:notifications-changed"))
+  }
+
   const markAllRead = async () => {
-    await fetch("/api/notifications", {
+    const response = await fetch("/api/notifications", {
       method: "PATCH",
       headers: { "Content-Type": "application/json", ...getAuthHeader() },
       body: JSON.stringify({ mark_all_read: true }),
     })
+    if (response.ok) {
+      setNotifications((items) => items.map((item) => ({ ...item, is_read: true })))
+      setUnreadCount(0)
+      window.dispatchEvent(new Event("loop:notifications-changed"))
+    }
+  }
+
+  const toggleMutedType = async (type: string) => {
+    const previous = mutedTypes
+    const next = previous.includes(type) ? previous.filter((value) => value !== type) : [...previous, type]
+    setMutedTypes(next)
+    const response = await fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...getAuthHeader() },
+      body: JSON.stringify({ muted_types: next }),
+    })
+    if (!response.ok) {
+      setMutedTypes(previous)
+      toast({ title: "Could not save notification filters", variant: "destructive" })
+    } else {
+      applyServerProfile({ notification_settings: { ...((user as any)?.notification_settings || {}), muted_types: next } })
+    }
     void load()
   }
 
@@ -266,19 +333,26 @@ function NotificationsContent() {
       }))
     )
       return
-    await fetch("/api/notifications?clear_all=true", {
+    const response = await fetch("/api/notifications?clear_all=true", {
       method: "DELETE",
       headers: { ...getAuthHeader() },
     })
+    if (!response.ok) {
+      toast({ title: "Could not clear notifications", variant: "destructive" })
+      return
+    }
     setNotifications([])
+    setUnreadCount(0)
+    window.dispatchEvent(new Event("loop:notifications-changed"))
   }
 
   const deleteNotif = async (id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id))
-    await fetch(`/api/notifications?id=${id}`, {
+    const response = await fetch(`/api/notifications?id=${id}`, {
       method: "DELETE",
       headers: { ...getAuthHeader() },
     })
+    if (response.ok) void load()
   }
 
   if (!user) {
@@ -298,12 +372,12 @@ function NotificationsContent() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="mx-auto w-full max-w-xl px-2 sm:px-4 py-4 sm:py-6 space-y-4">
-        <div className="border-border/70 bg-background sm:rounded-2xl sm:border">
-          <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
+      <main className="mx-auto w-full max-w-2xl px-2 py-4 sm:px-4 sm:py-6">
+        <div className="overflow-hidden border-border/70 bg-background sm:rounded-2xl sm:border">
+          <div className="sticky top-16 z-20 flex items-center justify-between border-b border-border/70 bg-background/90 px-4 py-3 backdrop-blur-xl">
             <div>
-              <h1 className="text-xl font-bold">Notifications</h1>
-              <p className="text-xs text-muted-foreground">Activity from people you follow</p>
+              <h1 className="text-xl font-bold tracking-tight">Notifications</h1>
+              <p className="text-xs text-muted-foreground">Your Loop, at a glance{unreadCount > 0 ? ` · ${unreadCount} unread` : ""}</p>
             </div>
             <div className="flex items-center gap-1">
               <Button variant="ghost" size="sm" className="rounded-full text-xs" onClick={() => void markAllRead()}>
@@ -380,23 +454,32 @@ function NotificationsContent() {
               </div>
             )}
 
-            <TabsList className="grid h-auto w-full grid-cols-3 rounded-none border-b border-border/70 bg-transparent p-0">
-              <TabsTrigger value="all" className="rounded-none border-b-2 border-transparent py-3 data-[state=active]:border-sky-500 data-[state=active]:shadow-none">
-                <Bell className="mr-1.5 h-4 w-4" /> All
-              </TabsTrigger>
-              <TabsTrigger value="mentions" className="rounded-none border-b-2 border-transparent py-3 data-[state=active]:border-sky-500 data-[state=active]:shadow-none">
-                <AtSign className="mr-1.5 h-4 w-4" /> Mentions
-              </TabsTrigger>
-              <TabsTrigger value="tagged" className="rounded-none border-b-2 border-transparent py-3 data-[state=active]:border-sky-500 data-[state=active]:shadow-none">
-                Tagged
-              </TabsTrigger>
+            <TabsList className="sticky top-[7.5rem] z-10 grid h-auto w-full grid-cols-5 rounded-none border-b border-border/70 bg-background/90 p-0 backdrop-blur-xl">
+              <TabsTrigger value="all" className="rounded-none border-b-2 border-transparent py-3 data-[state=active]:border-amber-500 data-[state=active]:shadow-none">All</TabsTrigger>
+              <TabsTrigger value="mentions" className="rounded-none border-b-2 border-transparent py-3 data-[state=active]:border-amber-500 data-[state=active]:shadow-none"><AtSign className="mr-1 h-4 w-4" />Mentions</TabsTrigger>
+              <TabsTrigger value="verified" className="rounded-none border-b-2 border-transparent py-3 data-[state=active]:border-amber-500 data-[state=active]:shadow-none"><BadgeCheck className="mr-1 h-4 w-4" />Verified</TabsTrigger>
+              <TabsTrigger value="unread" className="rounded-none border-b-2 border-transparent py-3 data-[state=active]:border-amber-500 data-[state=active]:shadow-none">Unread{unreadCount > 0 ? <span className="ml-1 rounded-full bg-amber-500/15 px-1.5 text-[10px] text-amber-500">{unreadCount > 99 ? "99+" : unreadCount}</span> : null}</TabsTrigger>
+              <TabsTrigger value="tagged" className="rounded-none border-b-2 border-transparent py-3 data-[state=active]:border-amber-500 data-[state=active]:shadow-none">Tagged</TabsTrigger>
             </TabsList>
 
+            <div className="flex items-center gap-2 overflow-x-auto border-b border-border/50 px-3 py-2">
+              <span className="shrink-0 text-[11px] font-medium text-muted-foreground">Mute:</span>
+              {["likes", "follows", "replies", "circles", "system"].map((type) => (
+                <button key={type} type="button" aria-pressed={mutedTypes.includes(type)} onClick={() => void toggleMutedType(type)} className={cn("shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-medium capitalize transition-colors", mutedTypes.includes(type) ? "border-amber-500/40 bg-amber-500/10 text-amber-500" : "border-border text-muted-foreground hover:text-foreground")}>{type}</button>
+              ))}
+            </div>
+
             <TabsContent value="all" className="mt-0">
-              <NotifList items={notifications} loading={loading} onDelete={deleteNotif} />
+              <NotifList items={notifications} loading={loading} onDelete={deleteNotif} onOpen={markRead} />
             </TabsContent>
             <TabsContent value="mentions" className="mt-0">
-              <NotifList items={notifications} loading={loading} onDelete={deleteNotif} empty="No @tags yet. When someone tags you, it shows up here." />
+              <NotifList items={notifications} loading={loading} onDelete={deleteNotif} onOpen={markRead} empty="No mentions yet. When someone mentions you, it appears here." />
+            </TabsContent>
+            <TabsContent value="verified" className="mt-0">
+              <NotifList items={notifications} loading={loading} onDelete={deleteNotif} onOpen={markRead} empty="No notifications from verified accounts yet." />
+            </TabsContent>
+            <TabsContent value="unread" className="mt-0">
+              <NotifList items={notifications} loading={loading} onDelete={deleteNotif} onOpen={markRead} empty="You're all caught up." />
             </TabsContent>
             <TabsContent value="tagged" className="mt-0">
               {loading ? (
@@ -466,9 +549,11 @@ function NotificationsContent() {
 function NotifRow({
   n,
   onDelete,
+  onOpen,
 }: {
   n: Notification
   onDelete?: (id: string) => void
+  onOpen?: (id: string) => void
 }) {
   const { icon: Icon, color, bg } = notifIcon(n.type)
   const actor = n.actor
@@ -484,14 +569,15 @@ function NotifRow({
   })
 
   return (
-    <li className="group relative flex items-center justify-between">
+    <li className="group relative flex items-center justify-between transition-colors hover:bg-muted/30">
       {/* Main tap target (title + message + time). Interactive extras
           (quick reply, delete) live OUTSIDE this anchor — a button nested
           inside an <a> is invalid HTML and makes the click bubble into a
           full navigation, which is what made quick reply "refresh" the app. */}
       <Link
         href={href}
-        className={cn("min-w-0 flex-1 px-4 py-3 hover:bg-muted/50", !n.is_read && "bg-sky-500/5")}
+        onClick={() => onOpen?.(n.id)}
+        className={cn("min-w-0 flex-1 px-4 py-4", !n.is_read && "bg-amber-500/[0.055]")}
       >
         <div className="flex items-start gap-3">
           {/* Actor avatar with type icon badge */}
@@ -518,13 +604,19 @@ function NotifRow({
                 {cleanText(maskAdminCopy(copy.system ? n.title || n.message || copy.action : n.message || n.title))}
               </span>
             </p>
+            {n.count && n.count > 1 ? <span className="ml-1 text-xs font-medium text-muted-foreground">· {n.count}</span> : null}
+            {(n.data?.preview || n.data?.snippet || n.data?.content_text) ? (
+              <p className="mt-2 line-clamp-2 rounded-xl border border-border/50 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                {n.data.preview || n.data.snippet || n.data.content_text}
+              </p>
+            ) : null}
             <p className="mt-1 text-[11px] text-muted-foreground">
               {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
             </p>
           </div>
 
           {/* Unread indicator */}
-          {!n.is_read ? <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-sky-500" /> : null}
+          {!n.is_read ? <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.45)]" /> : null}
         </div>
       </Link>
 
@@ -555,11 +647,13 @@ function NotifList({
   loading,
   empty = "You're all caught up.",
   onDelete,
+  onOpen,
 }: {
   items: Notification[]
   loading: boolean
   empty?: string
   onDelete?: (id: string) => void
+  onOpen?: (id: string) => void
 }) {
   if (loading) {
     return (
@@ -574,7 +668,7 @@ function NotifList({
   return (
     <ul className="divide-y divide-border/70">
       {items.map((n) => (
-        <NotifRow key={n.id} n={n} onDelete={onDelete} />
+        <NotifRow key={n.id} n={n} onDelete={onDelete} onOpen={onOpen} />
       ))}
     </ul>
   )
