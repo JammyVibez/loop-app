@@ -153,7 +153,13 @@ export async function GET(req: NextRequest) {
             const gif = {
               id: it.id,
               title: it.title || q,
-              preview_url: it.images?.preview_gif?.url || it.images?.downsized_small?.mp4 || it.images?.downsized?.url || it.images?.original?.url,
+              // Always a GIF/WebP preview — an mp4 URL in an <img> renders
+              // nothing.
+              preview_url:
+                it.images?.fixed_width_small?.url ||
+                it.images?.preview_gif?.url ||
+                it.images?.downsized?.url ||
+                it.images?.original?.url,
               gif_url: it.images?.original?.url || it.url || null,
               width: it.images?.original?.width || null,
               height: it.images?.original?.height || null,

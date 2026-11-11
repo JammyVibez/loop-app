@@ -27,6 +27,8 @@ if (!databaseUrl) {
 }
 
 const DEFAULT_FILES = [
+  // push_subscriptions/native_push_tokens unique keys (fixes ON CONFLICT).
+  "scripts/push-subscriptions-unique.sql",
   // VPS media storage: storage_provider/storage_path columns, processing
   // status, media library indexes and the per-user storage RPC.
   "scripts/vps-media-storage-schema.sql",

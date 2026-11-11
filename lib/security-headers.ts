@@ -64,13 +64,19 @@ export function contentSecurityPolicyFor(pathname: string, isApi: boolean): stri
   const mediaHost = /^https?:\/\//i.test(mediaBase) ? ` ${mediaBase.replace(/\/+$/, "")}` : ""
   const ownMediaHosts = `https://loopapp.me https://www.loopapp.me${mediaHost}`
 
+  // GIF providers and the avatar fallbacks are third-party CDNs. Without them
+  // in img-src the picker shows broken GIFs and users without an uploaded
+  // avatar get a broken DiceBear image.
+  const gifHosts = "https://media.giphy.com https://*.giphy.com https://i.giphy.com https://media.tenor.com https://*.tenor.com https://c.tenor.com"
+  const avatarHosts = "https://api.dicebear.com https://*.googleusercontent.com https://avatars.githubusercontent.com https://pbs.twimg.com"
+
   const directives = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com https://vercel.live https://js.stripe.com https://checkout.stripe.com https://fonts.googleapis.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com",
-    `img-src 'self' data: blob: ${ownMediaHosts} https://*.supabase.co https://res.cloudinary.com https://*.cloudinary.com https://images.unsplash.com https://*.vercel.app https://*.run.app`,
+    `img-src 'self' data: blob: ${ownMediaHosts} ${gifHosts} ${avatarHosts} https://*.supabase.co https://res.cloudinary.com https://*.cloudinary.com https://images.unsplash.com https://*.vercel.app https://*.run.app`,
     "font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com",
-    `media-src 'self' blob: ${ownMediaHosts} https://*.supabase.co https://res.cloudinary.com https://*.cloudinary.com`,
+    `media-src 'self' blob: ${ownMediaHosts} ${gifHosts} https://*.supabase.co https://res.cloudinary.com https://*.cloudinary.com`,
     // LiveKit and 100ms signalling are WebSockets — without the wss:// hosts,
     // calls die with "could not establish signal connection: Failed to fetch".
     // Cloudinary and Tenor are here because uploads/GIF search are called from

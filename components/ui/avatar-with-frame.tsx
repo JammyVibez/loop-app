@@ -62,7 +62,9 @@ export function AvatarWithFrame({
           />
         ) : avatarUrl ? (
           <img
-            src={`/api/image-proxy?url=${encodeURIComponent(avatarUrl)}`}
+            // Relative /media uploads are same-origin; proxying them made the
+            // image-proxy fetch a non-absolute URL and fail.
+            src={/^https?:\/\//i.test(avatarUrl) ? `/api/image-proxy?url=${encodeURIComponent(avatarUrl)}` : avatarUrl}
             alt={alt}
             className="w-full h-full object-cover rounded-full"
           />

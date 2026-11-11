@@ -31,23 +31,54 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createServerClient()
-  const { data, error } = await supabase
+  const payload = {
+    user_id: user.id,
+    endpoint,
+    subscription: {
+      endpoint,
+      expirationTime: subscription.expirationTime ?? null,
+      keys: subscription.keys,
+    },
+    updated_at: new Date().toISOString(),
+  }
+
+  // Older databases have no unique constraint on `endpoint`, so an upsert with
+  // onConflict fails with "no unique or exclusion constraint matching the ON
+  // CONFLICT specification". Find the row first instead.
+  const { data: existing, error: findError } = await supabase
     .from("push_subscriptions")
-    .upsert(
-      {
-        user_id: user.id,
-        endpoint,
-        subscription: {
-          endpoint,
-          expirationTime: subscription.expirationTime ?? null,
-          keys: subscription.keys,
-        },
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "endpoint" },
-    )
-    .select()
-    .single()
+    .select("id")
+    .eq("endpoint", endpoint)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+
+  if (findError) return NextResponse.json({ error: findError.message }, { status: 500 })
+
+  const existingId = existing?.[0]?.id
+
+  let data: unknown = null
+  let error: { message: string; code?: string } | null = null
+
+  if (existingId) {
+    ;({ data, error } = await supabase
+      .from("push_subscriptions")
+      .update(payload)
+      .eq("id", existingId)
+      .select()
+      .single())
+  } else {
+    ;({ data, error } = await supabase.from("push_subscriptions").insert(payload).select().single())
+
+    // A concurrent subscribe may have inserted the endpoint in between.
+    if (error?.code === "23505") {
+      ;({ data, error } = await supabase
+        .from("push_subscriptions")
+        .update(payload)
+        .eq("endpoint", endpoint)
+        .select()
+        .maybeSingle())
+    }
+  }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true, subscription: data })

@@ -36,6 +36,12 @@ export async function GET(request: NextRequest) {
       (imageUrl.startsWith(SUPABASE_URL) || imageUrl.includes(".supabase.co/storage"))
     const isOwnDomain =
       imageUrl.includes("loopapp.me") || imageUrl.includes("vercel.app")
+    // Relative URLs are already same-origin (e.g. /media/uploads/...); sending
+    // them through fetch() throws "Failed to parse URL".
+    if (imageUrl.startsWith("/")) {
+      return NextResponse.redirect(new URL(imageUrl, request.url), 302)
+    }
+
     const isDataUri = imageUrl.startsWith("data:")
     const isBlob = imageUrl.startsWith("blob:")
 
