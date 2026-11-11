@@ -57,14 +57,23 @@ export type UploadMediaResult = {
   error?: string
 }
 
-// Fewer, larger chunks keep a movie upload fast: every chunk is a full request
-// (session check + policy + disk write), so 8MB slices paid that overhead 60+
-// times for a 500MB file. 48MB stays well under Cloudflare's 100MB body limit,
-// which is the tightest proxy in front of the VPS.
-const CHUNK_BYTES = 48 * 1024 * 1024
-const MAX_RETRIES = 3
-// A stalled socket must fail over to the retry path instead of hanging forever.
-const CHUNK_TIMEOUT_MS = 8 * 60 * 1000
+// 16MB slices balance both failure modes: a 500MB movie still needs only ~32
+// requests, while a dropped mobile connection loses at most 16MB instead of a
+// 48MB slice. Every chunk is a full request (session check + policy + disk
+// write), which is why we do not go smaller.
+const CHUNK_BYTES = 16 * 1024 * 1024
+const MAX_RETRIES = 4
+// Absolute request timeouts punish slow-but-healthy connections: a 16MB chunk
+// legitimately takes minutes on 3G. Instead we abort only when the socket has
+// made no progress at all for this long, which catches a genuinely dead upload
+// without killing a slow one.
+const IDLE_TIMEOUT_MS = 90 * 1000
+
+// Client-side downscale before the bytes ever leave the device. Phone photos
+// are routinely 8-15MB; the server re-encodes them anyway, so sending the
+// original is pure upload latency.
+const IMAGE_COMPRESS_THRESHOLD = 1.5 * 1024 * 1024
+const IMAGE_MAX_DIMENSION = 2560
 
 function mediaTypeFromFile(file: File, explicit?: UploadMediaOptions["type"]): UploadMediaOptions["type"] {
   if (explicit) return explicit
@@ -80,6 +89,59 @@ function mediaTypeFromFile(file: File, explicit?: UploadMediaOptions["type"]): U
   if (/\.(mp3|wav|ogg|oga|m4a|aac|flac|opus)$/.test(name)) return "audio"
   if (/\.(jpe?g|png|gif|webp|svg|heic|heif|avif|bmp)$/.test(name)) return "image"
   return "file"
+}
+
+/**
+ * Downscale/compress a large photo in the browser. Falls back to the original
+ * file whenever anything is unsupported (GIF/SVG/HEIC, no canvas, tainted
+ * decode) — an upload must never fail because optimisation did.
+ */
+async function compressImageForUpload(file: File): Promise<File> {
+  if (typeof document === "undefined") return file
+  if (!file.type.startsWith("image/")) return file
+  if (/gif|svg|heic|heif/i.test(file.type)) return file
+  if (file.size <= IMAGE_COMPRESS_THRESHOLD) return file
+  if (typeof createImageBitmap !== "function") return file
+
+  let bitmap: ImageBitmap | null = null
+  try {
+    bitmap = await createImageBitmap(file)
+    const longest = Math.max(bitmap.width, bitmap.height)
+    const scale = longest > IMAGE_MAX_DIMENSION ? IMAGE_MAX_DIMENSION / longest : 1
+    // Already small in pixels and only modestly over the size threshold: the
+    // re-encode may not be worth it.
+    if (scale === 1 && file.size < 4 * 1024 * 1024) return file
+
+    const width = Math.max(1, Math.round(bitmap.width * scale))
+    const height = Math.max(1, Math.round(bitmap.height * scale))
+    const canvas = document.createElement("canvas")
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return file
+    ctx.drawImage(bitmap, 0, 0, width, height)
+
+    const encode = (type: string) =>
+      new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, 0.86))
+    // WebP keeps transparency; JPEG is the universal fallback, with a white
+    // matte so transparent PNGs do not turn black.
+    let blob = await encode("image/webp")
+    if (!blob) {
+      ctx.globalCompositeOperation = "destination-over"
+      ctx.fillStyle = "#ffffff"
+      ctx.fillRect(0, 0, width, height)
+      blob = await encode("image/jpeg")
+    }
+    if (!blob || blob.size >= file.size) return file
+
+    const extension = blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg"
+    const name = `${(file.name || "image").replace(/\.[^.]+$/, "")}.${extension}`
+    return new File([blob], name, { type: blob.type, lastModified: Date.now() })
+  } catch {
+    return file
+  } finally {
+    bitmap?.close?.()
+  }
 }
 
 function newUploadId(): string {
@@ -102,7 +164,9 @@ type SendOptions = {
   range?: { start: number; end: number; total: number; uploadId: string }
 }
 
-async function postChunk(options: SendOptions): Promise<{ status: number; body: any }> {
+async function postChunk(
+  options: SendOptions,
+): Promise<{ status: number; body: any; retryAfter?: number }> {
   const { file, type, folder, purpose, originalQuality, authHeaders, range, signal } = options
   const body = range ? file.slice(range.start, range.end + 1) : file
 
@@ -111,7 +175,27 @@ async function postChunk(options: SendOptions): Promise<{ status: number; body: 
     xhr.open("POST", "/api/media/upload")
     xhr.responseType = "text"
     xhr.withCredentials = true
-    xhr.timeout = CHUNK_TIMEOUT_MS
+
+    // Stall watchdog, not a total-duration cap. Any upload or download progress
+    // proves the connection is alive, so the clock restarts.
+    let idleTimer: ReturnType<typeof setTimeout> | null = null
+    // A stall must be retryable, but xhr.abort() reports as AbortError — which
+    // is treated as user cancellation and never retried. Remember why we
+    // aborted so onabort can surface the truth.
+    let stalled = false
+    const armIdleTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer)
+      idleTimer = setTimeout(() => {
+        stalled = true
+        xhr.abort()
+        reject(new Error("The upload stalled. Check your connection and try again."))
+      }, IDLE_TIMEOUT_MS)
+    }
+    const clearIdleTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer)
+      idleTimer = null
+    }
+    armIdleTimer()
 
     xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream")
     xhr.setRequestHeader("X-Media-Type", type)
@@ -130,21 +214,43 @@ async function postChunk(options: SendOptions): Promise<{ status: number; body: 
     }
 
     xhr.upload.onprogress = (event) => {
+      armIdleTimer()
       if (event.lengthComputable) options.onChunkProgress?.(event.loaded)
     }
+    xhr.onprogress = armIdleTimer
 
     xhr.onload = () => {
+      clearIdleTimer()
       let parsed: any = {}
       try {
         parsed = xhr.responseText ? JSON.parse(xhr.responseText) : {}
       } catch {
         parsed = {}
       }
-      resolve({ status: xhr.status, body: parsed })
+      const retryAfter = Number(xhr.getResponseHeader("Retry-After") || 0)
+      resolve({ status: xhr.status, body: parsed, retryAfter: Number.isFinite(retryAfter) ? retryAfter : undefined })
     }
-    xhr.onerror = () => reject(new Error("Network error while uploading. Check your connection and try again."))
-    xhr.ontimeout = () => reject(new Error("The upload timed out. Please try again."))
-    xhr.onabort = () => reject(new DOMException("Upload cancelled", "AbortError"))
+    xhr.onerror = () => {
+      clearIdleTimer()
+      reject(new Error("Network error while uploading. Check your connection and try again."))
+    }
+    xhr.ontimeout = () => {
+      clearIdleTimer()
+      reject(new Error("The upload timed out. Please try again."))
+    }
+    xhr.onabort = () => {
+      clearIdleTimer()
+      if (stalled) {
+        reject(new Error("The upload stalled. Check your connection and try again."))
+        return
+      }
+      reject(new DOMException("Upload cancelled", "AbortError"))
+    }
+    if (signal?.aborted) {
+      clearIdleTimer()
+      reject(new DOMException("Upload cancelled", "AbortError"))
+      return
+    }
     signal?.addEventListener("abort", () => xhr.abort(), { once: true })
 
     xhr.send(body)
@@ -153,10 +259,12 @@ async function postChunk(options: SendOptions): Promise<{ status: number; body: 
 
 async function sendWithRetries(options: SendOptions): Promise<any> {
   let lastError: unknown = null
+  let retryAfterSeconds: number | undefined
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      const { status, body } = await postChunk(options)
+      const { status, body, retryAfter } = await postChunk(options)
       if (status >= 200 && status < 300) return body
+      retryAfterSeconds = retryAfter
       // A 4xx means the server made a decision — retrying will not change it.
       if (status >= 400 && status < 500 && status !== 408 && status !== 429) {
         const message = body?.error || `Upload failed (${status})`
@@ -169,7 +277,14 @@ async function sendWithRetries(options: SendOptions): Promise<any> {
       const message = error instanceof Error ? error.message : ""
       if (/too large|not allowed|exceeds|capped|storage allowance|upgrade|only/i.test(message)) throw error
     }
-    await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)))
+    // Honour the server's Retry-After (a 429 upload limit) instead of hammering
+    // it with the generic backoff; otherwise back off exponentially with
+    // jitter so several tabs do not retry in lockstep.
+    const backoff = retryAfterSeconds
+      ? Math.min(30, retryAfterSeconds) * 1000
+      : 500 * 2 ** attempt + Math.random() * 400
+    retryAfterSeconds = undefined
+    await new Promise((resolve) => setTimeout(resolve, backoff))
   }
   throw lastError instanceof Error ? lastError : new Error("Upload failed")
 }
@@ -235,11 +350,17 @@ export async function uploadMediaFile(
   const purpose = options.purpose
 
   if (!file.size) throw new Error("That file is empty.")
-  if (options.maxSizeBytes && file.size > options.maxSizeBytes) {
+
+  // Shrink large photos before measuring against the cap: a 12MB camera photo
+  // that compresses to 2MB should not be rejected by a 5MB limit.
+  const source = type === "image" && !options.originalQuality
+    ? await compressImageForUpload(file)
+    : file
+  if (options.maxSizeBytes && source.size > options.maxSizeBytes) {
     throw new Error(`File is too large. Maximum size is ${Math.round(options.maxSizeBytes / 1024 / 1024)}MB.`)
   }
 
-  const total = file.size
+  const total = source.size
   const activityId = startUploadActivity(uploadActivityLabel(type, folder))
   let reported = 0
   const report = (loaded: number) => {
@@ -263,7 +384,7 @@ export async function uploadMediaFile(
   try {
     if (total <= CHUNK_BYTES) {
       const payload = await sendWithRetries({
-        file,
+        file: source,
         type,
         folder,
         purpose,
@@ -285,7 +406,7 @@ export async function uploadMediaFile(
       // progress must not regress or double-count.
       const baseReported = reported
       const payload = await sendWithRetries({
-        file,
+        file: source,
         type,
         folder,
         purpose,

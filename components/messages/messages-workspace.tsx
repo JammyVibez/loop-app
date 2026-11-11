@@ -15,7 +15,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { confirmDialog } from "@/components/ui/confirm-dialog"
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
-import { GiftModal } from "@/components/gifting/gift-modal"
+import { GiftButton } from "@/components/gifting/gift-button"
 import { CallSheet } from "@/components/calls/call-sheet"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { RichContent } from "@/components/content/rich-content"
@@ -58,7 +58,6 @@ import {
   CornerUpRight,
   ExternalLink,
   GitBranch,
-  Gift,
   MessageCircle,
   
   Mic,
@@ -284,7 +283,6 @@ export function MessagesWorkspace() {
   const [recordingPaused, setRecordingPaused] = useState(false)
   const [recordingDuration, setRecordingDuration] = useState(0)
   const recordingDurationRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const [showGift, setShowGift] = useState(false)
   const [showCoLoop, setShowCoLoop] = useState(false)
   const [coLoopDraft, setCoLoopDraft] = useState("")
   const [coLoopPeerDraft, setCoLoopPeerDraft] = useState("")
@@ -1211,8 +1209,8 @@ export function MessagesWorkspace() {
         headers: { "Content-Type": "application/json", ...getAuthHeader() },
         body: JSON.stringify({ message_id: message.id, emoji, action: reacted ? "remove" : "add" }),
       })
-      if (!response.ok) throw new Error("Reaction failed")
       const data = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(data?.error || "Reaction failed")
       // Adopt the server's grouped counts (it re-reads the reactions table), so
       // the bubble can never drift from what everyone else sees.
       if (Array.isArray(data?.reactions)) {
@@ -1220,9 +1218,13 @@ export function MessagesWorkspace() {
           prev.map((m) => (m.id === message.id ? { ...m, reactions: data.reactions } : m)),
         )
       }
-    } catch {
+    } catch (error) {
       setMessages((prev) => prev.map((m) => (m.id === message.id ? { ...m, reactions: snapshot } : m)))
-      toast({ title: "Couldn’t react", variant: "destructive" })
+      toast({
+        title: "Couldn’t react",
+        description: error instanceof Error ? error.message : undefined,
+        variant: "destructive",
+      })
     }
   }
 
@@ -2009,6 +2011,17 @@ export function MessagesWorkspace() {
         >
           {startingCall === "video" ? <Spinner className="h-5 w-5" /> : <Video className="h-5 w-5" />}
         </Button>
+        {/* Gifting works in every conversation: 1:1 opens the gift sheet,
+            groups ask which member should receive it. */}
+        <GiftButton
+          recipients={[
+            ...(((selected as any).participants || []) as Array<{ user?: any }>).map((p) => p.user),
+            selected.other_user,
+          ]}
+          contextFor={(recipient) => ({ type: "profile", id: String(recipient.id) })}
+          className="hidden text-muted-foreground hover:text-pink-500 sm:inline-flex"
+          title="Send a gift"
+        />
         {/* All chat actions live in one compact menu so the header stays
             clean on every screen size and never overflows on phones. */}
         <DropdownMenu>
@@ -2060,12 +2073,6 @@ export function MessagesWorkspace() {
                   <ExternalLink className="mr-2 h-4 w-4" />
                   View profile
                 </Link>
-              </DropdownMenuItem>
-            )}
-            {selected.other_user?.id && (
-              <DropdownMenuItem onClick={() => setShowGift(true)}>
-                <Gift className="mr-2 h-4 w-4 text-pink-500" />
-                Send gift
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
@@ -2882,19 +2889,6 @@ export function MessagesWorkspace() {
         />
       )}
 
-            {selected.other_user && (
-        <GiftModal
-          open={showGift}
-          onOpenChange={setShowGift}
-          recipient={{
-            id: selected.other_user.id,
-            username: selected.other_user.username || "user",
-            display_name: selected.other_user.display_name || selected.other_user.username || "User",
-            avatar_url: selected.other_user.avatar_url,
-          }}
-          context={{ type: "profile", id: selected.other_user.id }}
-        />
-      )}
     </section>
   ) : selectedId ? (
     <section className="flex h-full flex-col items-center justify-center bg-background px-6 text-center text-muted-foreground">

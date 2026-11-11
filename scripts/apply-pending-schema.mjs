@@ -72,7 +72,7 @@ const DEFAULT_FILES = [
   "scripts/profile-note-themes-schema.sql",
   // DM chat: reactions storage repairs + the participant SELECT policy that
   // lets Postgres Changes deliver a message to the other person's open thread.
-  "scripts/messages-realtime-schema-fix.sql",
+  "scripts/message-reactions-schema-fix.sql",
   "scripts/messages-chat-realtime-schema.sql",
   // Co-Loop Studio chat: durable room messages (with reactions) instead of a
   // broadcast-only feed that vanished on reload.

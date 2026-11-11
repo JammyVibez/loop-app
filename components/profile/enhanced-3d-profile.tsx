@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Calendar, Coins, Flame, Gift, Heart, Link as LinkIcon, Lock, MapPin, MessageCircle, MoreHorizontal, Music2, Plus, Palette, Share2, Wand2, X, Zap, Trophy, Upload, Users, Package, Building2, UserPlus, } from "@/components/icons/lucide-compat"
+import { ArrowLeft, Calendar, Coins, Flame, Heart, Link as LinkIcon, Lock, MapPin, MessageCircle, MoreHorizontal, Music2, Plus, Palette, Share2, Wand2, X, Zap, Trophy, Upload, Users, Package, Building2, UserPlus, } from "@/components/icons/lucide-compat"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,7 +27,7 @@ import { EmptyState as PageEmptyState } from "@/components/ui/empty-state"
 import { ProxyImg } from "@/components/ui/proxy-img"
 import { ReportContentButton } from "@/components/moderation/report-content-button"
 import { BlockUserButton } from "@/components/moderation/block-user-button"
-import { GiftModal } from "@/components/gifting/gift-modal"
+import { GiftButton } from "@/components/gifting/gift-button"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
@@ -161,7 +161,6 @@ export function Enhanced3DProfile({ username }: { username: string }) {
   const [uploadingCover, setUploadingCover] = useState(false)
   // Cover picked from the file dialog, waiting to be framed in the cropper.
   const [coverCrop, setCoverCrop] = useState<File | null>(null)
-  const [showGiftModal, setShowGiftModal] = useState(false)
   const [designerOpen, setDesignerOpen] = useState(false)
   const [atmosphereOpen, setAtmosphereOpen] = useState(false)
   // Tapping the profile photo or cover opens it full-screen (zoom / swipe).
@@ -1065,16 +1064,12 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                     <MessageCircle className="h-4 w-4" />
                   </Button>
                   <span className="h-5 w-px bg-border" aria-hidden="true" />
-                  <Button
-                    variant="ghost"
-                    size="icon"
+                  <GiftButton
+                    recipients={[profile]}
+                    context={{ type: "profile", id: String(profile.id), title: displayName }}
                     className="h-9 w-9 rounded-none text-muted-foreground hover:bg-muted hover:text-foreground"
-                    onClick={() => setShowGiftModal(true)}
-                    aria-label={`Send ${displayName} a gift`}
-                    title="Send a gift"
-                  >
-                    <Gift className="h-4 w-4" />
-                  </Button>
+                    title={`Send ${displayName} a gift`}
+                  />
                 </div>
                 <Button
                   onClick={() => {
@@ -1414,7 +1409,7 @@ export function Enhanced3DProfile({ username }: { username: string }) {
                 </Button>
                 {user && followRequestPending && (
                   <p className="text-xs text-muted-foreground">
-                    You'll see their content once they accept.
+                    You&apos;ll see their content once they accept.
                   </p>
                 )}
               </div>
@@ -1550,20 +1545,6 @@ export function Enhanced3DProfile({ username }: { username: string }) {
       )}
       </div>
       </div>
-
-      {!isOwnProfile && (
-        <GiftModal
-          open={showGiftModal}
-          onOpenChange={setShowGiftModal}
-          recipient={{
-            id: profile.id,
-            username: profile.username,
-            display_name: profile.display_name,
-            avatar_url: profile.avatar_url,
-          }}
-          context={{ type: "profile", id: profile.id, title: profile.display_name }}
-        />
-      )}
 
       {/* Frame a freshly picked cover before uploading it. */}
       <ImageCropDialog

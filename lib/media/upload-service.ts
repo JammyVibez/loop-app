@@ -560,16 +560,23 @@ export async function saveUpload(input: UploadInput): Promise<UploadResult> {
   // When the client cannot say what the file is, the type-specific gate runs
   // after magic-byte sniffing below instead of guessing here.
   const preflightFamily = input.declaredFamily
+  // A non-final chunk only needs the cheap, pure tier/type ceiling. Running the
+  // full allowance check here issued three usage queries and a disk probe on
+  // every 16MB slice of a movie; the real daily/quota decision is made once the
+  // whole file has arrived (below).
+  const isPartialChunk = Boolean(input.chunk && input.chunk.end + 1 < input.chunk.total)
   const plan =
     preflightFamily === "file"
       ? { ok: true as const, maxBytes: policy.hard_max_mb * MB, tierLabel: actor.isAdmin ? ("admin" as const) : actor.isPro ? ("pro" as const) : ("free" as const) }
-      : await assertUploadAllowed({
-          actor,
-          policy,
-          family: preflightFamily,
-          sizeBytes: input.contentLength || 0,
-          supabase: db,
-        })
+      : isPartialChunk
+        ? planUploadLimits(actor, policy, preflightFamily)
+        : await assertUploadAllowed({
+            actor,
+            policy,
+            family: preflightFamily,
+            sizeBytes: input.contentLength || 0,
+            supabase: db,
+          })
   if (!plan.ok) throw new UploadError(plan.message, plan.status, plan.code)
 
   const tmpId = `upload-${randomUUID()}`

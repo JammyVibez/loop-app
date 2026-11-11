@@ -20,6 +20,7 @@ import { Spinner } from "@/components/ui/skeletons"
 import { RoleChip, type RoleBadgeLike } from "@/components/communities/forum/role-chip"
 import { MiniProfile } from "@/components/communities/forum/mini-profile"
 import { QuotedLoopCard } from "@/components/loops/quoted-loop-card"
+import { GiftButton } from "@/components/gifting/gift-button"
 import { uploadMediaFile } from "@/lib/client-media-upload"
 import { cn } from "@/lib/utils"
 import {
@@ -870,6 +871,13 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
               {timeAgo(thread.created_at)} · <Eye className="inline h-3 w-3" /> {thread.views}
             </p>
           </div>
+          {/* Community posts are giftable without leaving the thread. */}
+          <GiftButton
+            recipients={[thread.author]}
+            context={{ type: "post", id: String(threadId), title: thread.title, circle_id: String(communityId) }}
+            className="ml-auto shrink-0 text-muted-foreground hover:text-pink-500"
+            title="Send the author a gift"
+          />
         </div>
 
         <div className="mt-4 flex gap-3">

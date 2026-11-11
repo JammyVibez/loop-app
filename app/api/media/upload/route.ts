@@ -52,7 +52,13 @@ export async function POST(request: NextRequest) {
     const actor = await resolveUploadActor(user.id, supabase)
     const policy = await getMediaPolicy(supabase)
 
-    if (!actor.isAdmin) {
+    // A chunked upload is many requests for ONE file. Counting every chunk
+    // against the hourly limit made a single large video look like a burst and
+    // 429 the upload midway, so only the first request of a file is billed.
+    const isChunkContinuation = Boolean(request.headers.get("x-upload-id")) &&
+      !/^bytes\s+0-/.test((request.headers.get("content-range") || "").trim())
+
+    if (!actor.isAdmin && !isChunkContinuation) {
       const rate = await enforceUserRateLimit(supabase, "upload", user.id)
       if (!rate.ok) {
         return NextResponse.json(
