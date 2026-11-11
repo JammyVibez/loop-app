@@ -15,11 +15,22 @@ function escapeIlike(value: string) {
   return value.replace(/[%,_()\\\\]/g, " ").trim()
 }
 
+function hasSearchMedia(loop: any) {
+  const mediaKind = String(loop.media_type || loop.content_type || loop.post_type || "").toLowerCase()
+  return Boolean(
+    loop.media_url || loop.content_media_url || loop.video_url || loop.image_url ||
+    (Array.isArray(loop.media_urls) && loop.media_urls.length > 0) ||
+    ["image", "video", "audio", "gif", "sticker", "media"].includes(mediaKind),
+  )
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const rawQuery = (searchParams.get("q") || searchParams.get("query") || "").trim()
-    const type = searchParams.get("type") || "all"
+    const requestedType = searchParams.get("type") || "all"
+    const type = requestedType === "media" || requestedType === "posts" ? "loops" : requestedType
+    const mediaOnly = requestedType === "media"
     const requestedLimit = Number.parseInt(searchParams.get("limit") || "20", 10)
     const requestedOffset = Number.parseInt(searchParams.get("offset") || "0", 10)
     const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(40, requestedLimit)) : 20
@@ -158,6 +169,9 @@ export async function GET(request: NextRequest) {
         if (fallback.error) console.error("loops search fallback:", fallback.error.message)
       }
 
+      // Media search uses public Loop results too; apply the media predicate
+      // after all sources (text/content_text/hashtag hits) have been merged.
+
       // Also match content_text when present
       try {
         const textHits = await supabase
@@ -220,10 +234,17 @@ export async function GET(request: NextRequest) {
 
       let visibleLoops = (await filterPrivateLoops(loops || [])) || []
       visibleLoops = await filterCircleScopedContent(supabase, visibleLoops, user?.id || null)
-      visibleLoops = visibleLoops.slice(offset, offset + limit)
-      results.loops = normalizeLoops(
+      if (mediaOnly) visibleLoops = visibleLoops.filter(hasSearchMedia)
+      const engagementScore = (loop: any) => Number(loop.likes_count || loop.loop_stats?.[0]?.likes_count || 0)
+        + Number(loop.comments_count || loop.loop_stats?.[0]?.comments_count || 0) * 1.5
+        + Number(loop.branches_count || loop.loop_stats?.[0]?.branches_count || 0) * 2
+      visibleLoops = visibleLoops
+        .sort((a: any, b: any) => engagementScore(b) - engagementScore(a) || new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+        .slice(offset, offset + limit)
+      const normalizedLoops = normalizeLoops(
         await applyRealCommentCounts(supabase, await enrichLoopsWithPollsAndDuels(supabase, visibleLoops)),
       )
+      results.loops = normalizedLoops
     }
 
     if (wantUsers) {
@@ -290,7 +311,17 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      results.users = (users || []).slice(offset, offset + limit)
+      const normalizedSearch = query.toLowerCase()
+      const rankedUsers = (users || []).map((profile: any) => {
+        const username = String(profile.username || "").toLowerCase()
+        const displayName = String(profile.display_name || "").toLowerCase()
+        const score = (username === normalizedSearch ? 1000 : username.startsWith(normalizedSearch) ? 500 : 0)
+          + (displayName === normalizedSearch ? 400 : displayName.startsWith(normalizedSearch) ? 200 : 0)
+          + Number(profile.is_verified ? 30 : 0)
+          + Math.log10(Number(profile.followers_count || 0) + 1)
+        return { ...profile, _search_score: score }
+      }).sort((a: any, b: any) => b._search_score - a._search_score)
+      results.users = rankedUsers.slice(offset, offset + limit)
     }
 
     if (wantHashtags) {

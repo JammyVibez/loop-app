@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Hash, Search, TrendingUp, Users, X, Clock, ArrowRight, Flame, UserPlus, Zap } from "@/components/icons/lucide-compat"
+import { Hash, Search, TrendingUp, Users, X, Clock, ArrowRight, Flame, UserPlus } from "@/components/icons/lucide-compat"
 import { Header } from "@/components/header"
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav"
 import { Input } from "@/components/ui/input"
@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
-import { cn } from "@/lib/utils"
 import { Spinner } from "@/components/ui/skeletons"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 
@@ -60,6 +59,7 @@ export default function SearchLandingPage() {
   const router = useRouter()
   const { getAuthHeader } = useAuth()
   const [q, setQ] = useState("")
+  const [suggestions, setSuggestions] = useState<{ users: SuggestUser[]; circles: any[]; loops: any[]; hashtags: any[] }>({ users: [], circles: [], loops: [], hashtags: [] })
   const [users, setUsers] = useState<SuggestUser[]>([])
   const [loading, setLoading] = useState(false)
   const [trending, setTrending] = useState<string[]>([])
@@ -74,18 +74,21 @@ export default function SearchLandingPage() {
     const t = setTimeout(async () => {
       if (q.trim().length < 2) {
         setUsers([])
+        setSuggestions({ users: [], circles: [], loops: [], hashtags: [] })
         return
       }
       setLoading(true)
       try {
-        const res = await fetch(`/api/users?q=${encodeURIComponent(q.trim())}&limit=6`, {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q.trim())}&limit=6`, {
           headers: { ...getAuthHeader() },
           cache: "no-store",
         })
         const data = await res.json().catch(() => ({}))
         setUsers(data.users || data.data || [])
+        setSuggestions({ users: data.users || [], circles: data.circles || [], loops: data.loops || [], hashtags: data.hashtags || [] })
       } catch {
         setUsers([])
+        setSuggestions({ users: [], circles: [], loops: [], hashtags: [] })
       } finally {
         setLoading(false)
       }
@@ -135,9 +138,10 @@ export default function SearchLandingPage() {
     <div className="min-h-screen bg-background pb-[4.25rem] lg:pb-0">
       <Header />
       <main className="mx-auto max-w-2xl space-y-6 px-4 py-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Search</h1>
-          <p className="text-sm text-muted-foreground">Find people, loops, tags, and communities</p>
+        <div className="rounded-2xl border border-amber-500/15 bg-gradient-to-br from-amber-500/[0.09] via-card/50 to-transparent p-5 sm:p-6">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-500">Explore Loop</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight">Search</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Find people, posts, circles, and ideas worth following.</p>
         </div>
 
         <form
@@ -145,7 +149,7 @@ export default function SearchLandingPage() {
             e.preventDefault()
             go()
           }}
-          className="flex gap-2"
+          className="sticky top-16 z-30 flex gap-2 rounded-2xl border border-border/70 bg-background/90 p-2 shadow-lg shadow-black/[0.04] backdrop-blur-xl"
         >
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -153,26 +157,25 @@ export default function SearchLandingPage() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search @users, keywords, #tags…"
-              className="rounded-full pl-9"
+              className="h-11 rounded-xl border-transparent bg-muted/50 pl-9 focus-visible:border-amber-500/40 focus-visible:ring-amber-500/20"
               autoFocus
             />
           </div>
-          <Button type="submit" className="rounded-full">
+          <Button type="submit" className="h-11 rounded-xl bg-amber-500 px-5 text-black hover:bg-amber-400">
             Search
           </Button>
         </form>
 
-        {/* Live People Suggestions */}
         {q.trim().length >= 2 && (
-          <div className="rounded-2xl border border-border/60 bg-card/40">
+          <div className="rounded-2xl border border-border/60 bg-card/60 shadow-xl shadow-black/[0.05]">
             <div className="flex items-center justify-between border-b border-border/50 px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               <span className="inline-flex items-center gap-1">
-                <Users className="h-3.5 w-3.5" /> People
+                <Search className="h-3.5 w-3.5 text-amber-500" /> Smart suggestions
               </span>
               {loading ? <Spinner className="h-3.5 w-3.5" /> : null}
             </div>
-            {users.length === 0 && !loading ? (
-              <p className="px-4 py-6 text-sm text-muted-foreground">No people match yet — press Search for full results.</p>
+            {users.length === 0 && suggestions.circles.length === 0 && suggestions.loops.length === 0 && suggestions.hashtags.length === 0 && !loading ? (
+              <p className="px-4 py-6 text-sm text-muted-foreground">No matches yet — try another term or search all.</p>
             ) : (
               <ul className="divide-y divide-border/50">
                 {users.map((u) => (
@@ -197,6 +200,18 @@ export default function SearchLandingPage() {
                 ))}
               </ul>
             )}
+            {suggestions.circles.slice(0, 2).map((circle: any) => (
+              <Link key={`circle-${circle.id}`} href={`/communities/${circle.id}`} className="flex items-center gap-3 border-t border-border/50 px-4 py-3 hover:bg-muted/40">
+                <Avatar className="h-8 w-8"><AvatarImage src={circle.avatar_url || undefined} /><AvatarFallback>{(circle.name || "C").slice(0, 1)}</AvatarFallback></Avatar>
+                <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{circle.name}</p><p className="text-xs text-muted-foreground">Circle · {Number(circle.member_count || 0).toLocaleString()} members</p></div>
+              </Link>
+            ))}
+            {suggestions.loops.slice(0, 2).map((loop: any) => (
+              <Link key={`loop-${loop.id}`} href={`/loop/${loop.id}`} className="flex items-center gap-3 border-t border-border/50 px-4 py-3 hover:bg-muted/40"><Flame className="h-4 w-4 text-amber-500" /><p className="line-clamp-1 text-sm">{loop.content_text || loop.content || "Post"}</p></Link>
+            ))}
+            {suggestions.hashtags.slice(0, 2).map((tag: any) => (
+              <Link key={`tag-${tag.tag}`} href={`/hashtag/${encodeURIComponent(String(tag.tag || "").replace(/^#/, ""))}`} className="flex items-center gap-3 border-t border-border/50 px-4 py-3 hover:bg-muted/40"><Hash className="h-4 w-4 text-amber-500" /><div><p className="text-sm font-medium">#{String(tag.tag || "").replace(/^#/, "")}</p><p className="text-xs text-muted-foreground">{Number(tag.usage_count || 0).toLocaleString()} posts</p></div></Link>
+            ))}
             <button
               type="button"
               onClick={() => go()}
@@ -209,14 +224,14 @@ export default function SearchLandingPage() {
 
         {/* Category Quick Links */}
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Browse</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Quick search</h2>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat.label}
                 type="button"
                 onClick={() => go(cat.query)}
-                className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/20 p-3 text-left text-sm font-medium hover:bg-muted/50 transition-colors"
+                className="flex items-center gap-2 rounded-xl border border-border/60 bg-card/50 p-3 text-left text-sm font-medium transition-colors hover:border-amber-500/30 hover:bg-amber-500/[0.06]"
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
                   <cat.icon className="h-4 w-4 text-primary" />
@@ -270,7 +285,7 @@ export default function SearchLandingPage() {
         {trending.length > 0 && q.trim().length < 2 && (
           <section>
             <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              <TrendingUp className="h-3.5 w-3.5" /> Trending tags
+              <TrendingUp className="h-3.5 w-3.5 text-amber-500" /> Trending tags
             </h2>
             <div className="flex flex-wrap gap-2">
               {trending.map((tag) => (
@@ -278,7 +293,7 @@ export default function SearchLandingPage() {
                   key={tag}
                   type="button"
                   onClick={() => go(`#${tag}`)}
-                  className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/30 px-3 py-1.5 text-sm hover:bg-muted/60 transition-colors"
+                  className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card/50 px-3 py-1.5 text-sm transition-colors hover:border-amber-500/30 hover:bg-amber-500/[0.06]"
                 >
                   <Hash className="h-3.5 w-3.5 text-sky-500" />
                   {tag}

@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge"
 import { UserBadges } from "@/components/user-badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { VideoAvatar } from "@/components/cosmetics/video-avatar"
 import { Card, CardContent } from "@/components/ui/card"
 import { LoopCard } from "@/components/loop-card"
 import { useAuth } from "@/hooks/use-auth"
@@ -25,6 +24,9 @@ export function SearchResults({ query }: SearchResultsProps) {
   const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
   const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set())
+  const [filter, setFilter] = useState("all")
+  const [mediaResults, setMediaResults] = useState<any[]>([])
+  const [mediaLoading, setMediaLoading] = useState(false)
   const [searchResults, setSearchResults] = useState<{
     loops: any[]
     users: any[]
@@ -45,7 +47,7 @@ export function SearchResults({ query }: SearchResultsProps) {
       setLoading(true)
 
       try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&limit=24`, {
+        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&type=all&limit=24`, {
           headers: { ...getAuthHeader() },
           cache: "no-store",
         })
@@ -87,6 +89,28 @@ export function SearchResults({ query }: SearchResultsProps) {
     void performSearch()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, user?.id])
+
+  useEffect(() => {
+    if (filter !== "media" || !query.trim()) return
+    let cancelled = false
+    const loadMedia = async () => {
+      setMediaLoading(true)
+      try {
+        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&type=media&limit=24`, {
+          headers: { ...getAuthHeader() },
+          cache: "no-store",
+        })
+        const data = response.ok ? await response.json() : {}
+        if (!cancelled) setMediaResults(normalizeLoops(data.loops || data.results?.loops || []))
+      } catch {
+        if (!cancelled) setMediaResults([])
+      } finally {
+        if (!cancelled) setMediaLoading(false)
+      }
+    }
+    void loadMedia()
+    return () => { cancelled = true }
+  }, [filter, query, getAuthHeader])
 
   const handleFollow = async (userId: string) => {
     if (!user) {
@@ -144,6 +168,7 @@ export function SearchResults({ query }: SearchResultsProps) {
   }
 
   const empty =
+    filter !== "media" &&
     !searchResults.loops.length &&
     !searchResults.users.length &&
     !searchResults.hashtags.length &&
@@ -151,28 +176,17 @@ export function SearchResults({ query }: SearchResultsProps) {
     !searchResults.chains.length &&
     !searchResults.collections.length
 
-  if (empty) {
-    return (
-      <div className="rounded-2xl border border-dashed border-border/60 px-6 py-16 text-center">
-        <Search className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
-        <p className="font-medium">No results for “{query}”</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Try a username, a keyword, or a #hashtag
-        </p>
-      </div>
-    )
-  }
-
   return (
-    <Tabs defaultValue="all" className="w-full">
-      <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-4 xl:grid-cols-7">
+    <Tabs value={filter} onValueChange={setFilter} className="w-full">
+      <TabsList className="sticky top-16 z-20 grid h-auto w-full grid-cols-3 gap-1 rounded-xl border border-border/70 bg-background/90 p-1 backdrop-blur-xl sm:grid-cols-6">
         <TabsTrigger value="all">All</TabsTrigger>
-        <TabsTrigger value="users" className="gap-1">
+        <TabsTrigger value="people" className="gap-1">
           <Users className="h-3.5 w-3.5" /> People ({searchResults.users.length})
         </TabsTrigger>
-        <TabsTrigger value="loops" className="gap-1">
-          <GitBranch className="h-3.5 w-3.5" /> Loops ({searchResults.loops.length})
+        <TabsTrigger value="posts" className="gap-1">
+          <GitBranch className="h-3.5 w-3.5" /> Posts ({searchResults.loops.length})
         </TabsTrigger>
+        <TabsTrigger value="media" className="gap-1">Media</TabsTrigger>
         <TabsTrigger value="hashtags" className="gap-1">
           <Hash className="h-3.5 w-3.5" /> Tags ({searchResults.hashtags.length})
         </TabsTrigger>
@@ -188,6 +202,7 @@ export function SearchResults({ query }: SearchResultsProps) {
       </TabsList>
 
       <TabsContent value="all" className="mt-6 space-y-8">
+        {empty && <EmptySearchState query={query} />}
         {searchResults.users.length > 0 && (
           <section>
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">People</h3>
@@ -261,8 +276,8 @@ export function SearchResults({ query }: SearchResultsProps) {
         )}
       </TabsContent>
 
-      <TabsContent value="users" className="mt-6 space-y-3">
-        {searchResults.users.map((person: any) => (
+      <TabsContent value="people" className="mt-6 space-y-3">
+        {searchResults.users.length === 0 ? <EmptySearchState query={query} kind="people" /> : searchResults.users.map((person: any) => (
           <PersonRow
             key={person.id}
             person={person}
@@ -274,44 +289,59 @@ export function SearchResults({ query }: SearchResultsProps) {
         ))}
       </TabsContent>
 
-      <TabsContent value="loops" className="mt-6 space-y-4">
-        {searchResults.loops.map((loop: any) => (
+      <TabsContent value="posts" className="mt-6 space-y-4">
+        {searchResults.loops.length === 0 ? <EmptySearchState query={query} kind="posts" /> : searchResults.loops.map((loop: any) => (
           <LoopCard key={loop.id} loop={loop} />
         ))}
       </TabsContent>
 
+      <TabsContent value="media" className="mt-6 space-y-4">
+        {mediaLoading ? <div className="flex justify-center py-16 text-muted-foreground"><Spinner className="mr-2 h-5 w-5" />Searching media…</div> : mediaResults.map((loop: any) => <LoopCard key={loop.id} loop={loop} />)}
+        {!mediaLoading && !mediaResults.length && <EmptySearchState query={query} kind="media" />}
+      </TabsContent>
+
       <TabsContent value="hashtags" className="mt-6">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {searchResults.hashtags.length === 0 ? <EmptySearchState query={query} kind="hashtags" /> : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {searchResults.hashtags.map((hashtag: any) => (
             <HashtagCard key={hashtag.tag} hashtag={hashtag} formatNumber={formatNumber} />
           ))}
-        </div>
+        </div>}
       </TabsContent>
 
       <TabsContent value="circles" className="mt-6">
-        <div className="grid gap-3 sm:grid-cols-2">
+        {searchResults.circles.length === 0 ? <EmptySearchState query={query} kind="Circles" /> : <div className="grid gap-3 sm:grid-cols-2">
           {searchResults.circles.map((circle: any) => (
             <CircleCard key={circle.id} circle={circle} formatNumber={formatNumber} />
           ))}
-        </div>
+        </div>}
       </TabsContent>
 
       <TabsContent value="chains" className="mt-6">
-        <div className="grid gap-3 sm:grid-cols-2">
+        {searchResults.chains.length === 0 ? <EmptySearchState query={query} kind="chains" /> : <div className="grid gap-3 sm:grid-cols-2">
           {searchResults.chains.map((chain: any) => (
             <ChainCard key={chain.id} chain={chain} formatNumber={formatNumber} />
           ))}
-        </div>
+        </div>}
       </TabsContent>
 
       <TabsContent value="collections" className="mt-6">
-        <div className="grid gap-3 sm:grid-cols-2">
+        {searchResults.collections.length === 0 ? <EmptySearchState query={query} kind="collections" /> : <div className="grid gap-3 sm:grid-cols-2">
           {searchResults.collections.map((collection: any) => (
             <CollectionCard key={collection.id} collection={collection} />
           ))}
-        </div>
+        </div>}
       </TabsContent>
     </Tabs>
+  )
+}
+
+function EmptySearchState({ query, kind = "results" }: { query: string; kind?: string }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-border/60 px-6 py-16 text-center">
+      <Search className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
+      <p className="font-medium">No {kind} for “{query}”</p>
+      <p className="mt-1 text-sm text-muted-foreground">Try another term or explore a different filter.</p>
+    </div>
   )
 }
 

@@ -55,6 +55,40 @@ beforeEach(() => {
 })
 
 describe("universal collaborative-object search", () => {
+  it("ranks engaged Loops before applying pagination", async () => {
+    state.fixtures.loops = {
+      data: [
+        {
+          id: "newer-low-engagement",
+          author_id: creatorId,
+          visibility: "public",
+          content: "worldbuilding",
+          created_at: "2026-11-02T10:00:00Z",
+          loop_stats: [{ likes_count: 0, comments_count: 0, branches_count: 0 }],
+        },
+        {
+          id: "older-high-engagement",
+          author_id: creatorId,
+          visibility: "public",
+          content: "worldbuilding",
+          created_at: "2026-11-02T09:00:00Z",
+          loop_stats: [{ likes_count: 40, comments_count: 10, branches_count: 4 }],
+        },
+      ],
+      error: null,
+    }
+    state.fixtures.profiles = {
+      data: [{ id: creatorId, privacy_settings: { profile_visibility: "public" } }],
+      error: null,
+    }
+
+    const response = await GET(new NextRequest("https://loopapp.me/api/search?q=worldbuilding&type=loops&limit=1"))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.loops.map((loop: any) => loop.id)).toEqual(["older-high-engagement"])
+  })
+
   it("filters private Circle Loops before returning universal Search results", async () => {
     state.fixtures.loops = {
       data: [
