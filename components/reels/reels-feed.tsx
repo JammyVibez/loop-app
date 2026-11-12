@@ -544,7 +544,7 @@ export function ReelsFeed() {
               <button
                 type="button"
                 aria-label={paused ? "Play" : "Pause"}
-                className="absolute inset-0 z-10 h-full w-full cursor-default focus:outline-none"
+                className="absolute inset-0 z-10 h-full w-full cursor-default touch-manipulation select-none focus:outline-none"
                 onPointerDown={(event) => {
                   tapMovedRef.current = false
                   tapStartRef.current = { x: event.clientX, y: event.clientY }

@@ -58,7 +58,15 @@ export function ReelCommentsSheet({ reelId, open, onOpenChange, onCountChange }:
     fetch(`/api/reels/${reelId}/comments?limit=60`, { headers: { ...getAuthHeader() } })
       .then((res) => (res.ok ? res.json() : null))
       .then((json) => {
-        if (!cancelled) setComments(json?.comments || json?.data?.comments || [])
+        if (cancelled) return
+        const roots = json?.comments || json?.data?.comments || []
+        // Replies arrive nested under their parent; flatten so the drawer shows
+        // the whole conversation the same way after a refresh.
+        const flattened = (roots as any[]).flatMap((comment) => [
+          comment,
+          ...(Array.isArray(comment.replies) ? comment.replies : []),
+        ])
+        setComments(flattened)
       })
       .catch(() => undefined)
       .finally(() => {
