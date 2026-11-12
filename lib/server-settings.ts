@@ -19,6 +19,10 @@ function coerce(value: unknown): string | null {
   return null
 }
 
+export function invalidateServerSetting(key: string) {
+  cache.delete(key)
+}
+
 export async function getServerSetting(key: string): Promise<string | null> {
   const cached = cache.get(key)
   if (cached && Date.now() - cached.at < CACHE_TTL) return cached.value

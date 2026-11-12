@@ -108,7 +108,7 @@ describe("third-party media the picker and avatars load", () => {
 
   it("allows GIF provider CDNs in images and media", () => {
     // Without these the picker's GIF previews are blocked by the browser.
-    for (const host of ["media.giphy.com", "*.giphy.com", "media.tenor.com", "*.tenor.com"]) {
+    for (const host of ["media.giphy.com", "*.giphy.com", "media.tenor.com", "*.tenor.com", "static.klipy.com"]) {
       expect(pagePolicy).toContain(host)
     }
     expect(pagePolicy).toMatch(/img-src[^;]*media\.giphy\.com/)

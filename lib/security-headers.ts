@@ -67,7 +67,7 @@ export function contentSecurityPolicyFor(pathname: string, isApi: boolean): stri
   // GIF providers and the avatar fallbacks are third-party CDNs. Without them
   // in img-src the picker shows broken GIFs and users without an uploaded
   // avatar get a broken DiceBear image.
-  const gifHosts = "https://media.giphy.com https://*.giphy.com https://i.giphy.com https://media.tenor.com https://*.tenor.com https://c.tenor.com"
+  const gifHosts = "https://media.giphy.com https://*.giphy.com https://i.giphy.com https://media.tenor.com https://*.tenor.com https://c.tenor.com https://static.klipy.com https://static1.klipy.com https://*.klipy.com"
   const avatarHosts = "https://api.dicebear.com https://*.googleusercontent.com https://avatars.githubusercontent.com https://pbs.twimg.com"
 
   const directives = [

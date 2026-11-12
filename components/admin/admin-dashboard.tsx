@@ -59,6 +59,7 @@ import { MediaStoragePanel } from "@/components/admin/media-storage-panel"
 import { AdminBroadcastPanel } from "@/components/admin/admin-broadcast-panel"
 import { AdminSupportPanel } from "@/components/admin/admin-support-panel"
 import { AdminGifsPanel } from "@/components/admin/admin-gifs-panel"
+import { GifProvidersPanel } from "@/components/admin/gif-providers-panel"
 import { AdminEmojisPanel } from "@/components/admin/admin-emojis-panel"
 import { AdminFeaturedPanel } from "@/components/admin/admin-featured-panel"
 import { ContentModerationControl } from "@/components/admin/content-moderation-control"
@@ -592,7 +593,8 @@ export function AdminDashboard() {
             <AdminSupportPanel />
           </TabsContent>
 
-          <TabsContent value="gifs" className="mt-0">
+          <TabsContent value="gifs" className="mt-0 space-y-6">
+            <GifProvidersPanel />
             <AdminGifsPanel />
           </TabsContent>
           <TabsContent value="emojis" className="mt-0">

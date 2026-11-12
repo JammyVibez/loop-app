@@ -43,8 +43,10 @@ interface GifPickerProps {
   onSelect: (result: GifResult) => void
   className?: string
   maxHeightClassName?: string
-  /** Search provider filter ("all" | "giphy" | "tenor"). */
-  source?: "all" | "giphy" | "tenor"
+  /** Search provider filter ("all" | "giphy" | "tenor" | "klipy"). */
+  source?: "all" | "giphy" | "tenor" | "klipy"
+  /** Klipy serves stickers and GIFs from parallel catalogs. */
+  kind?: "gif" | "sticker"
 }
 
 /**
@@ -54,17 +56,25 @@ interface GifPickerProps {
  * Responses are cached in memory per query and previews are lazy-loaded, which
  * keeps reopening the picker instant.
  */
-export function GifPicker({ onSelect, className, maxHeightClassName = "max-h-56", source = "all" }: GifPickerProps) {
+export function GifPicker({
+  onSelect,
+  className,
+  maxHeightClassName = "max-h-56",
+  source = "all",
+  kind = "gif",
+}: GifPickerProps) {
   const [query, setQuery] = useState("")
   const [debounced, setDebounced] = useState("")
   const [results, setResults] = useState<GifResult[]>([])
   const [loading, setLoading] = useState(false)
   const [recent, setRecent] = useState<GifResult[]>([])
+  const [attribution, setAttribution] = useState<string | null>(null)
   const requestId = useRef(0)
+  const isSticker = kind === "sticker"
 
   useEffect(() => {
-    setRecent(readRecent())
-  }, [])
+    setRecent(isSticker ? [] : readRecent())
+  }, [isSticker])
 
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query.trim()), 350)
@@ -72,7 +82,7 @@ export function GifPicker({ onSelect, className, maxHeightClassName = "max-h-56"
   }, [query])
 
   useEffect(() => {
-    const key = `${source}:${debounced}`
+    const key = `${kind}:${source}:${debounced}`
     const cached = cache.get(key)
     if (cached) {
       setResults(cached)
@@ -85,6 +95,7 @@ export function GifPicker({ onSelect, className, maxHeightClassName = "max-h-56"
     const params = new URLSearchParams({ limit: "24" })
     if (debounced) params.set("q", debounced)
     if (source !== "all") params.set("source", source)
+    if (isSticker) params.set("type", "sticker")
 
     fetch(`/api/gifs?${params.toString()}`)
       .then((res) => (res.ok ? res.json() : null))
@@ -95,6 +106,7 @@ export function GifPicker({ onSelect, className, maxHeightClassName = "max-h-56"
           .filter((item: GifResult | null): item is GifResult => Boolean(item))
         cache.set(key, list)
         setResults(list)
+        setAttribution(typeof data?.attribution === "string" ? data.attribution : null)
       })
       .catch(() => {
         if (current === requestId.current) setResults([])
@@ -102,7 +114,7 @@ export function GifPicker({ onSelect, className, maxHeightClassName = "max-h-56"
       .finally(() => {
         if (current === requestId.current) setLoading(false)
       })
-  }, [debounced, source])
+  }, [debounced, source, isSticker, kind])
 
   const remember = useCallback((gif: GifResult) => {
     const next = [gif, ...readRecent().filter((item) => item.url !== gif.url)].slice(0, MAX_RECENT)
@@ -120,14 +132,14 @@ export function GifPicker({ onSelect, className, maxHeightClassName = "max-h-56"
   }
 
   const heading = useMemo(() => (debounced ? "Results" : "Trending"), [debounced])
-  const showRecent = !debounced && recent.length > 0
+  const showRecent = !isSticker && !debounced && recent.length > 0
 
   return (
     <div className={cn("space-y-2.5", className)}>
       <div className="relative">
         <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
         <Input
-          placeholder="Search GIFs…"
+          placeholder={isSticker ? "Search stickers…" : "Search GIFs…"}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           className="h-8 rounded-lg border-border bg-muted pl-8 text-xs"
@@ -165,7 +177,13 @@ export function GifPicker({ onSelect, className, maxHeightClassName = "max-h-56"
           </div>
         ) : results.length === 0 ? (
           <p className="py-8 text-center text-xs text-muted-foreground">
-            {debounced ? "No GIFs match that search." : "No GIFs available yet."}
+            {isSticker
+              ? debounced
+                ? "No stickers match that search."
+                : "No stickers available yet."
+              : debounced
+                ? "No GIFs match that search."
+                : "No GIFs available yet."}
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-2">
@@ -181,7 +199,10 @@ export function GifPicker({ onSelect, className, maxHeightClassName = "max-h-56"
                 <img
                   src={gif.preview}
                   alt={gif.title}
-                  className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                  className={cn(
+                    "h-full w-full transition-transform group-hover:scale-105",
+                    isSticker ? "object-contain p-1" : "object-cover",
+                  )}
                   loading="lazy"
                   decoding="async"
                 />
@@ -193,6 +214,11 @@ export function GifPicker({ onSelect, className, maxHeightClassName = "max-h-56"
           </div>
         )}
       </div>
+      {attribution && (
+        <p className="text-right text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+          Powered by {attribution}
+        </p>
+      )}
     </div>
   )
 }
