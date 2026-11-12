@@ -39,7 +39,9 @@ export async function GET(request: NextRequest) {
     // Relative URLs are already same-origin (e.g. /media/uploads/...); sending
     // them through fetch() throws "Failed to parse URL".
     if (imageUrl.startsWith("/")) {
-      return NextResponse.redirect(new URL(imageUrl, request.url), 302)
+      // Keep the Location relative: request.url is the internal upstream
+      // origin (127.0.0.1:3000), which browsers cannot reach.
+      return new NextResponse(null, { status: 302, headers: { Location: imageUrl } })
     }
 
     const isDataUri = imageUrl.startsWith("data:")
