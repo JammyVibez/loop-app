@@ -18,7 +18,7 @@ import {
   randomName,
   tmpRoot,
 } from "./storage"
-import { extractPoster, processImage, renderSvgThumbnail, isFfmpegAvailable } from "./processors"
+import { extractPoster, fastFinalizeVideo, processImage, renderSvgThumbnail, isFfmpegAvailable } from "./processors"
 import { sanitizeSvg } from "./sanitize-svg"
 import { findMediaReferences } from "./references"
 import { kickMediaQueue } from "./queue"
@@ -766,9 +766,44 @@ export async function saveUpload(input: UploadInput): Promise<UploadResult> {
           variants.poster = posterUrl
         }
       }
+    } else if (media.family === "video") {
+      // H.264/AAC phone exports are remuxed in place: no re-encode, no queue,
+      // and the upload is publishable before the user can switch tabs.
+      const fast = await fastFinalizeVideo(workingPath, outDir, baseName).catch(() => null)
+      if (fast) {
+        const stat = await fs.stat(fast.mainPath)
+        finalSize = stat.size
+        width = fast.width || null
+        height = fast.height || null
+        duration = fast.duration || null
+        format = "mp4"
+        fileType = "video/mp4"
+        if (fast.posterPath) {
+          posterUrl = publicFor(fast.posterPath)
+          thumbUrl = posterUrl
+          variants.poster = posterUrl
+        }
+        await fs.rm(workingPath, { force: true }).catch(() => {})
+      } else {
+        // HEVC/VP9/AV1 and unusual containers still need the real transcode.
+        await fs.mkdir(outDir, { recursive: true })
+        const sourceDir = path.join(tmpRoot(), "sources")
+        await fs.mkdir(sourceDir, { recursive: true })
+        const sourceName = `${randomName()}.source`
+        const sourceAbs = path.join(sourceDir, sourceName)
+        await fs.rename(workingPath, sourceAbs).catch(async () => {
+          await fs.copyFile(workingPath, sourceAbs)
+          await fs.rm(workingPath, { force: true }).catch(() => {})
+        })
+        sourcePath = path.relative(mediaRoot(), sourceAbs).split(path.sep).join("/")
+        status = "processing"
+        format = "mp4"
+        fileType = "video/mp4"
+        posterUrl = publicUrl(path.join(path.dirname(storagePath), `${baseName}-poster.jpg`))
+        thumbUrl = posterUrl
+      }
     } else {
-      // Video / audio: keep the source for the background job and return the
-      // stable public URLs it will fill in.
+      // Audio: keep the source for the background normalisation job.
       await fs.mkdir(outDir, { recursive: true })
       const sourceDir = path.join(tmpRoot(), "sources")
       await fs.mkdir(sourceDir, { recursive: true })
@@ -780,10 +815,8 @@ export async function saveUpload(input: UploadInput): Promise<UploadResult> {
       })
       sourcePath = path.relative(mediaRoot(), sourceAbs).split(path.sep).join("/")
       status = "processing"
-      format = media.family === "video" ? "mp4" : "m4a"
-      fileType = media.family === "video" ? "video/mp4" : "audio/mp4"
-      posterUrl = media.family === "video" ? publicUrl(path.join(path.dirname(storagePath), `${baseName}-poster.jpg`)) : null
-      thumbUrl = posterUrl
+      format = "m4a"
+      fileType = "audio/mp4"
     }
   } catch (error) {
     await fs.rm(workingPath, { force: true }).catch(() => {})

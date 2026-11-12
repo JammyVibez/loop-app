@@ -125,7 +125,9 @@ async function writeVariant(
     .resize({ width: maxEdge, height: maxEdge, fit: "inside", withoutEnlargement: true })
   // `withMetadata` is intentionally never called: dropping metadata is what
   // strips EXIF, GPS and camera serials.
-  const info = await output.webp({ quality: WEBP_QUALITY, effort: 4 }).toFile(outFile)
+  // effort 2 is visually indistinguishable at these sizes for user uploads and
+  // encodes several times faster than the old effort 4.
+  const info = await output.webp({ quality: WEBP_QUALITY, effort: 2 }).toFile(outFile)
   return { label: String(maxEdge), path: outFile, width: info.width, height: info.height, bytes: info.size }
 }
 
@@ -230,8 +232,8 @@ export async function processImage(options: ImageProcessOptions): Promise<Proces
     .resize({ width: IMAGE_MAX_EDGE, height: IMAGE_MAX_EDGE, fit: "inside", withoutEnlargement: true })
 
   const mainInfo = keepPng
-    ? await base.png({ compressionLevel: 9, palette: false }).toFile(mainAbs)
-    : await base.webp({ quality: WEBP_QUALITY, effort: 4 }).toFile(mainAbs)
+    ? await base.png({ compressionLevel: 6, palette: false }).toFile(mainAbs)
+    : await base.webp({ quality: WEBP_QUALITY, effort: 2 }).toFile(mainAbs)
 
   const variants: ImageVariant[] = []
   const midSmall: { edge: number; suffix: string }[] = [
@@ -239,21 +241,27 @@ export async function processImage(options: ImageProcessOptions): Promise<Proces
     { edge: IMAGE_SMALL_EDGE, suffix: "-480" },
   ]
 
-  for (const { edge, suffix } of midSmall) {
-    // Generated even for sources smaller than the target: `withoutEnlargement`
-    // keeps the pixels, and the file existing means a responsive URL never
-    // 404s for small uploads.
-    const file = path.join(options.outDir, `${targetBase}${suffix}.webp`)
-    try {
-      const variant = await writeVariant(sharp, options.inputPath, file, edge)
-      if (variant) variants.push({ ...variant, label: String(edge) })
-    } catch {
-      /* skip this rendition */
-    }
-  }
-
+  // Renditions are independent sharp jobs. Running them concurrently cuts the
+  // synchronous part of an image upload from ~3 encodes deep to one encode.
   const thumbAbs = path.join(options.outDir, `${targetBase}-thumb.webp`)
-  const thumb = await writeVariant(sharp, options.inputPath, thumbAbs, THUMB_EDGE)
+  const [midVariants, thumb] = await Promise.all([
+    Promise.all(
+      midSmall.map(async ({ edge, suffix }) => {
+        // Generated even for sources smaller than the target: `withoutEnlargement`
+        // keeps the pixels, and the file existing means a responsive URL never
+        // 404s for small uploads.
+        const file = path.join(options.outDir, `${targetBase}${suffix}.webp`)
+        try {
+          const variant = await writeVariant(sharp, options.inputPath, file, edge)
+          return variant ? { ...variant, label: String(edge) } : null
+        } catch {
+          return null
+        }
+      }),
+    ),
+    writeVariant(sharp, options.inputPath, thumbAbs, THUMB_EDGE).catch(() => null),
+  ])
+  for (const variant of midVariants) if (variant) variants.push(variant)
   variants.push({ ...(thumb || { label: "thumb", path: thumbAbs, width: 0, height: 0, bytes: 0 }), label: "thumb" })
 
   return {
@@ -465,6 +473,55 @@ export type AudioResult = {
   width: number
   height: number
   ext: string
+}
+
+/**
+ * Make a web-compatible video playable without re-encoding.
+ *
+ * Phone exports are overwhelmingly H.264/AAC. Remuxing those streams into an
+ * MP4 (or AAC-encoding only a non-MP3 audio track) takes a second or two, so
+ * the upload can return `ready` immediately instead of holding the composer
+ * while the background queue re-encodes the whole file. Returns null when the
+ * video codec is not H.264 (HEVC, VP9, AV1) so the caller falls back to the
+ * normal transcode queue.
+ */
+export async function fastFinalizeVideo(
+  inputPath: string,
+  outDir: string,
+  base: string,
+): Promise<VideoResult | null> {
+  if (!(await isFfmpegAvailable())) return null
+  const streams = await probeStreams(inputPath)
+  if (!streams || streams.video !== "h264") return null
+
+  await fs.mkdir(outDir, { recursive: true })
+  const outPath = path.join(outDir, `${base}.mp4`)
+  const audioCopyable = !streams.audio || ["aac", "mp3"].includes(streams.audio)
+  const args = ["-y", "-i", inputPath, "-map", "0:v:0", "-map", "0:a:0?", "-c:v", "copy"]
+  if (audioCopyable) {
+    args.push("-c:a", "copy")
+  } else {
+    // A codec Chrome cannot decode (PCM, AMR, …) only needs its audio
+    // re-encoded; the video stream is still copied untouched.
+    args.push("-c:a", "aac", "-b:a", "128k", "-ac", "2")
+  }
+  args.push("-movflags", "+faststart", outPath)
+
+  const remux = await run(FFMPEG_BIN, args, 2 * 60 * 1000)
+  if (remux.code !== 0) {
+    await fs.rm(outPath, { force: true }).catch(() => {})
+    return null
+  }
+
+  const poster = await extractPoster(outPath, outDir, base).catch(() => null)
+  const probe = await probeMedia(outPath)
+  return {
+    mainPath: outPath,
+    width: probe?.width || 0,
+    height: probe?.height || 0,
+    duration: probe?.duration || 0,
+    posterPath: poster,
+  }
 }
 
 /** Normalise audio to AAC/M4A at a sane bitrate (loudness-normalised). */
