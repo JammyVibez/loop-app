@@ -221,6 +221,16 @@ export async function GET(request: NextRequest) {
     // Private/followers-only profiles' reels stay out of public browse
     // surfaces unless the viewer follows the author (or is the author).
     const following = await getFollowingIds(supabase, user?.id || null)
+
+    // The feed's Follow buttons need to know the current relationship without
+    // one request per card.
+    processed = processed.map((reel) => ({
+      ...reel,
+      is_following: Boolean(
+        user && (reel.author_id === user.id || following.has(String(reel.author_id))),
+      ),
+    }))
+
     processed = await filterPrivateContent(supabase, processed, user?.id || null, following)
 
     // Fallback: surface video loops so the feed is never empty

@@ -16,6 +16,11 @@ import { ScreenshotDetector } from "@/components/media-protection"
 export function AppChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isMessagesPage = pathname === "/messages" || pathname.startsWith("/messages/")
+  // The reels feed is edge-to-edge video: no page padding and no bottom nav
+  // sitting on top of captions. Nav comes back on every other route.
+  const isImmersivePage = ["/reels", "/trees"].some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  )
   const isLegalDocumentPage = pathname === "/terms" || pathname === "/privacy"
   const isStandalonePage = [
     "/login",
@@ -32,11 +37,11 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <div className={`loop-app-content flex-1 min-w-0 ${isMessagesPage || isStandalonePage ? "pb-0" : "pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0"} ${isLegalDocumentPage ? "legal-page-shell" : ""}`}>
-        {!isMessagesPage && !isStandalonePage && <AppUpdateBanner />}
+      <div className={`loop-app-content flex-1 min-w-0 ${isMessagesPage || isStandalonePage || isImmersivePage ? "pb-0" : "pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0"} ${isLegalDocumentPage ? "legal-page-shell" : ""}`}>
+        {!isMessagesPage && !isStandalonePage && !isImmersivePage && <AppUpdateBanner />}
         {children}
       </div>
-      {!isMessagesPage && !isStandalonePage && <MobileBottomNav />}
+      {!isMessagesPage && !isStandalonePage && !isImmersivePage && <MobileBottomNav />}
       <ScreenshotDetector />
     </>
   )
