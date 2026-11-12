@@ -245,7 +245,9 @@ export function ReelsFeed() {
   }, [paused, active])
 
   useEffect(() => {
-    if (!active) return
+    // The interactions endpoint is authenticated; don't fire guest requests
+    // that can only fail.
+    if (!active || !user) return
     if (seenViewsRef.current.has(active.id)) return
     seenViewsRef.current.add(active.id)
     void fetch(`/api/reels/${active.id}/interactions`, {
@@ -253,7 +255,7 @@ export function ReelsFeed() {
       headers: { "Content-Type": "application/json", ...getAuthHeader() },
       body: JSON.stringify({ type: "view", action: "add" }),
     }).catch(() => undefined)
-  }, [active, getAuthHeader])
+  }, [active, getAuthHeader, user])
 
   /* ------------------------------------------------------------- actions */
 

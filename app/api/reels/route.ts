@@ -161,18 +161,23 @@ export async function GET(request: NextRequest) {
           },
         })
       }
-      case "following":
-        if (user) {
-          const { data: following } = await supabase
-            .from("follows")
-            .select("following_id")
-            .eq("follower_id", user.id)
-          const ids = (following || []).map((f) => f.following_id)
-          if (ids.length) query = query.in("author_id", ids)
-          else query = query.eq("author_id", "00000000-0000-0000-0000-000000000000")
+      case "following": {
+        if (!user) {
+          return NextResponse.json({
+            success: true,
+            data: { reels: [], page, limit, has_more: false },
+          })
         }
+        const { data: following } = await supabase
+          .from("follows")
+          .select("following_id")
+          .eq("follower_id", user.id)
+        const ids = (following || []).map((f) => f.following_id)
+        if (ids.length) query = query.in("author_id", ids)
+        else query = query.eq("author_id", "00000000-0000-0000-0000-000000000000")
         query = query.order("created_at", { ascending: false })
         break
+      }
       case "mine":
         if (!user) {
           return NextResponse.json({ error: "Sign in to view your reels" }, { status: 401 })
