@@ -490,6 +490,7 @@ export function ReelsFeed() {
           const shouldMount = Math.abs(index - activeIndex) <= 1
           const mediaType = reel.content_type || reel.type || "video"
           const isImage = mediaType === "image"
+          const isStill = mediaType === "audio" || mediaType === "text"
           const author = reel.author
 
           return (
@@ -499,7 +500,7 @@ export function ReelsFeed() {
               data-index={index}
               className="relative h-[100dvh] w-full snap-start snap-always overflow-hidden bg-black"
             >
-              {!shouldMount || isImage ? (
+              {!shouldMount || isImage || isStill ? (
                 reel.thumbnail_url || isImage ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -509,7 +510,9 @@ export function ReelsFeed() {
                     draggable={false}
                   />
                 ) : (
-                  <div className="h-full w-full bg-black" />
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-neutral-900 via-black to-neutral-950">
+                    <Music2 className="h-16 w-16 text-white/20" />
+                  </div>
                 )
               ) : (
                 <video
