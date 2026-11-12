@@ -31,19 +31,28 @@ const REBRANCH_ATTRIBUTION_RE = /\n?— Rebranched from @[a-zA-Z0-9_]{3,30}\s*$/
 /**
  * Checks if a URL or alt tag corresponds to a sticker or GIF asset.
  */
-function isStickerOrGif(url: string, alt: string = ""): boolean {
+function mediaKind(url: string, alt: string = ""): "emoji" | "sticker" | "gif" | "image" {
   const lowerUrl = url.toLowerCase()
   const lowerAlt = alt.toLowerCase()
-  return (
+  if (lowerAlt.includes("emoji")) return "emoji"
+  if (
     lowerAlt.includes("sticker") ||
-    lowerAlt.includes("gif") ||
-    lowerUrl.includes("dicebear.com") ||
-    lowerUrl.includes("tenor.com") ||
-    lowerUrl.includes("giphy.com") ||
     lowerUrl.includes("stickers/") ||
+    lowerUrl.includes("dicebear.com") ||
+    (lowerUrl.endsWith(".svg") && !lowerUrl.includes("giphy"))
+  ) {
+    return "sticker"
+  }
+  if (
+    lowerAlt.includes("gif") ||
     lowerUrl.endsWith(".gif") ||
-    lowerUrl.endsWith(".svg")
-  )
+    lowerUrl.includes("giphy.com") ||
+    lowerUrl.includes("tenor.com") ||
+    lowerUrl.includes("klipy.com")
+  ) {
+    return "gif"
+  }
+  return "image"
 }
 
 /**
@@ -71,7 +80,7 @@ export function RichContent({
   // GIF hosts serve their own optimized CDN assets; proxying them would break
   // caching and stream every animation through our server.
   const isCdnGif = (src: string) =>
-    /(^|\/\/)([a-z0-9-]+\.)*(giphy\.com|tenor\.com)\//i.test(src) || /\.gif($|\?)/i.test(src)
+    /(^|\/\/)([a-z0-9-]+\.)*(giphy\.com|tenor\.com|klipy\.com)\//i.test(src) || /\.gif($|\?)/i.test(src)
 
   // Route remote images through the image-proxy so browsers don't fetch unknown hosts directly.
   const proxied = (src?: string | null): string | undefined => {
@@ -115,10 +124,9 @@ export function RichContent({
           if (imgMatch) {
             const alt = imgMatch[1] || ""
             const url = imgMatch[2]
-            const isSticker = isStickerOrGif(url, alt)
-            const isCustomEmoji = alt.toLowerCase().includes("emoji")
+            const kind = mediaKind(url, alt)
 
-            if (isCustomEmoji) {
+            if (kind === "emoji") {
               return (
                 <span key={`${i}-${part}`} className="inline-block mx-0.5 align-middle">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -132,27 +140,43 @@ export function RichContent({
               )
             }
 
-            if (isSticker) {
+            if (kind === "sticker") {
               return (
                 <span key={`${i}-${part}`} className="inline-block my-1 align-middle p-0.5">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={proxied(url)}
                     alt={alt || "Sticker"}
-                    className="h-20 w-20 sm:h-24 sm:w-24 object-contain transition-transform hover:scale-110 drop-shadow-md select-none"
+                    className="h-20 w-20 select-none object-contain drop-shadow-md transition-transform hover:scale-110 sm:h-24 sm:w-24"
                     loading="lazy"
+                    decoding="async"
+                  />
+                </span>
+              )
+            }
+
+            if (kind === "gif") {
+              return (
+                <span key={`${i}-${part}`} className="my-2 block max-w-sm overflow-hidden rounded-xl border border-white/10 bg-black/20">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={proxied(url)}
+                    alt={alt || "GIF"}
+                    className="max-h-56 w-auto max-w-full rounded-xl object-contain"
+                    loading="lazy"
+                    decoding="async"
                   />
                 </span>
               )
             }
 
             return (
-              <span key={`${i}-${part}`} className="block my-2 max-w-sm rounded-xl overflow-hidden border border-white/10">
+              <span key={`${i}-${part}`} className="my-2 block max-w-sm overflow-hidden rounded-xl border border-white/10">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={proxied(url)}
                   alt={alt || "Image"}
-                  className="max-h-60 w-auto object-contain rounded-xl"
+                  className="max-h-60 w-auto rounded-xl object-contain"
                   loading="lazy"
                 />
               </span>
@@ -195,15 +219,21 @@ export function RichContent({
             const rawUrl = part
             const fullUrl = rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`
 
-            // If the URL itself is a sticker or GIF image, render inline image and skip preview card!
-            if (isStickerOrGif(fullUrl)) {
+            // If the URL itself is a sticker or GIF image, render inline media
+            // and skip the link preview card.
+            const bareKind = mediaKind(fullUrl)
+            if (bareKind === "sticker" || bareKind === "gif") {
               return (
-                <span key={`${i}-${part}`} className="inline-block my-1 align-middle p-0.5">
+                <span key={`${i}-${part}`} className={bareKind === "gif" ? "my-1 block" : "my-1 inline-block align-middle p-0.5"}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={proxied(fullUrl)}
-                    alt="Sticker"
-                    className="h-20 w-20 sm:h-24 sm:w-24 object-contain transition-transform hover:scale-110 drop-shadow-md select-none"
+                    alt={bareKind === "gif" ? "GIF" : "Sticker"}
+                    className={
+                      bareKind === "gif"
+                        ? "max-h-56 w-auto max-w-full rounded-xl border border-white/10 object-contain"
+                        : "h-20 w-20 select-none object-contain drop-shadow-md transition-transform hover:scale-110 sm:h-24 sm:w-24"
+                    }
                     loading="lazy"
                   />
                 </span>

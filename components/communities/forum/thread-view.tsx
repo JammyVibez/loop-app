@@ -1,8 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState, type TouchEvent as ReactTouchEvent } from "react"
+import { Fragment, useCallback, useEffect, useRef, useState, type TouchEvent as ReactTouchEvent } from "react"
 import { AnimatedEmoji } from "@/components/emoji/animated-emoji"
-import { MediaEmojiPicker } from "@/components/content/media-emoji-picker"
+import { CommentMediaPicker } from "@/components/comments/comment-media-picker"
 import { EmojiPicker } from "@/components/emoji/emoji-picker"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -505,6 +505,8 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
   const [sending, setSending] = useState(false)
   const [replyTarget, setReplyTarget] = useState<{ id: string; name: string; content: string } | null>(null)
   const [replyMedia, setReplyMedia] = useState<{ url: string; type: string } | null>(null)
+  const [replyGif, setReplyGif] = useState<{ url: string; kind: "GIF" | "Sticker" } | null>(null)
+  const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set())
   const [uploadingReplyMedia, setUploadingReplyMedia] = useState(false)
   const [voting, setVoting] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -587,7 +589,7 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
   }
 
   const send = async () => {
-    const content = replyText.trim()
+    const content = `${replyText.trim()}${replyGif ? ` ![${replyGif.kind}](${replyGif.url}) ` : ""}`.trim()
     if ((!content && !replyMedia) || sending || !data) return
     if (!user) {
       router.push(`/auth?returnTo=/communities/${communityId}/posts/${threadId}`)
@@ -610,6 +612,7 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
       setReplyText("")
       setReplyTarget(null)
       setReplyMedia(null)
+      setReplyGif(null)
       setData((prev) =>
         prev
           ? {
@@ -1021,39 +1024,82 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
           </div>
         ) : (
           <ul className="min-w-0">
-            {replies.map((r, i) => {
-              const prev = replies[i - 1]
-              const next = replies[i + 1]
-              const sameAuthor = (a?: Reply | null, b?: Reply | null) =>
-                Boolean(a?.author?.id && b?.author?.id && a.author.id === b.author.id)
-              // Discord's rule: same author, no reply-break, consecutive.
-              const compact =
-                !r.parent && sameAuthor(prev, r) && !prev?.parent &&
-                new Date(r.created_at).getTime() - new Date(prev!.created_at).getTime() < 7 * 60_000
-              const lastOfGroup = !sameAuthor(r, next) || Boolean(next?.parent)
-              return (
-                <MessageRow
-                  key={r.id}
-                  reply={r}
-                  compact={compact}
-                  last={lastOfGroup}
-                  canInteract={Boolean(viewer.is_member && !thread.locked)}
-                  communityId={communityId}
-                  onReply={(target) => {
-                    setReplyTarget({
-                      id: target.id,
-                      name: target.author?.display_name || target.author?.username || "Member",
-                      content: target.content,
-                    })
-                    inputRef.current?.focus()
-                  }}
-                  onReact={react}
-                  onEdit={editReply}
-                  onDelete={(target) => void deleteReply(target)}
-                  onJump={jumpToParent}
-                />
-              )
-            })}
+            {replies
+              .filter((reply) => !reply.parent)
+              .map((r) => {
+                const children = replies.filter((child) => child.parent?.id === r.id)
+                const isExpanded = expandedThreads.has(r.id)
+                return (
+                  <Fragment key={r.id}>
+                    <MessageRow
+                      reply={r}
+                      compact={false}
+                      last={children.length === 0}
+                      canInteract={Boolean(viewer.is_member && !thread.locked)}
+                      communityId={communityId}
+                      onReply={(target) => {
+                        setReplyTarget({
+                          id: target.id,
+                          name: target.author?.display_name || target.author?.username || "Member",
+                          content: target.content,
+                        })
+                        inputRef.current?.focus()
+                      }}
+                      onReact={react}
+                      onEdit={editReply}
+                      onDelete={(target) => void deleteReply(target)}
+                      onJump={jumpToParent}
+                    />
+
+                    {children.length > 0 && (
+                      <li className="ml-9 border-l border-border/60 pb-2 pl-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedThreads((current) => {
+                              const next = new Set(current)
+                              if (next.has(r.id)) next.delete(r.id)
+                              else next.add(r.id)
+                              return next
+                            })
+                          }
+                          className="rounded-full px-2 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10"
+                        >
+                          {isExpanded
+                            ? "Hide replies"
+                            : `View ${children.length} ${children.length === 1 ? "reply" : "replies"}`}
+                        </button>
+                        {isExpanded && (
+                          <ul className="mt-1 min-w-0">
+                            {children.map((child) => (
+                              <MessageRow
+                                key={child.id}
+                                reply={child}
+                                compact
+                                last
+                                canInteract={Boolean(viewer.is_member && !thread.locked)}
+                                communityId={communityId}
+                                onReply={(target) => {
+                                  setReplyTarget({
+                                    id: target.id,
+                                    name: target.author?.display_name || target.author?.username || "Member",
+                                    content: target.content,
+                                  })
+                                  inputRef.current?.focus()
+                                }}
+                                onReact={react}
+                                onEdit={editReply}
+                                onDelete={(target) => void deleteReply(target)}
+                                onJump={jumpToParent}
+                              />
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    )}
+                  </Fragment>
+                )
+              })}
           </ul>
         )}
       </section>
@@ -1088,6 +1134,21 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
               </button>
             </div>
           )}
+          {replyGif && (
+            <div className="mb-1.5 flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-2 py-1.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={replyGif.url} alt={replyGif.kind} className="h-10 w-10 rounded-lg object-contain" />
+              <span className="flex-1 text-[11px] text-muted-foreground">{replyGif.kind} ready to send.</span>
+              <button
+                type="button"
+                onClick={() => setReplyGif(null)}
+                aria-label="Remove GIF"
+                className="rounded-md p-1 hover:bg-muted"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
           {thread.locked ? (
             <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-muted/40 px-4 py-3 text-xs font-medium text-muted-foreground">
               <Lock className="h-3.5 w-3.5" /> This thread is locked — new replies are closed.
@@ -1113,7 +1174,12 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
                   }}
                 />
               </label>
-              <MediaEmojiPicker onSelectEmoji={(emoji) => setReplyText((prev) => prev + emoji)} />
+              <CommentMediaPicker
+                onSelectEmoji={(emoji) => setReplyText((prev) => prev + emoji)}
+                onSelectGif={(url) => setReplyGif({ url, kind: "GIF" })}
+                onSelectSticker={(url) => setReplyGif({ url, kind: "Sticker" })}
+                align="start"
+              />
               <Textarea
                 ref={inputRef}
                 value={replyText}
@@ -1128,7 +1194,7 @@ export function ForumThread({ communityId, threadId }: { communityId: string; th
                 rows={2}
                 className="min-h-11 flex-1 resize-none rounded-xl"
               />
-              <Button onClick={send} disabled={sending || (!replyText.trim() && !replyMedia)} className="h-11 rounded-xl px-4">
+              <Button onClick={send} disabled={sending || (!replyText.trim() && !replyMedia && !replyGif)} className="h-11 rounded-xl px-4">
                 {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>

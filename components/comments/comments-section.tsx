@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { EmptyState } from "@/components/ui/empty-state"
 import { MentionTextarea } from "@/components/mentions/mention-textarea"
 import { RichContent } from "@/components/content/rich-content"
-import { MediaEmojiPicker } from "@/components/content/media-emoji-picker"
+import { CommentMediaPicker } from "@/components/comments/comment-media-picker"
 import { FreshnessTimestamp } from "@/components/ui/freshness-timestamp"
 import { createClient } from "@/lib/supabase"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
@@ -705,7 +705,11 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
                       onClick={() => openFilePicker(comment.id)}
                       busy={uploadingFor === comment.id}
                     />
-                    <MediaEmojiPicker onSelectEmoji={(emoji) => setReplyContent((prev) => prev + emoji)} />
+                    <CommentMediaPicker
+                      onSelectEmoji={(emoji) => setReplyContent((prev) => prev + emoji)}
+                      onSelectGif={(url) => setReplyContent((prev) => prev + ` ![GIF](${url}) `)}
+                      onSelectSticker={(url) => setReplyContent((prev) => prev + ` ![Sticker](${url}) `)}
+                    />
                   </div>
                 </div>
                 <AttachmentChips
@@ -836,10 +840,10 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-0.5">
                   <AttachButton onClick={() => openFilePicker("new")} busy={uploadingFor === "new"} />
-                  <MediaEmojiPicker
+                  <CommentMediaPicker
                     onSelectEmoji={(emoji) => setNewComment((prev) => prev + emoji)}
                     onSelectGif={(url) => setNewComment((prev) => prev + ` ![GIF](${url}) `)}
-                    isPro={Boolean((user as any)?.is_premium)}
+                    onSelectSticker={(url) => setNewComment((prev) => prev + ` ![Sticker](${url}) `)}
                   />
                 </div>
                 <Button
@@ -924,7 +928,11 @@ export function CommentsSection({ loopId, commentsDisabled }: { loopId: string; 
                   />
                   <div className="absolute right-2 bottom-2 flex items-center gap-0.5">
                     <AttachButton onClick={() => openFilePicker(threadRoot.id)} busy={uploadingFor === threadRoot.id} />
-                    <MediaEmojiPicker onSelectEmoji={(emoji) => setReplyContent((prev) => prev + emoji)} />
+                    <CommentMediaPicker
+                      onSelectEmoji={(emoji) => setReplyContent((prev) => prev + emoji)}
+                      onSelectGif={(url) => setReplyContent((prev) => prev + ` ![GIF](${url}) `)}
+                      onSelectSticker={(url) => setReplyContent((prev) => prev + ` ![Sticker](${url}) `)}
+                    />
                   </div>
                 </div>
                 <div className="flex justify-end gap-1.5">
