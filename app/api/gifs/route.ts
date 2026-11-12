@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
 
     // Admin-curated GIFs first (always fresh from the DB). Stickers come from
     // the provider catalog, never the curated GIF library.
-    if (kind === "gif") {
+    if (kind === "gif" && source === "all") {
       try {
         const supabase = createServerClient()
         const { data: curated, error } = await supabase
@@ -245,7 +245,7 @@ export async function GET(req: NextRequest) {
 
     // If no results at all, fall back to the curated library so the GIF picker
     // is never empty (it's already seeded on first deploy).
-    if (!results.length && kind === "gif") {
+    if (!results.length && kind === "gif" && source === "all") {
       try {
         const supabase = createServerClient()
         const { data: curated, error } = await supabase
